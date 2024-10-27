@@ -1,0 +1,17 @@
+{
+  "name": "@paperarium/client",
+  "version": "0.0.1",
+  "description": "The frontend UI and engine for the Paperarium platform.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "pnpm run --filter=ui dev",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "pnpm@8.9.0+sha256.8f5264ad1d100da11a6add6bb8a94c6f1e913f9e9261b2a551fabefad2ec0fec"
+}
