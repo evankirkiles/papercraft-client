@@ -1,4 +1,6 @@
 import type { MetaFunction } from "@remix-run/node";
+import { greet } from "@paperarium/engine";
+import { useEffect } from "react";
 
 export const meta: MetaFunction = () => {
   return [
@@ -8,6 +10,10 @@ export const meta: MetaFunction = () => {
 };
 
 export default function Index() {
+  useEffect(() => {
+    greet();
+  }, []);
+
   return (
     <div>
       <div>

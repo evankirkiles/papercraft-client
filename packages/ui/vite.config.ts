@@ -1,6 +1,8 @@
 import { vitePlugin as remix } from "@remix-run/dev";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
+import wasm from "vite-plugin-wasm";
+import topLevelAwait from "vite-plugin-top-level-await";
 
 declare module "@remix-run/node" {
   interface Future {
@@ -20,5 +22,7 @@ export default defineConfig({
       },
     }),
     tsconfigPaths(),
+    wasm(),
+    topLevelAwait(),
   ],
 });

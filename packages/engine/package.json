@@ -1,0 +1,21 @@
+{
+  "name": "@paperarium/engine",
+  "version": "0.0.1",
+  "description": "The actual app portion of Paperarium.",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "build": "wasm-pack build --out-name index",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "pnpm@8.9.0+sha256.8f5264ad1d100da11a6add6bb8a94c6f1e913f9e9261b2a551fabefad2ec0fec",
+  "devDependencies": {
+    "wasm-pack": "^0.13.0"
+  }
+}
