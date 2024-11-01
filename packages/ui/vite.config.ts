@@ -11,6 +11,7 @@ declare module "@remix-run/node" {
 }
 
 export default defineConfig({
+  assetsInclude: ["**/*.wasm"],
   plugins: [
     remix({
       future: {
@@ -22,7 +23,5 @@ export default defineConfig({
       },
     }),
     tsconfigPaths(),
-    wasm(),
-    topLevelAwait(),
   ],
 });

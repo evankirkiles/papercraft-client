@@ -2,7 +2,6 @@
   "name": "@paperarium/ui",
   "description": "The Remix shell providing the UI of Paperarium.",
   "private": true,
-  "sideEffects": false,
   "type": "module",
   "scripts": {
     "build": "remix vite:build",
@@ -12,7 +11,7 @@
     "typecheck": "tsc"
   },
   "dependencies": {
-    "@paperarium/engine": "workspace:../engine/pkg",
+    "@paperarium/engine": "workspace:../engine",
     "@remix-run/node": "^2.13.1",
     "@remix-run/react": "^2.13.1",
     "@remix-run/serve": "^2.13.1",

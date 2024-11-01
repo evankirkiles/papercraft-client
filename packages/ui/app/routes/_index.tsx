@@ -1,6 +1,5 @@
 import type { MetaFunction } from "@remix-run/node";
-import { greet } from "@paperarium/engine";
-import { useEffect } from "react";
+import { MyComponent } from "@paperarium/engine";
 
 export const meta: MetaFunction = () => {
   return [
@@ -10,10 +9,6 @@ export const meta: MetaFunction = () => {
 };
 
 export default function Index() {
-  useEffect(() => {
-    greet();
-  }, []);
-
   return (
     <div>
       <div>
@@ -21,11 +16,13 @@ export default function Index() {
           <h1>
             Welcome to <span>Remix</span>
           </h1>
+          <canvas id="paperarium-canvas"></canvas>
           <div>
             <img src="/logo-light.png" alt="Remix" />
             <img src="/logo-dark.png" alt="Remix" />
           </div>
         </header>
+        <MyComponent />
         <nav>
           <p>What&apos;s next?</p>
           <ul>
