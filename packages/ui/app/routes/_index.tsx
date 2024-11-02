@@ -1,5 +1,5 @@
 import type { MetaFunction } from "@remix-run/node";
-import { MyComponent } from "@paperarium/engine";
+import { Engine } from "@paperarium/engine";
 
 export const meta: MetaFunction = () => {
   return [
@@ -22,7 +22,7 @@ export default function Index() {
             <img src="/logo-dark.png" alt="Remix" />
           </div>
         </header>
-        <MyComponent />
+        <Engine />
         <nav>
           <p>What&apos;s next?</p>
           <ul>

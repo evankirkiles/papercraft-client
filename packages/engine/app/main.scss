@@ -10,12 +10,8 @@ body,
   color: white;
 }
 
-#root {
-  padding: 1rem;
-}
-
 canvas {
   inline-size: 100%;
-  height: 500px;
+  block-size: 100%;
   background-color: #606060;
 }

@@ -12,7 +12,7 @@ export function Engine() {
     init().then((out) => {
       if (!mounted) return;
       setEngine(out);
-      start();
+      start(CANVAS_ID);
     });
     return () => {
       mounted = false;
