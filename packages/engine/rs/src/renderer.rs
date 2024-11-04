@@ -1,32 +1,20 @@
-use wgpu::util::{DeviceExt, RenderEncoder};
+use wgpu::util::DeviceExt;
 use winit::{event::WindowEvent, window::Window};
 
-pub struct Renderer<'a> {
-    surface: wgpu::Surface<'a>,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    config: wgpu::SurfaceConfiguration,
-    render_pipeline: wgpu::RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    num_indices: u32,
-    pub size: winit::dpi::PhysicalSize<u32>,
-    // The window must be declared after the surface so
-    // it gets dropped after it as the surface contains
-    // unsafe references to the window's resources.
-    window: &'a Window,
-}
+use crate::texture;
+
+// ----- VERTEX STUFF -----
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct Vertex {
     position: [f32; 3],
-    color: [f32; 3],
+    tex_coords: [f32; 2],
 }
 
 impl Vertex {
     const ATTRIBS: [wgpu::VertexAttribute; 2] =
-        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
+        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2];
 
     /// Returns the buffer layout for a buffer of these vertex types
     fn desc() -> wgpu::VertexBufferLayout<'static> {
@@ -40,11 +28,11 @@ impl Vertex {
 
 #[rustfmt::skip]
 const VERTICES: &[Vertex] = &[
-    Vertex { position: [-0.0868241, 0.49240386, 0.0], color: [0.5, 0.0, 0.5] }, // A
-    Vertex { position: [-0.49513406, 0.06958647, 0.0], color: [0.5, 0.0, 0.5] }, // B
-    Vertex { position: [-0.21918549, -0.44939706, 0.0], color: [0.5, 0.0, 0.5] }, // C
-    Vertex { position: [0.35966998, -0.3473291, 0.0], color: [0.5, 0.0, 0.5] }, // D
-    Vertex { position: [0.44147372, 0.2347359, 0.0], color: [0.5, 0.0, 0.5] }, // E
+    Vertex { position: [-0.0868241, 0.49240386, 0.0], tex_coords: [0.4131759, 0.00759614], }, // A
+    Vertex { position: [-0.49513406, 0.06958647, 0.0], tex_coords: [0.0048659444, 0.43041354], }, // B
+    Vertex { position: [-0.21918549, -0.44939706, 0.0], tex_coords: [0.28081453, 0.949397], }, // C
+    Vertex { position: [0.35966998, -0.3473291, 0.0], tex_coords: [0.85967, 0.84732914], }, // D
+    Vertex { position: [0.44147372, 0.2347359, 0.0], tex_coords: [0.9414737, 0.2652641], }, // E
 ];
 
 #[rustfmt::skip]
@@ -53,6 +41,79 @@ const INDICES: &[u16] = &[
     1, 2, 4,
     2, 3, 4,
 ];
+
+// ----- CAMERA STUFF -----
+
+#[rustfmt::skip]
+const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 0.5, 0.5,
+    0.0, 0.0, 0.0, 1.0,
+);
+
+pub struct Camera {
+    eye: cgmath::Point3<f32>,
+    target: cgmath::Point3<f32>,
+    up: cgmath::Vector3<f32>,
+    aspect: f32,
+    fovy: f32,
+    znear: f32,
+    zfar: f32,
+}
+
+impl Camera {
+    pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
+        let view = cgmath::Matrix4::look_at_rh(self.eye, self.target, self.up);
+        let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
+        OPENGL_TO_WGPU_MATRIX * proj * view
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct CameraUniform {
+    // We can't use cgmath with bytemuck directly, so we'll have
+    // to convert the Matrix4 into a 4x4 f32 array
+    view_proj: [[f32; 4]; 4],
+}
+
+impl CameraUniform {
+    fn new() -> Self {
+        use cgmath::SquareMatrix;
+        Self {
+            view_proj: cgmath::Matrix4::identity().into(),
+        }
+    }
+
+    fn update_view_proj(&mut self, camera: &Camera) {
+        self.view_proj = camera.build_view_projection_matrix().into();
+    }
+}
+
+// ------ RENDERER STUFF --------
+
+pub struct Renderer<'a> {
+    surface: wgpu::Surface<'a>,
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    config: wgpu::SurfaceConfiguration,
+    render_pipeline: wgpu::RenderPipeline,
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    num_indices: u32,
+    diffuse_texture: texture::Texture,
+    diffuse_bind_group: wgpu::BindGroup,
+    camera: Camera,
+    camera_uniform: CameraUniform,
+    camera_buffer: wgpu::Buffer,
+    camera_bind_group: wgpu::BindGroup,
+    pub size: winit::dpi::PhysicalSize<u32>,
+    // The window must be declared after the surface so
+    // it gets dropped after it as the surface contains
+    // unsafe references to the window's resources.
+    window: &'a Window,
+}
 
 impl<'a> Renderer<'a> {
     // Creating some of the wgpu types requires async code
@@ -83,12 +144,15 @@ impl<'a> Renderer<'a> {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     required_features: wgpu::Features::empty(),
-                    // WebGL doesn't support all of wgpu's features, so if
-                    // we're building for the web, we'll have to disable some
-                    required_limits: if cfg!(target_arch = "wasm32") {
-                        wgpu::Limits::downlevel_webgl2_defaults()
-                    } else {
-                        wgpu::Limits::default()
+                    required_limits: wgpu::Limits {
+                        // TODO: Abstract this into its own config class
+                        max_buffer_size: adapter.limits().max_buffer_size,
+                        max_texture_dimension_2d: adapter.limits().max_texture_dimension_2d,
+                        ..(if cfg!(target_arch = "wasm32") {
+                            wgpu::Limits::downlevel_webgl2_defaults()
+                        } else {
+                            wgpu::Limits::default()
+                        })
                     },
                     label: None,
                     memory_hints: Default::default(),
@@ -118,13 +182,104 @@ impl<'a> Renderer<'a> {
             desired_maximum_frame_latency: 2,
         };
 
+        // Load in our image texture to use
+        let diffuse_bytes = include_bytes!("assets/happy-tree.png");
+        let diffuse_texture =
+            texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
+
+        // Create the bind group layout and bind group itself to attach the texture
+        let texture_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        // This should match the filterable field of the
+                        // corresponding Texture entry above.
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+                label: Some("texture_bind_group_layout"),
+            });
+        let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
+                },
+            ],
+            label: Some("diffuse_bind_group"),
+        });
+
+        // Camera allows us a perspective
+        let camera = Camera {
+            // Position the camera 1 unit up and 2 units back
+            // +z is out of the screen
+            eye: (0.0, 1.0, 2.0).into(),
+            // have it look at the origin
+            target: (0.0, 0.0, 0.0).into(),
+            // which way is "up"
+            up: cgmath::Vector3::unit_y(),
+            aspect: config.width as f32 / config.height as f32,
+            fovy: 45.0,
+            znear: 0.1,
+            zfar: 100.0,
+        };
+
+        // Camera uniform passes camera's projection matrix through to the GPU
+        let mut camera_uniform = CameraUniform::new();
+        camera_uniform.update_view_proj(&camera);
+        let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Camera Buffer"),
+            contents: bytemuck::cast_slice(&[camera_uniform]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+        let camera_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("camera_bind_group_layout"),
+            });
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &camera_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+            label: Some("camera_bind_group"),
+        });
+
         // The shader is the compiled executable sent to the GPU which defines how to
         // draw the vertices and fragments
         let shader = device.create_shader_module(wgpu::include_wgsl!("shaders/shader.wgsl"));
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[],
+                bind_group_layouts: &[&texture_bind_group_layout, &camera_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -192,6 +347,12 @@ impl<'a> Renderer<'a> {
             vertex_buffer,
             index_buffer,
             num_indices,
+            diffuse_bind_group,
+            diffuse_texture,
+            camera,
+            camera_uniform,
+            camera_buffer,
+            camera_bind_group,
         }
     }
 
@@ -247,6 +408,8 @@ impl<'a> Renderer<'a> {
 
             // Draw from the renderer's current pipeline
             render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
+            render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..self.num_indices, 0, 0..1);

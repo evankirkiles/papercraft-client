@@ -1,4 +1,5 @@
 mod renderer;
+mod texture;
 
 use renderer::Renderer;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
@@ -24,7 +25,7 @@ pub async fn run() {
         if #[cfg(target_arch = "wasm32")] {
             #[cfg(feature = "console_error_panic_hook")]
             console_error_panic_hook::set_once();
-            console_log::init_with_level(log::Level::Trace).expect("Failed to initialize logger");
+            console_log::init_with_level(log::Level::Warn).expect("Failed to initialize logger");
         } else {
             env_logger::init();
         }
@@ -108,4 +109,10 @@ pub async fn run() {
             _ => {}
         })
         .unwrap();
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn begin() {
+    wasm_bindgen_futures::spawn_local(run());
 }

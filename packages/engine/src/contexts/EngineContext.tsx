@@ -1,4 +1,4 @@
-import { InitOutput } from "crate";
+import { InitOutput } from "rs";
 import { createContext, useContext } from "react";
 
 interface EngineContextType {

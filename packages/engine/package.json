@@ -18,7 +18,7 @@
     }
   },
   "scripts": {
-    "wasm": "wasm-pack build ./crate --target web",
+    "wasm": "wasm-pack build ./rs --target web --out-name rs",
     "dev": "pnpm wasm && vite",
     "build": "pnpm wasm && vite build",
     "preview": "vite preview"

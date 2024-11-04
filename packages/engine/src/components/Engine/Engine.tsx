@@ -1,9 +1,8 @@
 import { EngineContext } from "@/contexts/EngineContext";
-import init, { InitOutput, start } from "crate";
+import init, { InitOutput, begin } from "rs";
 import { useEffect, useState } from "react";
 
-// const CANVAS_ID = "paperarium-engine";
-const CANVAS_ID = "canvas";
+const CANVAS_ID = "paperarium-engine";
 
 export function Engine() {
   const [engine, setEngine] = useState<InitOutput | null>(null);
@@ -12,7 +11,7 @@ export function Engine() {
     init().then((out) => {
       if (!mounted) return;
       setEngine(out);
-      start(CANVAS_ID);
+      begin();
     });
     return () => {
       mounted = false;
