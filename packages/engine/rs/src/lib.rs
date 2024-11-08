@@ -1,4 +1,6 @@
+mod model;
 mod renderer;
+mod resources;
 mod texture;
 
 use renderer::Renderer;
