@@ -1,8 +1,11 @@
+use winit::dpi::PhysicalSize;
+
 pub struct Renderer<'window> {
     surface: wgpu::Surface<'window>,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
+    size: PhysicalSize<u32>,
 }
 
 impl<'window> Renderer<'window> {
@@ -36,7 +39,9 @@ impl<'window> Renderer<'window> {
                     required_limits: wgpu::Limits {
                         // TODO: Abstract this into its own config class
                         max_buffer_size: adapter.limits().max_buffer_size,
-                        max_texture_dimension_2d: adapter.limits().max_texture_dimension_2d,
+                        max_texture_dimension_2d: adapter
+                            .limits()
+                            .max_texture_dimension_2d,
                         ..(if cfg!(target_arch = "wasm32") {
                             wgpu::Limits::downlevel_webgl2_defaults()
                         } else {
@@ -76,6 +81,16 @@ impl<'window> Renderer<'window> {
             device,
             queue,
             config,
+            size: PhysicalSize { width, height },
+        }
+    }
+
+    pub fn resize(&mut self, width: u32, height: u32) {
+        if width > 0 && height > 0 {
+            self.size = PhysicalSize { width, height };
+            self.config.width = width;
+            self.config.height = height;
+            self.surface.configure(&self.device, &self.config);
         }
     }
 }

@@ -1,7 +1,8 @@
 use pp_renderer::Renderer;
 use std::sync::Arc;
 use winit::{
-    application::ApplicationHandler, event::WindowEvent, window::Window,
+    application::ApplicationHandler, dpi::PhysicalSize, event::WindowEvent,
+    window::Window,
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -122,12 +123,12 @@ impl ApplicationHandler for App {
                     event_loop.exit();
                 }
             }
-            // WindowEvent::Resized(PhysicalSize { width, height }) => {
-            //     let (width, height) = ((width).max(1), (height).max(1));
-            //     log::info!("Resizing renderer surface to: {width} x {height}");
-            //     renderer.resize(width, height);
-            //     self.last_size = (width, height);
-            // }
+            WindowEvent::Resized(PhysicalSize { width, height }) => {
+                let (width, height) = ((width).max(1), (height).max(1));
+                log::info!("Resizing renderer surface to: {width} x {height}");
+                renderer.resize(width, height);
+                self.last_size = (width, height);
+            }
             WindowEvent::CloseRequested => {
                 log::info!("Close requested. Exiting...");
                 event_loop.exit();
