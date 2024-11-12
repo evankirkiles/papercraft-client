@@ -1,0 +1,31 @@
+[package]
+name="pp_renderer"
+version = "0.0.1"
+description = "The WASM engine for Paperarium"
+authors = ["Evan Kirkiles"]
+repository = "https://github.com/evankirkiles/papercraft-client"
+edition = "2021"
+
+[dependencies]
+# Internal:
+# pp_viewer.workspace = true
+# External:
+anyhow.workspace = true
+cfg-if.workspace = true
+log.workspace = true
+winit.workspace = true
+wgpu.workspace = true
+
+[build-dependencies]
+anyhow.workspace = true
+fs_extra.workspace = true
+glob.workspace = true
+
+# ------------------ Native Dependencies ------------------
+
+# [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+
+# ------------------- WASM Dependencies -------------------
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# web-sys.workspace = true

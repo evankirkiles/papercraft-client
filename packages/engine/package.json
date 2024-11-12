@@ -18,7 +18,7 @@
     }
   },
   "scripts": {
-    "wasm": "wasm-pack build ./rs --target web --out-name rs",
+    "wasm": "wasm-pack build ../../crates/pp_viewer --target web --out-name pp_viewer",
     "dev": "pnpm wasm && vite",
     "build": "pnpm wasm && vite build",
     "preview": "vite preview"
@@ -30,6 +30,9 @@
     "node": ">=20.0.0"
   },
   "packageManager": "pnpm@8.9.0+sha256.8f5264ad1d100da11a6add6bb8a94c6f1e913f9e9261b2a551fabefad2ec0fec",
+  "dependencies": {
+    "pp_viewer": "workspace:*"
+  },
   "peerDependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

@@ -8,7 +8,13 @@ importers:
 
   .: {}
 
+  crates/pp_viewer/pkg: {}
+
   packages/engine:
+    dependencies:
+      pp_viewer:
+        specifier: workspace:*
+        version: link:../../crates/pp_viewer/pkg
     devDependencies:
       '@evankirkiles/vite-plugin-wasm-pack':
         specifier: ^0.1.14
