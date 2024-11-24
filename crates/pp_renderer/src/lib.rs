@@ -1,4 +1,14 @@
+use viewport_3d::Viewport3d;
 use winit::dpi::PhysicalSize;
+
+mod camera;
+mod texture;
+pub mod viewport_3d;
+
+pub trait Renderable {
+    /// Draws the region to the surface within render_pass
+    fn render(&self, render_pass: &mut wgpu::RenderPass);
+}
 
 pub struct Renderer<'window> {
     surface: wgpu::Surface<'window>,
@@ -6,6 +16,7 @@ pub struct Renderer<'window> {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     size: PhysicalSize<u32>,
+    depth_texture: texture::Texture,
 }
 
 impl<'window> Renderer<'window> {
@@ -75,14 +86,82 @@ impl<'window> Renderer<'window> {
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
+        surface.configure(&device, &config);
+
+        let depth_texture = texture::Texture::create_depth_texture(
+            &device,
+            &config,
+            "Depth Texture",
+        );
 
         Self {
             surface,
             device,
             queue,
             config,
+            depth_texture,
             size: PhysicalSize { width, height },
         }
+    }
+
+    /// Draws all of the renderables to the screen
+    pub fn render(
+        &mut self,
+        viewports: &[viewport_3d::Viewport3d],
+    ) -> Result<(), wgpu::SurfaceError> {
+        let output = self.surface.get_current_texture()?;
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder = self.device.create_command_encoder(
+            &wgpu::CommandEncoderDescriptor {
+                label: Some("Renderer Encoder"),
+            },
+        );
+        {
+            let mut render_pass =
+                encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Render Pass"),
+                    color_attachments: &[Some(
+                        wgpu::RenderPassColorAttachment {
+                            view: &view,
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color {
+                                    r: 0.1,
+                                    g: 0.2,
+                                    b: 0.3,
+                                    a: 1.0,
+                                }),
+                                store: wgpu::StoreOp::Store,
+                            },
+                        },
+                    )],
+                    depth_stencil_attachment: None,
+                    // depth_stencil_attachment: Some(
+                    //     wgpu::RenderPassDepthStencilAttachment {
+                    //         view: &self.depth_texture.view,
+                    //         depth_ops: Some(wgpu::Operations {
+                    //             load: wgpu::LoadOp::Clear(1.0),
+                    //             store: wgpu::StoreOp::Store,
+                    //         }),
+                    //         stencil_ops: None,
+                    //     },
+                    // ),
+                    occlusion_query_set: None,
+                    timestamp_writes: None,
+                });
+            log::warn!("Rendering");
+
+            // run each renderable on the render pass.
+            for viewport in viewports {
+                viewport.render(&mut render_pass);
+            }
+        }
+
+        self.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
+        Ok(())
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -91,6 +170,18 @@ impl<'window> Renderer<'window> {
             self.config.width = width;
             self.config.height = height;
             self.surface.configure(&self.device, &self.config);
+            self.depth_texture = texture::Texture::create_depth_texture(
+                &self.device,
+                &self.config,
+                "depth_texture",
+            );
         }
+    }
+
+    pub fn add_viewport(
+        &self,
+        dims: viewport_3d::Rect,
+    ) -> viewport_3d::Viewport3d {
+        Viewport3d::new(&self.device, &self.config, dims)
     }
 }

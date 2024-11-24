@@ -17,7 +17,9 @@ pp_viewer = { path = "crates/pp_viewer", version="0.0.1"}
 
 # External:
 anyhow = "1.0"
+bytemuck = { version = "1.19", features=["derive"] }
 cfg-if = "1"
+cgmath = "0.18"
 console_error_panic_hook = { version = "0.1.7"}
 console_log = "1.0.0"
 env_logger = "0.11.5"
