@@ -1,5 +1,5 @@
 [package]
-name="pp_context"
+name = "pp_core"
 version = "0.0.1"
 description = "The core state for the Paperarium engine"
 authors = ["Evan Kirkiles"]
@@ -12,11 +12,10 @@ edition = "2021"
 # External:
 anyhow.workspace = true
 bytemuck.workspace = true
-cfg-if.workspace = true
 cgmath.workspace = true
+image.workspace = true
+tobj.workspace = true
 log.workspace = true
-winit.workspace = true
-wgpu.workspace = true
 
 [build-dependencies]
 anyhow.workspace = true

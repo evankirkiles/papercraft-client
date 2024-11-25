@@ -8,7 +8,7 @@ use winit::{
 use futures::channel::oneshot::Receiver;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
-
+#[cfg(target_arch = "wasm32")]
 const CANVAS_ID: &str = "paperarium-engine";
 
 #[derive(Default)]
@@ -23,6 +23,7 @@ pub struct App {
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        #[cfg_attr(not(target_arch = "wasm32"), allow(unused_mut))]
         let mut attributes = Window::default_attributes();
 
         #[allow(unused_assignments)]
@@ -79,7 +80,11 @@ impl ApplicationHandler for App {
                 }
                 #[cfg(not(target_arch = "wasm32"))]
                 {
-                    env_logger::init();
+                    env_logger::builder()
+                        .filter_level(log::LevelFilter::Debug)
+                        .format_target(false)
+                        .format_timestamp(None)
+                        .init();
                     let inner_size = window_handle.inner_size();
                     self.last_size = (inner_size.width, inner_size.height);
                     let renderer = pollster::block_on(async move {
