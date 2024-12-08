@@ -7,6 +7,8 @@ use winit::{
 #[cfg(target_arch = "wasm32")]
 use futures::channel::oneshot::Receiver;
 #[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 #[cfg(target_arch = "wasm32")]
 const CANVAS_ID: &str = "paperarium-engine";
@@ -14,11 +16,18 @@ const CANVAS_ID: &str = "paperarium-engine";
 #[derive(Default)]
 pub struct App {
     window: Option<Arc<Window>>,
-    renderer: Option<pp_renderer::Renderer<'static>>,
-    viewports: Vec<pp_renderer::viewport_3d::Viewport3d>,
+    renderer: Option<pp_draw::Renderer<'static>>,
     #[cfg(target_arch = "wasm32")]
-    renderer_receiver: Option<Receiver<pp_renderer::Renderer<'static>>>,
+    renderer_receiver: Option<Receiver<pp_draw::Renderer<'static>>>,
     last_size: (u32, u32),
+}
+
+#[wasm_bindgen]
+pub fn begin() {
+    let event_loop = winit::event_loop::EventLoop::builder().build().unwrap();
+    event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
+    let mut app = App::default();
+    event_loop.run_app(&mut app).unwrap();
 }
 
 impl ApplicationHandler for App {
@@ -67,7 +76,7 @@ impl ApplicationHandler for App {
                         "Canvas dimensions: {canvas_width} x {canvas_height}"
                     );
                     wasm_bindgen_futures::spawn_local(async move {
-                        let renderer = pp_renderer::Renderer::new(
+                        let renderer = pp_draw::Renderer::new(
                             window_handle.clone(),
                             canvas_width,
                             canvas_height,
@@ -87,27 +96,14 @@ impl ApplicationHandler for App {
                         .init();
                     let inner_size = window_handle.inner_size();
                     self.last_size = (inner_size.width, inner_size.height);
-                    let renderer = pollster::block_on(async move {
-                        pp_renderer::Renderer::new(
+                    self.renderer = Some(pollster::block_on(async move {
+                        pp_draw::Renderer::new(
                             window_handle.clone(),
                             inner_size.width,
                             inner_size.height,
                         )
                         .await
-                    });
-                    let half_width = inner_size.width as f32 / 2.0;
-                    let half_height = inner_size.height as f32 / 2.0;
-                    for i in 0..2 {
-                        self.viewports.push(renderer.add_viewport(
-                            pp_renderer::viewport_3d::Rect {
-                                x: i as f32 * half_width,
-                                y: i as f32 * half_height,
-                                w: half_width,
-                                h: half_height,
-                            },
-                        ));
-                    }
-                    self.renderer = Some(renderer);
+                    }));
                 }
             }
         }
@@ -125,14 +121,6 @@ impl ApplicationHandler for App {
             let mut renderer_received = false;
             if let Some(receiver) = self.renderer_receiver.as_mut() {
                 if let Ok(Some(renderer)) = receiver.try_recv() {
-                    self.viewports.push(renderer.add_viewport(
-                        pp_renderer::viewport_3d::Rect {
-                            x: 0.0,
-                            y: 0.0,
-                            w: 100.0,
-                            h: 100.0,
-                        },
-                    ));
                     self.renderer = Some(renderer);
                     renderer_received = true;
                 }
@@ -174,7 +162,7 @@ impl ApplicationHandler for App {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                renderer.render(self.viewports.as_slice()).unwrap();
+                renderer.render().unwrap();
             }
             _ => (),
         }

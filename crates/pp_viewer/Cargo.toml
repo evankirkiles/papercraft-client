@@ -1,5 +1,5 @@
 [package]
-name="pp_viewer"
+name = "pp_viewer"
 description = "The WASM engine for Paperarium"
 readme = "README.md"
 authors.workspace = true
@@ -17,7 +17,7 @@ crate-type = ["cdylib", "rlib"] # Support both WASM and Native compilation
 
 [dependencies]
 # Internal:
-pp_renderer.workspace = true
+pp_draw.workspace = true
 # External:
 anyhow.workspace = true
 cfg-if.workspace = true

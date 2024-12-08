@@ -12,24 +12,28 @@ version = "0.0.1"
 
 [workspace.dependencies]
 # Internal:
-pp_renderer = { path = "crates/pp_renderer", version="0.0.1"}
-pp_viewer = { path = "crates/pp_viewer", version="0.0.1"}
+pp_core = { path = "crates/pp_core", version = "0.0.1" }
+pp_draw = { path = "crates/pp_draw", version = "0.0.1" }
+pp_viewer = { path = "crates/pp_viewer", version = "0.0.1" }
 
 # External:
 anyhow = "1.0"
-bytemuck = { version = "1.19", features=["derive"] }
+bytemuck = { version = "1.19", features = ["derive"] }
 cfg-if = "1"
 cgmath = "0.18"
-console_error_panic_hook = { version = "0.1.7"}
+console_error_panic_hook = { version = "0.1.7" }
 console_log = "1.0.0"
 env_logger = "0.11.5"
 fs_extra = "1.3.0"
 futures = "0.3.31"
 glob = "0.3.1"
-image = { version = "0.25", default_features = false, features = ["png", "jpeg"]}
+image = { version = "0.25", default_features = false, features = [
+  "png",
+  "jpeg",
+] }
 log = "0.4.22"
 pollster = "0.4.0"
-tobj = { version = "4.0", default_features = false, features = ["async"]}
+tobj = { version = "4.0", default_features = false, features = ["async"] }
 wasm-bindgen = "0.2.95"
 wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = [

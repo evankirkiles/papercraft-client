@@ -1,8 +1,7 @@
 pub struct Mesh<'mesh> {
     pub label: Option<&'mesh str>,
     pub verts: Vec<MeshVertex>,
-    // edges: Vec<MeshEdge>,
-    // faces: Vec<MeshFace>,
+    pub faces: Vec<MeshFace>,
 }
 
 #[repr(C)]
@@ -11,11 +10,11 @@ pub struct MeshFace {
     pub verts: [u32; 3],
 }
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct MeshEdge {
-    pub verts: [u32; 2],
-}
+// #[repr(C)]
+// #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+// pub struct MeshEdge {
+//     pub verts: [u32; 2],
+// }
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]

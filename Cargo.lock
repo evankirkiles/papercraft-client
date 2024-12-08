@@ -1458,7 +1458,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pp_renderer"
+name = "pp_draw"
 version = "0.0.1"
 dependencies = [
  "anyhow",
@@ -1468,6 +1468,7 @@ dependencies = [
  "fs_extra",
  "glob",
  "log",
+ "pp_core",
  "wgpu",
  "winit",
 ]
@@ -1486,7 +1487,7 @@ dependencies = [
  "glob",
  "log",
  "pollster",
- "pp_renderer",
+ "pp_draw",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",

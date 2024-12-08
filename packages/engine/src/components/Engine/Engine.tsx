@@ -1,5 +1,5 @@
 import { EngineContext } from "@/contexts/EngineContext";
-import init, { InitOutput, begin } from "rs";
+import init, { InitOutput, begin } from "pp_viewer";
 import { useEffect, useState } from "react";
 
 const CANVAS_ID = "paperarium-engine";

@@ -1,5 +1,5 @@
 [package]
-name="pp_renderer"
+name = "pp_draw"
 version = "0.0.1"
 description = "The WASM engine for Paperarium"
 authors = ["Evan Kirkiles"]
@@ -8,7 +8,7 @@ edition = "2021"
 
 [dependencies]
 # Internal:
-# pp_viewer.workspace = true
+pp_core.workspace = true
 # External:
 anyhow.workspace = true
 bytemuck.workspace = true
