@@ -1,3 +1,4 @@
+use engines::ink;
 use gpu::{GPUContext, GPUFrameBuffer, GPUTexture};
 use winit::dpi::PhysicalSize;
 
@@ -8,7 +9,7 @@ pub struct Renderer<'window> {
     ctx: gpu::GPUContext<'window>,
     size: PhysicalSize<u32>,
     presentation_fb: gpu::GPUFrameBuffer,
-    engine_3d: engines::EngineDim3,
+    engine_ink: ink::InkEngine,
 }
 
 impl<'window> Renderer<'window> {
@@ -93,7 +94,7 @@ impl<'window> Renderer<'window> {
 
         Self {
             presentation_fb: GPUFrameBuffer::from_swapchain(&ctx),
-            engine_3d: engines::EngineDim3::new(&ctx),
+            engine_ink: ink::InkEngine::new(&ctx),
             ctx,
             size: PhysicalSize { width, height },
         }
@@ -103,7 +104,7 @@ impl<'window> Renderer<'window> {
     pub fn render(&mut self) -> Result<(), anyhow::Error> {
         self.presentation_fb.render(&self.ctx, |render_pass| {
             // draw from each engine in the presentation render pass.
-            self.engine_3d.draw_sync(render_pass);
+            self.engine_ink.draw_sync(render_pass);
         })
     }
 

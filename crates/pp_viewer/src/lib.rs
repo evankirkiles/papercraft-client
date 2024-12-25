@@ -22,7 +22,7 @@ pub struct App {
     last_size: (u32, u32),
 }
 
-#[wasm_bindgen]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn begin() {
     let event_loop = winit::event_loop::EventLoop::builder().build().unwrap();
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);

@@ -2,11 +2,11 @@ use crate::gpu;
 
 mod modules;
 
-pub struct EngineDim3 {
+pub struct InkEngine {
     module_geometry: modules::GeometryModule,
 }
 
-impl EngineDim3 {
+impl InkEngine {
     pub fn new(ctx: &gpu::GPUContext) -> Self {
         let module_geometry = modules::GeometryModule::new(ctx);
         Self { module_geometry }
