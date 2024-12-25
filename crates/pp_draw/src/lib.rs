@@ -45,9 +45,7 @@ impl<'window> Renderer<'window> {
                     required_limits: wgpu::Limits {
                         // TODO: Abstract this into its own config class
                         max_buffer_size: adapter.limits().max_buffer_size,
-                        max_texture_dimension_2d: adapter
-                            .limits()
-                            .max_texture_dimension_2d,
+                        max_texture_dimension_2d: adapter.limits().max_texture_dimension_2d,
                         ..(if cfg!(target_arch = "wasm32") {
                             wgpu::Limits::downlevel_webgl2_defaults()
                         } else {
@@ -84,12 +82,7 @@ impl<'window> Renderer<'window> {
 
         // Store the above GPU abstractions into a single context object we
         // can pass around in the future.
-        let ctx = GPUContext {
-            device,
-            config,
-            surface,
-            queue,
-        };
+        let ctx = GPUContext { device, config, surface, queue };
         ctx.configure_surface();
 
         Self {

@@ -1,5 +1,5 @@
-use crate::model;
+use crate::mesh;
 
 pub struct Context<'a> {
-    models: Vec<model::Model<'a, 'a>>,
+    models: Vec<model::Model<'a>>,
 }

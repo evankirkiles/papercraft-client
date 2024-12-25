@@ -18,6 +18,7 @@ pp_viewer = { path = "crates/pp_viewer", version = "0.0.1" }
 
 # External:
 anyhow = "1.0"
+bitflags = "2.6.0"
 bytemuck = { version = "1.19", features = ["derive"] }
 cfg-if = "1"
 cgmath = "0.18"
@@ -34,6 +35,7 @@ image = { version = "0.25", default_features = false, features = [
 log = "0.4.22"
 pollster = "0.4.0"
 tobj = { version = "4.0", default_features = false, features = ["async"] }
+stable-vec = "0.4.1"
 wasm-bindgen = "0.2.95"
 wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = [
