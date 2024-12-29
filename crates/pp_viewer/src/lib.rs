@@ -1,7 +1,7 @@
+use pp_core::mesh::Mesh;
 use std::sync::Arc;
 use winit::{
-    application::ApplicationHandler, dpi::PhysicalSize, event::WindowEvent,
-    window::Window,
+    application::ApplicationHandler, dpi::PhysicalSize, event::WindowEvent, window::Window,
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -13,13 +13,30 @@ use wasm_bindgen::JsCast;
 #[cfg(target_arch = "wasm32")]
 const CANVAS_ID: &str = "paperarium-engine";
 
-#[derive(Default)]
 pub struct App {
     window: Option<Arc<Window>>,
-    renderer: Option<pp_draw::Renderer<'static>>,
+    /// The core state of the application
+    state: pp_core::state::State,
+    /// Manages synchronizing screen pixels with the app state
+    draw_manager: Option<pp_draw::DrawManager<'static>>,
+    /// Receiver for asynchronous winit setup in WASM
     #[cfg(target_arch = "wasm32")]
-    renderer_receiver: Option<Receiver<pp_draw::Renderer<'static>>>,
-    last_size: (u32, u32),
+    draw_manager_receiver: Option<Receiver<pp_draw::DrawManager<'static>>>,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        let mut app = Self {
+            window: Default::default(),
+            state: Default::default(),
+            draw_manager: Default::default(),
+            #[cfg(target_arch = "wasm32")]
+            draw_manager_receiver: Default::default(),
+        };
+        let cube = Mesh::new_cube(0);
+        app.state.meshes.insert(cube.id, cube);
+        app
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
@@ -52,7 +69,6 @@ impl ApplicationHandler for App {
                 .unwrap();
             canvas_width = canvas.width();
             canvas_height = canvas.height();
-            self.last_size = (canvas_width, canvas_height);
             attributes = attributes.with_canvas(Some(canvas));
         }
 
@@ -65,18 +81,15 @@ impl ApplicationHandler for App {
             if first_window_handle {
                 #[cfg(target_arch = "wasm32")]
                 {
-                    let (sender, receiver) =
-                        futures::channel::oneshot::channel();
-                    self.renderer_receiver = Some(receiver);
+                    let (sender, receiver) = futures::channel::oneshot::channel();
+                    self.draw_manager_receiver = Some(receiver);
                     #[cfg(feature = "console_error_panic_hook")]
                     console_error_panic_hook::set_once();
                     console_log::init_with_level(log::Level::Warn)
                         .expect("Failed to initialize logger");
-                    log::info!(
-                        "Canvas dimensions: {canvas_width} x {canvas_height}"
-                    );
+                    log::info!("Canvas dimensions: {canvas_width} x {canvas_height}");
                     wasm_bindgen_futures::spawn_local(async move {
-                        let renderer = pp_draw::Renderer::new(
+                        let renderer = pp_draw::DrawManager::new(
                             window_handle.clone(),
                             canvas_width,
                             canvas_height,
@@ -95,9 +108,8 @@ impl ApplicationHandler for App {
                         .format_timestamp(None)
                         .init();
                     let inner_size = window_handle.inner_size();
-                    self.last_size = (inner_size.width, inner_size.height);
-                    self.renderer = Some(pollster::block_on(async move {
-                        pp_draw::Renderer::new(
+                    self.draw_manager = Some(pollster::block_on(async move {
+                        pp_draw::DrawManager::new(
                             window_handle.clone(),
                             inner_size.width,
                             inner_size.height,
@@ -118,20 +130,19 @@ impl ApplicationHandler for App {
         // Catch the new window created asynchronously on web
         #[cfg(target_arch = "wasm32")]
         {
-            let mut renderer_received = false;
-            if let Some(receiver) = self.renderer_receiver.as_mut() {
-                if let Ok(Some(renderer)) = receiver.try_recv() {
-                    self.renderer = Some(renderer);
-                    renderer_received = true;
+            let mut draw_manager_received = false;
+            if let Some(receiver) = self.draw_manager_receiver.as_mut() {
+                if let Ok(Some(draw_manager)) = receiver.try_recv() {
+                    self.draw_manager = Some(draw_manager);
+                    draw_manager_received = true;
                 }
             }
-            if renderer_received {
-                self.renderer_receiver = None;
+            if draw_manager_received {
+                self.draw_manager_receiver = None;
             }
         }
 
-        let (Some(renderer), Some(window)) =
-            (self.renderer.as_mut(), self.window.as_mut())
+        let (Some(draw_manager), Some(window)) = (self.draw_manager.as_mut(), self.window.as_mut())
         else {
             return;
         };
@@ -141,28 +152,27 @@ impl ApplicationHandler for App {
             WindowEvent::KeyboardInput {
                 event:
                     winit::event::KeyEvent {
-                        physical_key:
-                            winit::keyboard::PhysicalKey::Code(key_code),
+                        physical_key: winit::keyboard::PhysicalKey::Code(key_code),
                         ..
                     },
                 ..
             } => {
-                if matches!(key_code, winit::keyboard::KeyCode::Escape) {
-                    event_loop.exit();
+                if key_code == winit::keyboard::KeyCode::Escape {
+                    event_loop.exit()
                 }
             }
             WindowEvent::Resized(PhysicalSize { width, height }) => {
                 let (width, height) = ((width).max(1), (height).max(1));
                 log::info!("Resizing renderer surface to: {width} x {height}");
-                renderer.resize(width, height);
-                self.last_size = (width, height);
+                draw_manager.resize(width, height);
             }
             WindowEvent::CloseRequested => {
                 log::info!("Close requested. Exiting...");
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                renderer.render().unwrap();
+                draw_manager.sync(&mut self.state);
+                draw_manager.draw().unwrap();
             }
             _ => (),
         }

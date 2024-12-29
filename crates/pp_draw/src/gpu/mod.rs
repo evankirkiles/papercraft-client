@@ -1,12 +1,15 @@
-mod gpu_batch;
-mod gpu_context;
-mod gpu_framebuffer;
-mod gpu_material;
-mod gpu_model;
-mod gpu_texture;
+mod batch;
+mod context;
+mod framebuffer;
+mod index_buffer;
+mod texture;
+mod uniform_buffer;
+mod vertex_buffer;
 
-pub use gpu_context::GPUContext;
-pub use gpu_framebuffer::GPUFrameBuffer;
-pub use gpu_material::GPUMaterial;
-pub use gpu_model::GPUModel;
-pub use gpu_texture::GPUTexture;
+pub use self::batch::*;
+pub use self::context::*;
+pub use self::framebuffer::*;
+pub use self::index_buffer::*;
+pub use self::texture::*;
+pub use self::uniform_buffer::*;
+pub use self::vertex_buffer::*;

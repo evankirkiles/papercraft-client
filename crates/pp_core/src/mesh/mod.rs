@@ -1,9 +1,11 @@
 use bitflags::bitflags;
 use std::ops;
+use walk_adj::{DiskCycleWalker, LoopCycleWalker, RadialCycleWalker};
 
-mod id;
+mod primitives;
+mod walk_adj;
 
-use id::{EdgeId, FaceId, Id, LoopId, VertexId};
+use crate::id::{EdgeId, FaceId, Id, LoopId, MeshId, VertexId};
 use stable_vec::StableVec;
 
 bitflags! {
@@ -27,7 +29,12 @@ bitflags! {
 /// Set up GPU resources:
 ///  - Use "loop"s to build VBOs (duplicate vertices per face)
 ///  - Use "faces.mat_nr" to buld IBOs
-pub(super) struct Mesh {
+///
+/// @see https://developer.blender.org/docs/features/objects/mesh/bmesh/
+pub struct Mesh {
+    pub id: MeshId,
+    pub label: String,
+
     pub verts: StableVec<Vertex>,
     pub edges: StableVec<Edge>,
     pub faces: StableVec<Face>,
@@ -109,7 +116,7 @@ impl Face {
 
 /// A disk link for quick iteration of edges around a vertex
 #[derive(Clone, Copy)]
-struct DiskLink {
+pub struct DiskLink {
     pub prev: EdgeId,
     pub next: EdgeId,
 }
@@ -124,7 +131,7 @@ impl DiskLink {
 /// A loop, best thought of as a "corner" of a face. Corresponds to exactly
 /// one face, vertex, and edge.
 #[derive(Clone, Copy)]
-struct Loop {
+pub struct Loop {
     pub v: VertexId,
     pub e: EdgeId,
     pub f: FaceId,
@@ -156,8 +163,10 @@ impl Loop {
 }
 
 impl Mesh {
-    pub fn new() -> Self {
+    pub fn new(id: MeshId, label: String) -> Self {
         Self {
+            id,
+            label,
             verts: StableVec::new(),
             edges: StableVec::new(),
             faces: StableVec::new(),
@@ -268,7 +277,7 @@ impl Mesh {
     fn query_face(&self, verts: &[VertexId]) -> Option<FaceId> {
         let len = verts.len();
         let v0 = verts[0];
-        let Some(e0) = self[v0].e else { return None };
+        let e0 = self[v0].e?;
         let (mut e_iter, e_first) = (e0, e0);
         loop {
             // Cycle 1: Disk on v0, aka edges around v0
@@ -353,6 +362,11 @@ impl Mesh {
         }
     }
 
+    /// Walks the edges including a vertex (faces)
+    pub fn disk_edge_walk(&self, e: EdgeId, v: VertexId) -> DiskCycleWalker {
+        DiskCycleWalker::new(self, e, v)
+    }
+
     // --- Section: "Radial" Cycle ---
 
     /// Adds a loop into the radial loop cycle around an edge
@@ -373,6 +387,18 @@ impl Mesh {
         }
         // Point the loop back at the edge itself
         self[l].e = e;
+    }
+
+    /// Walks the loops including an edge (faces)
+    pub fn radial_loop_walk(&self, e: EdgeId) -> Option<RadialCycleWalker> {
+        Some(RadialCycleWalker::new(self, self[e].l?))
+    }
+
+    // --- Section: "Loop" Cycle ---
+
+    /// Walks the loops in a face (vertices)
+    pub fn face_loop_walk(&self, f: FaceId) -> LoopCycleWalker {
+        LoopCycleWalker::new(self, self[f].l_first)
     }
 }
 
@@ -404,3 +430,35 @@ impl_index!(VertexId, verts, Vertex);
 impl_index!(FaceId, faces, Face);
 impl_index!(EdgeId, edges, Edge);
 impl_index!(LoopId, loops, Loop);
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn add_duplicate_edge() {
+        let mut mesh = Mesh::new(MeshId::new(0), String::from("test"));
+        let v1 = mesh.add_vertex([1.0, 0.0, 0.0], [0.0, 0.0, 0.0]);
+        let v2 = mesh.add_vertex([0.0, 1.0, 0.0], [0.0, 0.0, 0.0]);
+        let e1 = mesh.add_edge(v1, v2);
+        let e2 = mesh.add_edge(v2, v1);
+        assert_eq!(e1, e2);
+        assert_eq!(mesh.verts.num_elements(), 2);
+        assert_eq!(mesh.edges.num_elements(), 1);
+    }
+
+    #[test]
+    fn add_duplicate_face() {
+        let mut mesh = Mesh::new(MeshId::new(0), String::from("test"));
+        let v1 = mesh.add_vertex([1.0, 0.0, 0.0], [0.0, 0.0, 0.0]);
+        let v2 = mesh.add_vertex([0.0, 1.0, 0.0], [0.0, 0.0, 0.0]);
+        let v3 = mesh.add_vertex([0.0, 0.0, 1.0], [0.0, 0.0, 0.0]);
+        let f1 = mesh.add_face(&[v1, v2, v3]);
+        let f2 = mesh.add_face(&[v1, v3, v2]);
+        assert_eq!(f1, f2);
+        assert_eq!(mesh.verts.num_elements(), 3);
+        assert_eq!(mesh.edges.num_elements(), 3);
+        assert_eq!(mesh.loops.num_elements(), 3);
+        assert_eq!(mesh.faces.num_elements(), 1);
+    }
+}

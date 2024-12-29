@@ -1,3 +1,3 @@
-mod geometry;
+mod surface;
 
-pub use self::geometry::GeometryModule;
+pub use self::surface::SurfaceModule;

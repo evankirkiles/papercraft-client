@@ -1,14 +1,13 @@
-pub struct GPUTexture {
+pub struct Texture {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
 }
 
-impl GPUTexture {
-    pub const DEPTH_FORMAT: wgpu::TextureFormat =
-        wgpu::TextureFormat::Depth32Float;
+impl Texture {
+    pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
-    pub fn create_depth_texture(ctx: &super::GPUContext) -> Self {
+    pub fn create_depth_texture(ctx: &super::Context) -> Self {
         let texture = ctx.device.create_texture(&wgpu::TextureDescriptor {
             label: None,
             size: wgpu::Extent3d {
@@ -20,8 +19,7 @@ impl GPUTexture {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: Self::DEPTH_FORMAT,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
-                | wgpu::TextureUsages::TEXTURE_BINDING,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
             view_formats: &[],
         });
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -37,10 +35,6 @@ impl GPUTexture {
             lod_max_clamp: 100.0,
             ..Default::default()
         });
-        Self {
-            texture,
-            view,
-            sampler,
-        }
+        Self { texture, view, sampler }
     }
 }

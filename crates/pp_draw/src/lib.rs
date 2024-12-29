@@ -1,18 +1,22 @@
+use std::borrow::BorrowMut;
+
+use cache::DrawCache;
 use engines::ink;
-use gpu::{GPUContext, GPUFrameBuffer, GPUTexture};
 use winit::dpi::PhysicalSize;
 
+mod cache;
 mod engines;
 mod gpu;
 
-pub struct Renderer<'window> {
-    ctx: gpu::GPUContext<'window>,
+pub struct DrawManager<'window> {
+    ctx: gpu::Context<'window>,
     size: PhysicalSize<u32>,
-    presentation_fb: gpu::GPUFrameBuffer,
+    presentation_fb: gpu::FrameBuffer,
     engine_ink: ink::InkEngine,
+    draw_cache: cache::DrawCache,
 }
 
-impl<'window> Renderer<'window> {
+impl<'window> DrawManager<'window> {
     // Initializes the GPU surface and creates the different engines needed to
     // render views of the screen.
     pub async fn new(
@@ -82,22 +86,34 @@ impl<'window> Renderer<'window> {
 
         // Store the above GPU abstractions into a single context object we
         // can pass around in the future.
-        let ctx = GPUContext { device, config, surface, queue };
-        ctx.configure_surface();
+        let ctx = gpu::Context::new(device, config, surface, queue);
 
         Self {
-            presentation_fb: GPUFrameBuffer::from_swapchain(&ctx),
+            presentation_fb: gpu::FrameBuffer::from_swapchain(&ctx),
             engine_ink: ink::InkEngine::new(&ctx),
-            ctx,
+            draw_cache: DrawCache::default(),
             size: PhysicalSize { width, height },
+            ctx,
         }
     }
 
+    /// Synchronizes the DrawCache with the App's current state.
+    pub fn sync(&mut self, state: &mut pp_core::state::State) {
+        self.draw_cache.sync_meshes(&self.ctx, state);
+        self.draw_cache.sync_materials(&self.ctx, state);
+        self.draw_cache.sync_viewports(&self.ctx, state);
+    }
+
     /// Draws all of the renderables to the screen
-    pub fn render(&mut self) -> Result<(), anyhow::Error> {
+    pub fn draw(&mut self) -> Result<(), anyhow::Error> {
         self.presentation_fb.render(&self.ctx, |render_pass| {
-            // draw from each engine in the presentation render pass.
-            self.engine_ink.draw_sync(render_pass);
+            self.draw_cache.viewports.values().for_each(|viewport| {
+                viewport.bind(render_pass);
+                // draw from each engine in the presentation render pass.
+                self.draw_cache.meshes.values().for_each(|mesh| {
+                    self.engine_ink.draw_mesh(render_pass, mesh);
+                })
+            });
         })
     }
 
