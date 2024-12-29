@@ -37,6 +37,7 @@ pub mod batch_buffer_layouts {
     make_batch_buffer_layouts! { SURFACE_2D = { 0 => Float32x2 }; }
     make_batch_buffer_layouts! { EDIT_TRIANGLES = { 0 => Float32x3 }; }
     make_batch_buffer_layouts! { EDIT_VERTICES = { 0 => Float32x3 }; }
+    make_batch_buffer_layouts! { EDIT_EDGES = { 0 => Float32x3 }; }
 }
 
 impl MeshBufferBatches {

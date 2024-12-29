@@ -1,26 +1,26 @@
 use crate::cache;
 use crate::gpu;
 
-pub struct SurfaceModule {
-    surface_pipeline: wgpu::RenderPipeline,
+pub struct WireEdgeModule {
+    pipeline: wgpu::RenderPipeline,
 }
 
-impl SurfaceModule {
+impl WireEdgeModule {
     pub fn new(ctx: &gpu::Context) -> Self {
-        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("shaders/surface.wgsl"));
+        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("shaders/wire_edge.wgsl"));
         let render_pipeline_layout =
             ctx.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Mesh Pipeline Layout"),
+                label: Some("Wire Edge Pipeline Layout"),
                 bind_group_layouts: &[&ctx.shared_bind_group_layouts.camera],
                 push_constant_ranges: &[],
             });
         let render_pipeline = ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Mesh Pipeline"),
+            label: Some("Wire Edge Pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: cache::batch_buffer_layouts::SURFACE,
+                buffers: cache::batch_buffer_layouts::EDIT_EDGES,
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -34,11 +34,10 @@ impl SurfaceModule {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
+                topology: wgpu::PrimitiveTopology::LineList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                // cull_mode: None,
-                cull_mode: Some(wgpu::Face::Back),
+                cull_mode: None,
                 polygon_mode: wgpu::PolygonMode::Fill,
                 unclipped_depth: false,
                 conservative: false,
@@ -46,7 +45,7 @@ impl SurfaceModule {
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: gpu::Texture::DEPTH_FORMAT,
                 depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
+                depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),
@@ -59,16 +58,16 @@ impl SurfaceModule {
             cache: None,
         });
 
-        Self { surface_pipeline: render_pipeline }
+        Self { pipeline: render_pipeline }
     }
 
     /// Writes geometry draw commands for all the materials in a mesh
     pub fn draw_mesh(&self, render_pass: &mut wgpu::RenderPass, mesh: &cache::MeshGPU) {
         // Set the pipeline and draw the mesh
         // TODO: For each material...
-        render_pass.set_pipeline(&self.surface_pipeline);
-        mesh.batches.surface.bind(render_pass);
-        mesh.batches.surface.draw_indexed(render_pass);
+        render_pass.set_pipeline(&self.pipeline);
+        mesh.batches.edit_edges.bind(render_pass);
+        mesh.batches.edit_edges.draw_indexed(render_pass);
 
         // POTENTIALLY OUTDATED:
         // Resource manager:

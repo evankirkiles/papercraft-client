@@ -4,12 +4,14 @@ mod modules;
 
 pub struct InkEngine {
     module_surface: modules::SurfaceModule,
+    module_wire_edge: modules::WireEdgeModule,
 }
 
 impl InkEngine {
     pub fn new(ctx: &gpu::Context) -> Self {
-        let module_geometry = modules::SurfaceModule::new(ctx);
-        Self { module_surface: module_geometry }
+        let module_surface = modules::SurfaceModule::new(ctx);
+        let module_wire_edge = modules::WireEdgeModule::new(ctx);
+        Self { module_surface, module_wire_edge }
     }
 
     pub fn draw_mesh(&self, render_pass: &mut wgpu::RenderPass, mesh: &cache::MeshGPU) {
@@ -21,5 +23,6 @@ impl InkEngine {
 
         // 1. Surface module (textured things)
         self.module_surface.draw_mesh(render_pass, mesh);
+        self.module_wire_edge.draw_mesh(render_pass, mesh);
     }
 }

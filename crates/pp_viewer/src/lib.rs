@@ -1,5 +1,7 @@
+use pp_core::id::{self, Id};
 use pp_core::mesh::Mesh;
 use std::sync::Arc;
+use winit::dpi::PhysicalPosition;
 use winit::{
     application::ApplicationHandler, dpi::PhysicalSize, event::WindowEvent, window::Window,
 };
@@ -17,6 +19,8 @@ pub struct App {
     window: Option<Arc<Window>>,
     /// The core state of the application
     state: pp_core::state::State,
+    /// Which viewport to send inputs to (identified by Mouse Position or other)
+    active_viewport: pp_core::id::ViewportId,
     /// Manages synchronizing screen pixels with the app state
     draw_manager: Option<pp_draw::DrawManager<'static>>,
     /// Receiver for asynchronous winit setup in WASM
@@ -29,6 +33,7 @@ impl Default for App {
         let mut app = Self {
             window: Default::default(),
             state: Default::default(),
+            active_viewport: id::ViewportId::new(0),
             draw_manager: Default::default(),
             #[cfg(target_arch = "wasm32")]
             draw_manager_receiver: Default::default(),
@@ -160,6 +165,18 @@ impl ApplicationHandler for App {
                 if key_code == winit::keyboard::KeyCode::Escape {
                     event_loop.exit()
                 }
+            }
+            WindowEvent::MouseWheel { device_id, delta, phase } => {
+                let viewport = self.state.viewports.get_mut(&self.active_viewport).unwrap();
+                let (dx, dy) = match delta {
+                    winit::event::MouseScrollDelta::LineDelta(x, y) => (x as f64, y as f64),
+                    winit::event::MouseScrollDelta::PixelDelta(PhysicalPosition { x, y }) => (x, y),
+                };
+                viewport.camera.orbit(dx, dy);
+            }
+            WindowEvent::PinchGesture { device_id, delta, phase } => {
+                let viewport = self.state.viewports.get_mut(&self.active_viewport).unwrap();
+                viewport.camera.dolly(delta);
             }
             WindowEvent::Resized(PhysicalSize { width, height }) => {
                 let (width, height) = ((width).max(1), (height).max(1));

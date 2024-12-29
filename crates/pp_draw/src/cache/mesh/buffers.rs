@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use pp_core::id::{self, Id};
@@ -68,8 +68,8 @@ impl MeshBuffers {
             },
             ibo: MeshIBOs {
                 tris: _create_ibuf(mesh_lbl, "tris"),
-                points: _create_ibuf(mesh_lbl, "points"),
                 lines: _create_ibuf(mesh_lbl, "lines"),
+                points: _create_ibuf(mesh_lbl, "points"),
                 tris_per_mat: HashMap::new(),
             },
         }
@@ -85,6 +85,9 @@ impl MeshBuffers {
         }
         if dirty_flags.intersects(MeshDirtyFlags::LOOPS) {
             self.extract_ibo_tris(ctx, mesh);
+        }
+        if dirty_flags.intersects(MeshDirtyFlags::EDGES) {
+            self.extract_ibo_lines(ctx, mesh);
         }
         self.is_dirty = false
     }
@@ -125,8 +128,30 @@ impl MeshBuffers {
     }
 
     // ---- Section: IBO Extraction ---
+
+    /// Gets the IBO for rendering tris, three indices per loop
     fn extract_ibo_tris(&mut self, ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh) {
         let data: Vec<u32> = (0..mesh.faces.num_elements() * 3).map(|f| f as u32).collect();
         self.ibo.tris.borrow_mut().update(ctx, data.as_slice());
+    }
+
+    /// Gets the IBO for rendering edges / lines, two indices per loop
+    ///  - TODO: Deduplicate edges
+    fn extract_ibo_lines(&mut self, ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh) {
+        let data: Vec<_> = mesh
+            .faces
+            .indices()
+            .enumerate()
+            .flat_map(|(f_i, f)| {
+                let f_len = 3;
+                mesh.face_loop_walk(id::FaceId::from_usize(f))
+                    .enumerate()
+                    .map(move |(l_i, l)| [f_i + l_i, f_i + ((l_i + 1) % f_len)])
+                    .flatten()
+            })
+            .map(|f| f as u32)
+            .collect();
+        // let data: Vec<u32> = (0..mesh.faces.num_elements() * 3).map(|f| f as u32).collect();
+        self.ibo.lines.borrow_mut().update(ctx, data.as_slice());
     }
 }

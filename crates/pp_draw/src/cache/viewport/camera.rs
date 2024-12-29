@@ -47,7 +47,6 @@ impl CameraGPU {
     ) {
         if self.aspect != aspect || camera.is_dirty {
             self.buf.update(ctx, &[CameraUniform::new(camera, aspect)]);
-            log::debug!("rebuilding camera");
         }
         self.aspect = aspect
     }
