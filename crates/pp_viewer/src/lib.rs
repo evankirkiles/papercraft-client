@@ -166,15 +166,21 @@ impl ApplicationHandler for App {
                     event_loop.exit()
                 }
             }
-            WindowEvent::MouseWheel { device_id, delta, phase } => {
-                let viewport = self.state.viewports.get_mut(&self.active_viewport).unwrap();
-                let (dx, dy) = match delta {
-                    winit::event::MouseScrollDelta::LineDelta(x, y) => (x as f64, y as f64),
-                    winit::event::MouseScrollDelta::PixelDelta(PhysicalPosition { x, y }) => (x, y),
-                };
-                viewport.camera.orbit(dx, dy);
+            WindowEvent::MouseWheel { device_id: _, delta, phase: _ } => {
+                match delta {
+                    // Standard scroll events should dolly in/out
+                    winit::event::MouseScrollDelta::LineDelta(_, y) => {
+                        let viewport = self.state.viewports.get_mut(&self.active_viewport).unwrap();
+                        viewport.camera.dolly(y as f64);
+                    }
+                    // Touch "wheel" events should orbit
+                    winit::event::MouseScrollDelta::PixelDelta(PhysicalPosition { x, y }) => {
+                        let viewport = self.state.viewports.get_mut(&self.active_viewport).unwrap();
+                        viewport.camera.orbit(x, y);
+                    }
+                }
             }
-            WindowEvent::PinchGesture { device_id, delta, phase } => {
+            WindowEvent::PinchGesture { device_id: _, delta, phase: _ } => {
                 let viewport = self.state.viewports.get_mut(&self.active_viewport).unwrap();
                 viewport.camera.dolly(delta);
             }

@@ -1,7 +1,4 @@
-use std::borrow::BorrowMut;
-
 use cache::DrawCache;
-use engines::ink;
 use winit::dpi::PhysicalSize;
 
 mod cache;
@@ -12,7 +9,7 @@ pub struct DrawManager<'window> {
     ctx: gpu::Context<'window>,
     size: PhysicalSize<u32>,
     presentation_fb: gpu::FrameBuffer,
-    engine_ink: ink::InkEngine,
+    engine_ink3: engines::InkEngine3D,
     draw_cache: cache::DrawCache,
 }
 
@@ -90,7 +87,7 @@ impl<'window> DrawManager<'window> {
 
         Self {
             presentation_fb: gpu::FrameBuffer::from_swapchain(&ctx),
-            engine_ink: ink::InkEngine::new(&ctx),
+            engine_ink3: engines::InkEngine3D::new(&ctx),
             draw_cache: DrawCache::default(),
             size: PhysicalSize { width, height },
             ctx,
@@ -111,7 +108,7 @@ impl<'window> DrawManager<'window> {
                 viewport.bind(render_pass);
                 // draw from each engine in the presentation render pass.
                 self.draw_cache.meshes.values().for_each(|mesh| {
-                    self.engine_ink.draw_mesh(render_pass, mesh);
+                    self.engine_ink3.draw_mesh(render_pass, mesh);
                 })
             });
         })

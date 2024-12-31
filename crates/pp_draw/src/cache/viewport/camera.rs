@@ -33,7 +33,7 @@ impl CameraGPU {
         );
         let bind_group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("viewport.camera"),
-            layout: &ctx.shared_bind_group_layouts.camera,
+            layout: &ctx.shared_layouts.bind_groups.camera_3d,
             entries: &[wgpu::BindGroupEntry { binding: 0, resource: buf.binding_resource() }],
         });
         Self { buf, bind_group, aspect: 1.0 }

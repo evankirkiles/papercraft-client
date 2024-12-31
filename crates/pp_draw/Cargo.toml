@@ -15,6 +15,7 @@ bytemuck.workspace = true
 cfg-if.workspace = true
 cgmath.workspace = true
 log.workspace = true
+paste.workspace = true
 winit.workspace = true
 wgpu.workspace = true
 

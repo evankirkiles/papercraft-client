@@ -1,14 +1,16 @@
+use crate::gpu;
+
+use pp_core::id;
+use pp_core::mesh::MeshDirtyFlags;
 use std::collections::HashMap;
 
-use crate::gpu;
-use pp_core::id;
+use prelude::*;
+pub mod prelude;
 
 mod mesh;
 mod viewport;
 
-pub use mesh::batches::batch_buffer_layouts;
 pub use mesh::MeshGPU;
-use pp_core::mesh::MeshDirtyFlags;
 pub use viewport::ViewportGPU;
 
 /// A manager for image textures for materials
@@ -31,8 +33,8 @@ impl DrawCache {
     pub fn sync_meshes(&mut self, ctx: &gpu::Context, state: &mut pp_core::state::State) {
         // Ensure AppState's meshes are all synced in the DrawCache
         state.meshes.iter_mut().for_each(|(key, mesh)| {
-            let m = self.meshes.entry(*key).or_insert(MeshGPU::new(mesh));
-            m.bufs.sync(ctx, mesh);
+            let m = self.meshes.entry(*key).or_insert(MeshGPU::new(ctx, mesh));
+            m.sync(ctx, mesh);
             mesh.elem_dirty = MeshDirtyFlags::empty();
             mesh.index_dirty = MeshDirtyFlags::empty();
         });
@@ -44,7 +46,7 @@ impl DrawCache {
     pub fn sync_viewports(&mut self, ctx: &gpu::Context, state: &mut pp_core::state::State) {
         // Ensure AppState's viwwports are all synced in the DrawCache
         state.viewports.iter_mut().for_each(|(key, viewport)| {
-            let m = self.viewports.entry(*key).or_insert(ViewportGPU::new(ctx));
+            let m = self.viewports.entry(*key).or_insert(ViewportGPU::new(ctx, viewport));
             m.sync(ctx, viewport);
             viewport.camera.is_dirty = false
         });

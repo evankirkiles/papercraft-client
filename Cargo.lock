@@ -1476,6 +1476,7 @@ dependencies = [
  "fs_extra",
  "glob",
  "log",
+ "paste",
  "pp_core",
  "wgpu",
  "winit",
