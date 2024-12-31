@@ -6,6 +6,8 @@ use winit::{
     application::ApplicationHandler, dpi::PhysicalSize, event::WindowEvent, window::Window,
 };
 
+mod input;
+
 #[cfg(target_arch = "wasm32")]
 use futures::channel::oneshot::Receiver;
 #[cfg(target_arch = "wasm32")]
@@ -19,6 +21,8 @@ pub struct App {
     window: Option<Arc<Window>>,
     /// The core state of the application
     state: pp_core::state::State,
+    /// User Input state (e.g. buttons pressed)
+    input_state: input::InputState,
     /// Which viewport to send inputs to (identified by Mouse Position or other)
     active_viewport: pp_core::id::ViewportId,
     /// Manages synchronizing screen pixels with the app state
@@ -33,6 +37,7 @@ impl Default for App {
         let mut app = Self {
             window: Default::default(),
             state: Default::default(),
+            input_state: Default::default(),
             active_viewport: id::ViewportId::new(0),
             draw_manager: Default::default(),
             #[cfg(target_arch = "wasm32")]
@@ -158,13 +163,42 @@ impl ApplicationHandler for App {
                 event:
                     winit::event::KeyEvent {
                         physical_key: winit::keyboard::PhysicalKey::Code(key_code),
+                        state,
                         ..
                     },
                 ..
             } => {
                 if key_code == winit::keyboard::KeyCode::Escape {
                     event_loop.exit()
+                } else if key_code == winit::keyboard::KeyCode::ShiftLeft {
+                    self.input_state.shift_pressed = state.is_pressed()
                 }
+            }
+            WindowEvent::MouseInput { device_id: _, state, button } => match button {
+                winit::event::MouseButton::Middle => {
+                    self.input_state.mb3_pressed = state.is_pressed()
+                }
+                winit::event::MouseButton::Left => {
+                    self.input_state.mb1_pressed = state.is_pressed()
+                }
+                _ => {}
+            },
+            WindowEvent::CursorMoved { device_id: _, position } => {
+                if self.input_state.mb3_pressed {
+                    let viewport = self.state.viewports.get_mut(&self.active_viewport).unwrap();
+                    if self.input_state.shift_pressed {
+                        viewport.camera.pan(
+                            position.x - self.input_state.cursor_pos.x,
+                            position.y - self.input_state.cursor_pos.y,
+                        );
+                    } else {
+                        viewport.camera.orbit(
+                            position.x - self.input_state.cursor_pos.x,
+                            position.y - self.input_state.cursor_pos.y,
+                        );
+                    }
+                }
+                self.input_state.cursor_pos = position
             }
             WindowEvent::MouseWheel { device_id: _, delta, phase: _ } => {
                 match delta {

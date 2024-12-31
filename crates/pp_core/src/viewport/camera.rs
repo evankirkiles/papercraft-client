@@ -12,6 +12,8 @@ pub struct CameraPerspective3D {
     pub speed_orbit: f32,
     /// Speed of dollying, e.g. zooming in / out
     pub speed_dolly: f32,
+    /// Speed of panning, e.g. moving left / right
+    pub speed_pan: f32,
 
     // Indicates the camera's state has changed, needing to update the uniform buffer
     pub is_dirty: bool,
@@ -24,7 +26,8 @@ impl Default for CameraPerspective3D {
             target: (0.5, 0.5, 0.5).into(),
             up: cgmath::Vector3::unit_z(),
             speed_orbit: 0.005,
-            speed_dolly: 2.0,
+            speed_dolly: 0.05,
+            speed_pan: 0.004,
             fovy: 45.0,
             znear: 0.1,
             zfar: 100.0,
@@ -66,8 +69,25 @@ impl CameraPerspective3D {
 
     /// Dollies the camera towards / away from the target
     pub fn dolly(&mut self, delta: f64) {
-        let forward = (self.eye - self.target).normalize(); // Direction from target to eye
+        let forward = self.eye - self.target;
         self.eye -= forward * delta as f32 * self.speed_dolly; // Move the eye along the forward direction
+
+        // Mark the camera as dirty for recalculations
+        self.is_dirty = true;
+    }
+
+    /// Pans the camera by moving its target
+    pub fn pan(&mut self, dx: f64, dy: f64) {
+        // Calculate the right and up vectors
+        let forward = (self.target - self.eye).normalize();
+        let right = forward.cross(cgmath::Vector3::unit_z()).normalize();
+        let up = right.cross(forward).normalize();
+
+        // Adjust the target and eye position based on the input
+        let pan_delta =
+            right * (dx as f32 * self.speed_pan) + up * (-1.0 * dy as f32 * self.speed_pan);
+        self.eye -= pan_delta;
+        self.target -= pan_delta;
 
         // Mark the camera as dirty for recalculations
         self.is_dirty = true;
