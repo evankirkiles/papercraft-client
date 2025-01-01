@@ -44,7 +44,7 @@ impl ProgramEdge {
                 bias: wgpu::DepthBiasState::default(),
             }),
             multisample: wgpu::MultisampleState {
-                count: 1,
+                count: (&ctx.settings.msaa_level).into(),
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },

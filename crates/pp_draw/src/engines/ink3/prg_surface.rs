@@ -31,8 +31,7 @@ impl ProgramSurface {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                // cull_mode: None,
-                cull_mode: Some(wgpu::Face::Back),
+                cull_mode: None,
                 polygon_mode: wgpu::PolygonMode::Fill,
                 unclipped_depth: false,
                 conservative: false,
@@ -46,7 +45,7 @@ impl ProgramSurface {
                 bias: wgpu::DepthBiasState { constant: 1, slope_scale: 0.05, ..Default::default() },
             }),
             multisample: wgpu::MultisampleState {
-                count: 1,
+                count: (&ctx.settings.msaa_level).into(),
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },

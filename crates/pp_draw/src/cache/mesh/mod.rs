@@ -90,7 +90,7 @@ impl GPUCache<Mesh> for MeshGPU {
 use paste::paste;
 
 /// Creates a static wgpu::VertexFormat object to use for referencing
-/// these attributes' formats. Used for deduplication of batch layouts.
+/// these attributes' formats. Helps in deduplication of batch layouts.
 macro_rules! vertex_format {
     ($name:ident $format:ident) => {
         paste! {

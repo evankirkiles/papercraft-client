@@ -5,7 +5,7 @@ mod cache;
 mod engines;
 mod gpu;
 
-pub struct DrawManager<'window> {
+pub struct Renderer<'window> {
     ctx: gpu::Context<'window>,
     size: PhysicalSize<u32>,
     presentation_fb: gpu::FrameBuffer,
@@ -13,7 +13,7 @@ pub struct DrawManager<'window> {
     draw_cache: cache::DrawCache,
 }
 
-impl<'window> DrawManager<'window> {
+impl<'window> Renderer<'window> {
     // Initializes the GPU surface and creates the different engines needed to
     // render views of the screen.
     pub async fn new(
@@ -86,7 +86,7 @@ impl<'window> DrawManager<'window> {
         let ctx = gpu::Context::new(device, config, surface, queue);
 
         Self {
-            presentation_fb: gpu::FrameBuffer::from_swapchain(&ctx),
+            presentation_fb: gpu::FrameBuffer::new_presentation(&ctx, width.max(1), height.max(1)),
             engine_ink3: engines::InkEngine3D::new(&ctx),
             draw_cache: DrawCache::default(),
             size: PhysicalSize { width, height },
@@ -101,9 +101,11 @@ impl<'window> DrawManager<'window> {
         self.draw_cache.sync_viewports(&self.ctx, state);
     }
 
-    /// Draws all of the renderables to the screen
-    pub fn draw(&mut self) -> Result<(), anyhow::Error> {
-        self.presentation_fb.render(&self.ctx, |render_pass| {
+    /// Draws all of the renderables to the screen in each viewport
+    pub fn draw(&mut self) {
+        let output = self.ctx.surface.get_current_texture().unwrap();
+        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        self.presentation_fb.render(&self.ctx, Some(&view), |render_pass| {
             self.draw_cache.viewports.values().for_each(|viewport| {
                 viewport.bind(render_pass);
                 // draw from each engine in the presentation render pass.
@@ -111,7 +113,8 @@ impl<'window> DrawManager<'window> {
                     self.engine_ink3.draw_mesh(render_pass, mesh);
                 })
             });
-        })
+        });
+        output.present();
     }
 
     /// Updates the GPUContext for new dimensions
@@ -119,7 +122,7 @@ impl<'window> DrawManager<'window> {
         if width > 0 && height > 0 {
             self.size = PhysicalSize { width, height };
             self.ctx.resize(width, height);
-            self.presentation_fb.resize(&self.ctx);
+            self.presentation_fb.resize(&self.ctx, width, height);
         }
     }
 }

@@ -26,10 +26,10 @@ pub struct App {
     /// Which viewport to send inputs to (identified by Mouse Position or other)
     active_viewport: pp_core::id::ViewportId,
     /// Manages synchronizing screen pixels with the app state
-    draw_manager: Option<pp_draw::DrawManager<'static>>,
+    renderer: Option<pp_draw::Renderer<'static>>,
     /// Receiver for asynchronous winit setup in WASM
     #[cfg(target_arch = "wasm32")]
-    draw_manager_receiver: Option<Receiver<pp_draw::DrawManager<'static>>>,
+    renderer_receiver: Option<Receiver<pp_draw::Renderer<'static>>>,
 }
 
 impl Default for App {
@@ -39,9 +39,9 @@ impl Default for App {
             state: Default::default(),
             input_state: Default::default(),
             active_viewport: id::ViewportId::new(0),
-            draw_manager: Default::default(),
+            renderer: Default::default(),
             #[cfg(target_arch = "wasm32")]
-            draw_manager_receiver: Default::default(),
+            renderer_receiver: Default::default(),
         };
         let cube = Mesh::new_cube(0);
         app.state.meshes.insert(cube.id, cube);
@@ -92,14 +92,14 @@ impl ApplicationHandler for App {
                 #[cfg(target_arch = "wasm32")]
                 {
                     let (sender, receiver) = futures::channel::oneshot::channel();
-                    self.draw_manager_receiver = Some(receiver);
+                    self.renderer_receiver = Some(receiver);
                     #[cfg(feature = "console_error_panic_hook")]
                     console_error_panic_hook::set_once();
                     console_log::init_with_level(log::Level::Warn)
                         .expect("Failed to initialize logger");
                     log::info!("Canvas dimensions: {canvas_width} x {canvas_height}");
                     wasm_bindgen_futures::spawn_local(async move {
-                        let renderer = pp_draw::DrawManager::new(
+                        let renderer = pp_draw::Renderer::new(
                             window_handle.clone(),
                             canvas_width,
                             canvas_height,
@@ -118,8 +118,8 @@ impl ApplicationHandler for App {
                         .format_timestamp(None)
                         .init();
                     let inner_size = window_handle.inner_size();
-                    self.draw_manager = Some(pollster::block_on(async move {
-                        pp_draw::DrawManager::new(
+                    self.renderer = Some(pollster::block_on(async move {
+                        pp_draw::Renderer::new(
                             window_handle.clone(),
                             inner_size.width,
                             inner_size.height,
@@ -140,20 +140,19 @@ impl ApplicationHandler for App {
         // Catch the new window created asynchronously on web
         #[cfg(target_arch = "wasm32")]
         {
-            let mut draw_manager_received = false;
-            if let Some(receiver) = self.draw_manager_receiver.as_mut() {
-                if let Ok(Some(draw_manager)) = receiver.try_recv() {
-                    self.draw_manager = Some(draw_manager);
-                    draw_manager_received = true;
+            let mut renderer_received = false;
+            if let Some(receiver) = self.renderer_receiver.as_mut() {
+                if let Ok(Some(renderer)) = receiver.try_recv() {
+                    self.renderer = Some(renderer);
+                    renderer_received = true;
                 }
             }
-            if draw_manager_received {
-                self.draw_manager_receiver = None;
+            if renderer_received {
+                self.renderer_receiver = None;
             }
         }
 
-        let (Some(draw_manager), Some(window)) = (self.draw_manager.as_mut(), self.window.as_mut())
-        else {
+        let (Some(renderer), Some(window)) = (self.renderer.as_mut(), self.window.as_mut()) else {
             return;
         };
 
@@ -221,15 +220,15 @@ impl ApplicationHandler for App {
             WindowEvent::Resized(PhysicalSize { width, height }) => {
                 let (width, height) = ((width).max(1), (height).max(1));
                 log::info!("Resizing renderer surface to: {width} x {height}");
-                draw_manager.resize(width, height);
+                renderer.resize(width, height);
             }
             WindowEvent::CloseRequested => {
                 log::info!("Close requested. Exiting...");
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                draw_manager.sync(&mut self.state);
-                draw_manager.draw().unwrap();
+                renderer.sync(&mut self.state);
+                renderer.draw();
             }
             _ => (),
         }

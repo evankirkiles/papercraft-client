@@ -9,7 +9,7 @@ mod camera;
 /// GPU representation of a viewport, used to set viewport in render passes
 /// and supply the camera uniform for vertex shaders.
 pub struct ViewportGPU {
-    camera: camera::CameraGPU,
+    pub camera: camera::CameraGPU,
     x: f32,
     y: f32,
     width: f32,

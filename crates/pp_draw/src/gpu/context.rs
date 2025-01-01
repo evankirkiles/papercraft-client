@@ -1,4 +1,4 @@
-use super::layouts::SharedLayouts;
+use super::{layouts::SharedLayouts, settings::Settings};
 
 /// A GPU Context owns the resources connected to a Surface's lifetime. It is
 /// created when the Renderer is created and used to pass around shared
@@ -10,6 +10,8 @@ pub struct Context<'ctx> {
     pub queue: wgpu::Queue,
     /// Common wgpu layouts of various types for re-use across programs
     pub shared_layouts: SharedLayouts,
+    /// Global configuration for draw calls
+    pub settings: Settings,
 }
 
 impl<'ctx> Context<'ctx> {
@@ -19,8 +21,14 @@ impl<'ctx> Context<'ctx> {
         surface: wgpu::Surface<'ctx>,
         queue: wgpu::Queue,
     ) -> Self {
-        let ctx =
-            Context { shared_layouts: SharedLayouts::new(&device), device, config, surface, queue };
+        let ctx = Context {
+            shared_layouts: SharedLayouts::new(&device),
+            settings: Settings::default(),
+            device,
+            config,
+            surface,
+            queue,
+        };
         ctx.configure_surface();
         ctx
     }

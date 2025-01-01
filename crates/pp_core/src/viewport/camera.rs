@@ -1,4 +1,4 @@
-use cgmath::{ElementWise, InnerSpace};
+use cgmath::InnerSpace;
 
 pub struct CameraPerspective3D {
     pub eye: cgmath::Point3<f32>,
@@ -27,7 +27,7 @@ impl Default for CameraPerspective3D {
             up: cgmath::Vector3::unit_z(),
             speed_orbit: 0.005,
             speed_dolly: 0.05,
-            speed_pan: 0.004,
+            speed_pan: 0.003,
             fovy: 45.0,
             znear: 0.1,
             zfar: 100.0,
