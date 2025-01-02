@@ -1,20 +1,20 @@
 use crate::cache;
 use crate::gpu;
 
-pub struct ProgramEdge {
+pub struct ProgramPoints {
     pipeline: wgpu::RenderPipeline,
 }
 
-impl ProgramEdge {
+impl ProgramPoints {
     pub fn new(ctx: &gpu::Context) -> Self {
-        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("shaders/edge.wgsl"));
+        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("shaders/points.wgsl"));
         let render_pipeline = ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("ink3.edge"),
+            label: Some("ink3.points"),
             layout: Some(&ctx.shared_layouts.pipelines.pipeline_3d),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_EDIT_EDGES,
+                buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_EDIT_POINTS_INSTANCED,
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -28,7 +28,7 @@ impl ProgramEdge {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::LineList,
+                topology: wgpu::PrimitiveTopology::TriangleStrip,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: None,
@@ -60,6 +60,6 @@ impl ProgramEdge {
         // Set the pipeline and draw the mesh
         // TODO: For each material...
         render_pass.set_pipeline(&self.pipeline);
-        mesh.draw_edit_edges(render_pass);
+        mesh.draw_edit_points_instanced(render_pass);
     }
 }

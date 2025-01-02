@@ -34,6 +34,6 @@ impl GPUCache<Viewport> for ViewportGPU {
     fn sync(&mut self, ctx: &gpu::Context, viewport: &pp_core::viewport::Viewport) {
         self.width = viewport.width_frac * ctx.config.width as f32;
         self.height = ctx.config.height as f32;
-        self.camera.sync(ctx, &viewport.camera, self.width / self.height);
+        self.camera.sync(ctx, &viewport.camera, self.width, self.height);
     }
 }

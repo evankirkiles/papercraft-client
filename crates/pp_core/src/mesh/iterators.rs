@@ -18,7 +18,7 @@ impl<'mesh> DiskCycleWalker<'mesh> {
     }
 }
 
-impl<'mesh> Iterator for DiskCycleWalker<'mesh> {
+impl Iterator for DiskCycleWalker<'_> {
     type Item = EdgeId;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -32,7 +32,7 @@ impl<'mesh> Iterator for DiskCycleWalker<'mesh> {
     }
 }
 
-impl<'mesh> DoubleEndedIterator for DiskCycleWalker<'mesh> {
+impl DoubleEndedIterator for DiskCycleWalker<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.done {
             return None;
@@ -60,7 +60,7 @@ impl<'mesh> RadialCycleWalker<'mesh> {
     }
 }
 
-impl<'mesh> Iterator for RadialCycleWalker<'mesh> {
+impl Iterator for RadialCycleWalker<'_> {
     type Item = LoopId;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -74,7 +74,7 @@ impl<'mesh> Iterator for RadialCycleWalker<'mesh> {
     }
 }
 
-impl<'mesh> DoubleEndedIterator for RadialCycleWalker<'mesh> {
+impl DoubleEndedIterator for RadialCycleWalker<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.done {
             return None;
@@ -102,7 +102,7 @@ impl<'mesh> LoopCycleWalker<'mesh> {
     }
 }
 
-impl<'mesh> Iterator for LoopCycleWalker<'mesh> {
+impl Iterator for LoopCycleWalker<'_> {
     type Item = LoopId;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -116,7 +116,7 @@ impl<'mesh> Iterator for LoopCycleWalker<'mesh> {
     }
 }
 
-impl<'mesh> DoubleEndedIterator for LoopCycleWalker<'mesh> {
+impl DoubleEndedIterator for LoopCycleWalker<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.done {
             return None;

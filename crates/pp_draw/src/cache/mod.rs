@@ -1,7 +1,7 @@
 use crate::gpu;
 
 use pp_core::id;
-use pp_core::mesh::MeshDirtyFlags;
+use pp_core::mesh::MeshElementType;
 use std::collections::HashMap;
 
 use prelude::*;
@@ -33,10 +33,11 @@ impl DrawCache {
     pub fn sync_meshes(&mut self, ctx: &gpu::Context, state: &mut pp_core::state::State) {
         // Ensure AppState's meshes are all synced in the DrawCache
         state.meshes.iter_mut().for_each(|(key, mesh)| {
+            mesh.ensure_elem_index(MeshElementType::all());
             let m = self.meshes.entry(*key).or_insert(MeshGPU::new(ctx, mesh));
             m.sync(ctx, mesh);
-            mesh.elem_dirty = MeshDirtyFlags::empty();
-            mesh.index_dirty = MeshDirtyFlags::empty();
+            mesh.elem_dirty = MeshElementType::empty();
+            mesh.index_dirty = MeshElementType::empty();
         });
         // TODO: Remove unused meshes from the DrawCache
     }

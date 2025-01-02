@@ -6,13 +6,21 @@ use crate::gpu;
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct CameraUniform {
     view_proj: [[f32; 4]; 4],
+    dimensions: [f32; 2],
+    // Extra padding bits to bring up to "80" size
+    padding: [f32; 2],
 }
 
 impl CameraUniform {
-    fn new(camera: &pp_core::viewport::camera::CameraPerspective3D, aspect: f32) -> Self {
+    fn new(
+        camera: &pp_core::viewport::camera::CameraPerspective3D,
+        width: f32,
+        height: f32,
+    ) -> Self {
+        let aspect = width / height;
         let view = cgmath::Matrix4::look_at_rh(camera.eye, camera.target, camera.up);
         let proj = cgmath::perspective(cgmath::Deg(camera.fovy), aspect, camera.znear, camera.zfar);
-        Self { view_proj: (proj * view).into() }
+        Self { dimensions: [width, height], view_proj: (proj * view).into(), padding: [0.0, 0.0] }
     }
 }
 
@@ -20,8 +28,9 @@ pub struct CameraGPU {
     buf: gpu::UniformBuf,
     bind_group: wgpu::BindGroup,
 
-    /// The aspect ratio of the Camera, derived from the viewport's dimensions
-    aspect: f32,
+    /// Dimensions of the camera, used for consistent pixel size when necessary
+    width: f32,
+    height: f32,
 }
 
 impl CameraGPU {
@@ -36,19 +45,21 @@ impl CameraGPU {
             layout: &ctx.shared_layouts.bind_groups.camera_3d,
             entries: &[wgpu::BindGroupEntry { binding: 0, resource: buf.binding_resource() }],
         });
-        Self { buf, bind_group, aspect: 1.0 }
+        Self { buf, bind_group, width: 1.0, height: 1.0 }
     }
 
     pub fn sync(
         &mut self,
         ctx: &gpu::Context,
         camera: &pp_core::viewport::camera::CameraPerspective3D,
-        aspect: f32,
+        width: f32,
+        height: f32,
     ) {
-        if self.aspect != aspect || camera.is_dirty {
-            self.buf.update(ctx, &[CameraUniform::new(camera, aspect)]);
+        if self.width != width || self.height != height || camera.is_dirty {
+            self.buf.update(ctx, &[CameraUniform::new(camera, width, height)]);
         }
-        self.aspect = aspect
+        self.width = width;
+        self.height = height;
     }
 
     pub fn bind(&self, render_pass: &mut wgpu::RenderPass) {

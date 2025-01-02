@@ -1,19 +1,26 @@
 use bitflags::bitflags;
+use iterators::{DiskCycleWalker, LoopCycleWalker, RadialCycleWalker};
 use std::ops;
-use walk_adj::{DiskCycleWalker, LoopCycleWalker, RadialCycleWalker};
 
+mod iterators;
 mod primitives;
-mod walk_adj;
 
-use crate::id::{EdgeId, FaceId, Id, LoopId, MeshId, VertexId};
+use crate::id::{self, EdgeId, FaceId, Id, LoopId, MeshId, VertexId};
 use stable_vec::StableVec;
 
 bitflags! {
-    pub struct MeshDirtyFlags: u8 {
+    #[derive(Clone, Copy)]
+    pub struct MeshElementType: u8 {
         const VERTS = 1 << 0;
         const EDGES = 1 << 1;
         const FACES = 1 << 2;
         const LOOPS = 1 << 3;
+    }
+}
+
+impl From<MeshElementType> for bool {
+    fn from(value: MeshElementType) -> Self {
+        !value.is_empty()
     }
 }
 
@@ -41,8 +48,8 @@ pub struct Mesh {
     pub loops: StableVec<Loop>,
 
     /// Indicates which type of element has changed in this mesh
-    pub elem_dirty: MeshDirtyFlags,
-    pub index_dirty: MeshDirtyFlags,
+    pub elem_dirty: MeshElementType,
+    pub index_dirty: MeshElementType,
 }
 
 /// A single vertex in space.
@@ -55,6 +62,8 @@ pub struct Vertex {
 
     /// DiskCycle: Any edge containing this vertex
     pub e: Option<EdgeId>,
+    /// The "index" of this vertex in final VBO, not accounting for face-data
+    pub index: Option<usize>,
 }
 
 /// An edge, formed by two vertices.
@@ -67,12 +76,14 @@ pub struct Edge {
 
     /// RadialCycle: Any loop (defined by a face) for this specific edge
     pub l: Option<LoopId>,
+    /// The "index" of this edge in any final IBO
+    pub index: Option<usize>,
 }
 
 impl Edge {
     /// Creates a new Edge with DiskLinks referencing just itself
     pub fn new(e: EdgeId, v1: VertexId, v2: VertexId) -> Self {
-        Self { v: [v1, v2], dl: [DiskLink::new(e), DiskLink::new(e)], l: None }
+        Self { v: [v1, v2], dl: [DiskLink::new(e), DiskLink::new(e)], l: None, index: None }
     }
 
     /// Ensures that this edge contains vertex `v`
@@ -105,12 +116,14 @@ pub struct Face {
 
     /// LoopCycle: Any loop in this face
     pub l_first: LoopId,
+    /// The "index" of this face in any final IBO
+    pub index: Option<usize>,
 }
 
 impl Face {
     /// Creates a new Face with a temporary Loop Id
     fn new(len: usize) -> Self {
-        Self { no: [0.0, 0.0, 0.0], mat_nr: 0, len, l_first: LoopId::temp() }
+        Self { no: [0.0, 0.0, 0.0], mat_nr: 0, len, l_first: LoopId::temp(), index: None }
     }
 }
 
@@ -143,6 +156,9 @@ pub struct Loop {
     // LoopCycle: Other loops in this face
     pub next: LoopId,
     pub prev: LoopId,
+
+    /// The "index" of this loop / corner in any final VBO
+    pub index: Option<usize>,
 }
 
 impl Loop {
@@ -158,6 +174,7 @@ impl Loop {
             prev: LoopId::temp(),
             radial_next: LoopId::temp(),
             radial_prev: LoopId::temp(),
+            index: None,
         }
     }
 }
@@ -171,8 +188,8 @@ impl Mesh {
             edges: StableVec::new(),
             faces: StableVec::new(),
             loops: StableVec::new(),
-            elem_dirty: MeshDirtyFlags::empty(),
-            index_dirty: MeshDirtyFlags::empty(),
+            elem_dirty: MeshElementType::empty(),
+            index_dirty: MeshElementType::empty(),
         }
     }
 
@@ -180,8 +197,8 @@ impl Mesh {
 
     /// Adds a single, disconnected vertex to the mesh.
     pub fn add_vertex(&mut self, po: [f32; 3], no: [f32; 3]) -> VertexId {
-        self.elem_dirty |= MeshDirtyFlags::VERTS;
-        VertexId::from_usize(self.verts.push(Vertex { e: None, po, no }))
+        self.elem_dirty |= MeshElementType::VERTS;
+        VertexId::from_usize(self.verts.push(Vertex { e: None, po, no, index: None }))
     }
 
     /// Adds an edge between two vertices.
@@ -200,8 +217,8 @@ impl Mesh {
         self.disk_edge_append(e, v2);
 
         // Mark edge resources as needing to be recreated
-        self.elem_dirty |= MeshDirtyFlags::EDGES;
-        self.index_dirty |= MeshDirtyFlags::EDGES;
+        self.elem_dirty |= MeshElementType::EDGES;
+        self.index_dirty |= MeshElementType::EDGES;
         e
     }
 
@@ -238,9 +255,49 @@ impl Mesh {
         self[l_last].next = l_start;
 
         // Face and loop resources need to be recreated
-        self.elem_dirty |= MeshDirtyFlags::LOOPS | MeshDirtyFlags::FACES;
-        self.index_dirty |= MeshDirtyFlags::LOOPS | MeshDirtyFlags::FACES;
+        self.elem_dirty |= MeshElementType::LOOPS | MeshElementType::FACES;
+        self.index_dirty |= MeshElementType::LOOPS | MeshElementType::FACES;
         f
+    }
+
+    // --- Section: Lazy Calculations ---
+
+    /// Makes sure that element indices are up-to-date to prepare for IBO
+    /// creation.
+    pub fn ensure_elem_index(&mut self, el_types: MeshElementType) {
+        let el_types_and_dirty = el_types & self.index_dirty;
+        if (MeshElementType::VERTS & el_types_and_dirty).into() {
+            self.verts.values_mut().enumerate().for_each(|(i, el)| {
+                el.index = Some(i);
+            });
+        }
+        if (MeshElementType::EDGES & el_types_and_dirty).into() {
+            self.edges.values_mut().enumerate().for_each(|(i, el)| {
+                el.index = Some(i);
+            });
+        }
+        if ((MeshElementType::FACES | MeshElementType::LOOPS) & el_types_and_dirty).into() {
+            self.faces.values_mut().enumerate().for_each(|(i, el)| {
+                el.index = Some(i);
+            });
+        }
+        if (MeshElementType::LOOPS & el_types_and_dirty).into() {
+            let loops: Vec<_> = self
+                .faces
+                .indices()
+                .flat_map(|f| self.face_loop_walk(FaceId::from_usize(f)))
+                .collect();
+            loops.iter().enumerate().for_each(|(i, l)| {
+                self[*l].index = Some(i);
+            });
+        }
+    }
+
+    // --- Section: Full walks ---
+
+    /// Iterates all the loops in the mesh, in pre-defined order
+    pub fn iter_loops(&self) -> impl Iterator<Item = id::LoopId> + '_ {
+        self.faces.indices().flat_map(|f_id| self.face_loop_walk(FaceId::from_usize(f_id)))
     }
 
     // --- Section: Queries ---
