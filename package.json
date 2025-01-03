@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "pnpm run --filter=ui dev",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "rs:build-web": "cargo build --target wasm32-unknown-unknown",
     "rs:run": "cargo run --target aarch64-apple-darwin"
   },
   "keywords": [],

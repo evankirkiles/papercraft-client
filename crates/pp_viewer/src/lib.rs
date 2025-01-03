@@ -95,7 +95,7 @@ impl ApplicationHandler for App {
                     self.renderer_receiver = Some(receiver);
                     #[cfg(feature = "console_error_panic_hook")]
                     console_error_panic_hook::set_once();
-                    console_log::init_with_level(log::Level::Warn)
+                    console_log::init_with_level(log::Level::Info)
                         .expect("Failed to initialize logger");
                     log::info!("Canvas dimensions: {canvas_width} x {canvas_height}");
                     wasm_bindgen_futures::spawn_local(async move {
@@ -157,6 +157,10 @@ impl ApplicationHandler for App {
         };
 
         // Handle event if GUI didn't do anything with it
+        // if event != WindowEvent::RedrawRequested {
+        //     log::info!("{:?}", event);
+        // }
+
         match event {
             WindowEvent::KeyboardInput {
                 event:
@@ -199,23 +203,31 @@ impl ApplicationHandler for App {
                 }
                 self.input_state.cursor_pos = position
             }
-            WindowEvent::MouseWheel { device_id: _, delta, phase: _ } => {
-                match delta {
+            WindowEvent::MouseWheel { device_id: _, delta, phase } => {
+                match phase {
+                    winit::event::TouchPhase::Started => self.input_state.is_touch = true,
+                    winit::event::TouchPhase::Ended => self.input_state.is_touch = false,
+                    _ => {}
+                }
+                let (dx, dy) = match delta {
                     // Standard scroll events should dolly in/out
-                    winit::event::MouseScrollDelta::LineDelta(_, y) => {
-                        let viewport = self.state.viewports.get_mut(&self.active_viewport).unwrap();
-                        viewport.camera.dolly(y as f64);
+                    winit::event::MouseScrollDelta::LineDelta(x, y) => (x as f64, y as f64), // Touch "wheel" events should orbit
+                    winit::event::MouseScrollDelta::PixelDelta(PhysicalPosition { x, y }) => (x, y),
+                };
+                let viewport = self.state.viewports.get_mut(&self.active_viewport).unwrap();
+                if self.input_state.is_touch {
+                    if self.input_state.shift_pressed {
+                        viewport.camera.pan(dx, dy);
+                    } else {
+                        viewport.camera.orbit(dx, dy);
                     }
-                    // Touch "wheel" events should orbit
-                    winit::event::MouseScrollDelta::PixelDelta(PhysicalPosition { x, y }) => {
-                        let viewport = self.state.viewports.get_mut(&self.active_viewport).unwrap();
-                        viewport.camera.orbit(x, y);
-                    }
+                } else {
+                    viewport.camera.dolly(dy);
                 }
             }
             WindowEvent::PinchGesture { device_id: _, delta, phase: _ } => {
                 let viewport = self.state.viewports.get_mut(&self.active_viewport).unwrap();
-                viewport.camera.dolly(delta);
+                viewport.camera.dolly(delta * 50.0);
             }
             WindowEvent::Resized(PhysicalSize { width, height }) => {
                 let (width, height) = ((width).max(1), (height).max(1));
