@@ -6,13 +6,11 @@ struct Camera { view_proj: mat4x4<f32>, dimensions: vec2<f32> };
 // and the vertex_index comes from the triangle strip defining the point rect.
 struct VertexInput { 
   @location(0) position: vec3<f32>,
-  @location(1) offset: vec2<f32>,
   @builtin(vertex_index) vertex_index: u32
 };
 
 struct VertexOutput { 
   @builtin(position) clip_position: vec4<f32>,
-  @location(0) color: vec2<f32>,
 };
 
 
@@ -31,7 +29,7 @@ fn vs_main(
     );
 
     // Width of the point in pixels
-    var point_size = 100.0;
+    var point_size = 20.0;
     // var offset = vert.offset * point_size;
     var offset = OFFSETS[vert.vertex_index] * point_size;
     var offset_mat = mat4x4<f32>(
@@ -42,7 +40,6 @@ fn vs_main(
     );
 
     out.clip_position = offset_mat * camera.view_proj * vec4<f32>(vert.position, 1.0);
-    out.color = vert.offset;
     return out;
 }
 
@@ -50,5 +47,5 @@ fn vs_main(
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4<f32>(in.color, 0.0, 1.0);
+    return vec4<f32>(0.7, 0.7, 0.7, 1.0);
 }

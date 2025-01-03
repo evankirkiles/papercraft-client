@@ -4,19 +4,19 @@ pub mod vbo {
 
     /// Reloads the pos VBO from the mesh's data
     pub fn pos(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
-        let data: Vec<_> = mesh.iter_loops().flat_map(|l| mesh[mesh[l].v].po).collect();
+        let data: Vec<_> = mesh.iter_loops().map(|l| mesh[mesh[l].v].po).collect();
         vbo.update(ctx, data.as_slice());
     }
 
     /// Reloads the vertex normals VBO from the mesh's data
     pub fn vnor(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
-        let data: Vec<_> = mesh.iter_loops().flat_map(|l| mesh[mesh[l].v].no).collect();
+        let data: Vec<_> = mesh.iter_loops().map(|l| mesh[mesh[l].v].no).collect();
         vbo.update(ctx, data.as_slice());
     }
 
     /// Reloads the vertex normals VBO from the mesh's data
     pub fn uv(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
-        let data: Vec<_> = mesh.iter_loops().flat_map(|l| mesh[mesh[l].v].no).collect();
+        let data: Vec<_> = mesh.iter_loops().map(|l| mesh[mesh[l].v].no).collect();
         vbo.update(ctx, data.as_slice());
     }
 
@@ -43,9 +43,8 @@ pub mod ibo {
             .flat_map(|l| {
                 let l = mesh[l];
                 let l_next = mesh[l.next];
-                [l.index.unwrap(), l_next.index.unwrap()]
+                [l.index.unwrap() as u32, l_next.index.unwrap() as u32]
             })
-            .map(|f| f as u32)
             .collect();
         ibo.update(ctx, data.as_slice());
     }

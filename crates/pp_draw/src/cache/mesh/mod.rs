@@ -87,9 +87,6 @@ impl GPUCache<Mesh> for MeshGPU {
         if dirty_flags.intersects(MeshElementType::EDGES) {
             extract::ibo::lines(ctx, mesh, &mut self.ibo.lines);
         }
-        if self.is_dirty {
-            self.vbo.edit_rect.update(ctx, &[[-5.0, -5.0], [-5.0, 5.0], [5.0, -5.0], [5.0, 5.0]]);
-        }
         self.is_dirty = false
     }
 }
@@ -172,8 +169,6 @@ impl MeshGPU {
 
     pub fn draw_edit_points_instanced(&self, render_pass: &mut wgpu::RenderPass) {
         render_pass.set_vertex_buffer(0, self.vbo.pos.slice());
-        render_pass.set_vertex_buffer(1, self.vbo.edit_rect.slice());
-        // Draw two triangles (a quad) instanced for every point
         render_pass.draw(0..4, 0..self.vbo.pos.len);
     }
 }
