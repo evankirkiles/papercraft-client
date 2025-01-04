@@ -23,24 +23,16 @@ impl SharedBindGroupLayouts {
             }),
             depth_tex: device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("depth_tex"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        count: None,
-                        ty: wgpu::BindingType::Texture {
-                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
-                            multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                        },
-                        visibility: wgpu::ShaderStages::FRAGMENT,
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Depth {},
+                        multisampled: true,
+                        view_dimension: wgpu::TextureViewDimension::D2,
                     },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 2,
-                        count: None,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                    },
-                ],
+                    count: None,
+                }],
             }),
         }
     }

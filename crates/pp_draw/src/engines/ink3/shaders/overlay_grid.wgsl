@@ -39,6 +39,7 @@ fn vs_main(
 }
 
 // Fragment shader
+@group(1) @binding(0) var depth_texture: texture_depth_multisampled_2d;
 
 fn grid(pos: vec3<f32>, scale: f32) -> vec4<f32> {
     let fade_radius = 5.0;
@@ -66,6 +67,22 @@ fn grid(pos: vec3<f32>, scale: f32) -> vec4<f32> {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var t = -in.near_point.z / (in.far_point.z - in.near_point.z);
-    var pos = in.near_point + t * (in.far_point - in.near_point);
-    return grid(pos, 2.0) * f32(t > 0);
+    var world_pos = in.near_point + t * (in.far_point - in.near_point);
+    // Convert world position to normalized device coordinates
+    var clip_pos = camera.view_proj * vec4<f32>(world_pos, 1.0);
+    var ndc_pos = clip_pos.xyz / clip_pos.w; // NDC [-1, 1]
+    var screen_pos = vec2<f32>(
+        (ndc_pos.x * 0.5 + 0.5),
+        1 - (ndc_pos.y * 0.5 + 0.5)
+    ) * camera.dimensions; // Map to screen space [0, dimensions]
+    // Sample depth from the multisampled depth texture
+    let screen_depth = textureLoad(depth_texture, vec2<i32>(screen_pos), 0);
+
+    // Only render grid pixels in front of the sampled depth
+    // return vec4<f32>(1.0, 1.0, 1.0, 1.0) * screen_depth;
+    if ndc_pos.z >= screen_depth {
+        discard;
+    }
+
+    return grid(world_pos, 2.0) * f32(t > 0);
 }

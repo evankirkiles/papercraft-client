@@ -10,8 +10,8 @@ impl ProgramOverlayGrid {
         let shader =
             ctx.device.create_shader_module(wgpu::include_wgsl!("shaders/overlay_grid.wgsl"));
         let render_pipeline = ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("ink3.points"),
-            layout: Some(&ctx.shared_layouts.pipelines.pipeline_3d),
+            label: Some("ink3.overlay_grid"),
+            layout: Some(&ctx.shared_layouts.pipelines.pipeline_3d_deferred),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
@@ -37,18 +37,12 @@ impl ProgramOverlayGrid {
                 unclipped_depth: false,
                 conservative: false,
             },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: gpu::Texture::DEPTH_FORMAT,
-                depth_write_enabled: false,
-                depth_compare: wgpu::CompareFunction::LessEqual,
-                stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState::default(),
-            }),
             multisample: wgpu::MultisampleState {
                 count: (&ctx.settings.msaa_level).into(),
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },
+            depth_stencil: None,
             multiview: None,
             cache: None,
         });

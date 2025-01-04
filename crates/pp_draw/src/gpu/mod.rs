@@ -1,5 +1,4 @@
 mod context;
-mod framebuffer;
 mod index_buffer;
 mod texture;
 mod uniform_buffer;
@@ -9,7 +8,6 @@ pub mod layouts;
 pub mod settings;
 
 pub use self::context::*;
-pub use self::framebuffer::*;
 pub use self::index_buffer::*;
 pub use self::texture::*;
 pub use self::uniform_buffer::*;

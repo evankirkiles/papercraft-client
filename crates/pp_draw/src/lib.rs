@@ -1,3 +1,5 @@
+use std::iter;
+
 use cache::DrawCache;
 use winit::dpi::PhysicalSize;
 
@@ -8,9 +10,15 @@ mod gpu;
 pub struct Renderer<'window> {
     ctx: gpu::Context<'window>,
     size: PhysicalSize<u32>,
-    presentation_fb: gpu::FrameBuffer,
-    engine_ink3: engines::InkEngine3D,
     draw_cache: cache::DrawCache,
+
+    // Rendering engines
+    engine_ink3: engines::InkEngine3D,
+
+    /// MSAA textures used in our two passes
+    color_texture: gpu::Texture,
+    depth_texture: gpu::Texture,
+    depth_bind_group: wgpu::BindGroup,
 }
 
 impl<'window> Renderer<'window> {
@@ -84,12 +92,16 @@ impl<'window> Renderer<'window> {
         // Store the above GPU abstractions into a single context object we
         // can pass around in the future.
         let ctx = gpu::Context::new(device, config, surface, queue);
+        let (color_texture, depth_texture, depth_bind_group) =
+            Self::create_presentation_textures(&ctx);
 
         Self {
-            presentation_fb: gpu::FrameBuffer::new_presentation(&ctx, width.max(1), height.max(1)),
             engine_ink3: engines::InkEngine3D::new(&ctx),
             draw_cache: DrawCache::default(),
             size: PhysicalSize { width, height },
+            color_texture,
+            depth_texture,
+            depth_bind_group,
             ctx,
         }
     }
@@ -105,16 +117,68 @@ impl<'window> Renderer<'window> {
     pub fn draw(&mut self) {
         let output = self.ctx.surface.get_current_texture().unwrap();
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
-        self.presentation_fb.render(&self.ctx, Some(&view), |render_pass| {
+        let mut encoder = self
+            .ctx
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("draw") });
+
+        {
+            // RENDER PASS 1: Diffuse / Geometry
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("diffuse"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &self.color_texture.view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.01,
+                            g: 0.01,
+                            b: 0.01,
+                            a: 1.0,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.depth_texture.view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
+                occlusion_query_set: None,
+                timestamp_writes: None,
+            });
             self.draw_cache.viewports.values().for_each(|viewport| {
-                viewport.bind(render_pass);
+                viewport.bind(&mut render_pass);
                 // draw from each engine in the presentation render pass.
                 self.draw_cache.meshes.values().for_each(|mesh| {
-                    self.engine_ink3.draw_mesh(render_pass, mesh);
+                    self.engine_ink3.draw_mesh(&mut render_pass, mesh);
                 });
-                self.engine_ink3.draw_overlays(render_pass);
             });
-        });
+        }
+
+        {
+            // RENDER PASS 2: Deferred / Overlay
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("deferred"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &self.color_texture.view,
+                    resolve_target: Some(&view),
+                    ops: wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Store },
+                })],
+                depth_stencil_attachment: None,
+                occlusion_query_set: None,
+                timestamp_writes: None,
+            });
+            render_pass.set_bind_group(1, &self.depth_bind_group, &[]);
+            self.draw_cache.viewports.values().for_each(|viewport| {
+                viewport.bind(&mut render_pass);
+                self.engine_ink3.draw_overlays(&mut render_pass);
+            });
+        }
+        self.ctx.queue.submit(iter::once(encoder.finish()));
         output.present();
     }
 
@@ -123,7 +187,60 @@ impl<'window> Renderer<'window> {
         if width > 0 && height > 0 {
             self.size = PhysicalSize { width, height };
             self.ctx.resize(width, height);
-            self.presentation_fb.resize(&self.ctx, width, height);
+            let (color_texture, depth_texture, depth_bind_group) =
+                Self::create_presentation_textures(&self.ctx);
+            self.color_texture = color_texture;
+            self.depth_texture = depth_texture;
+            self.depth_bind_group = depth_bind_group;
         }
+    }
+
+    fn create_presentation_textures(
+        ctx: &gpu::Context,
+    ) -> (gpu::Texture, gpu::Texture, wgpu::BindGroup) {
+        let color_texture = gpu::Texture::new(
+            ctx,
+            wgpu::TextureDescriptor {
+                label: Some("color_texture"),
+                mip_level_count: 1,
+                sample_count: (&ctx.settings.msaa_level).into(),
+                dimension: wgpu::TextureDimension::D2,
+                format: ctx.config.format,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                view_formats: &[],
+                size: wgpu::Extent3d {
+                    width: ctx.config.width,
+                    height: ctx.config.height,
+                    depth_or_array_layers: 1,
+                },
+            },
+        );
+        let depth_texture = gpu::Texture::new(
+            ctx,
+            wgpu::TextureDescriptor {
+                label: Some("depth_texture"),
+                mip_level_count: 1,
+                sample_count: (&ctx.settings.msaa_level).into(),
+                dimension: wgpu::TextureDimension::D2,
+                format: gpu::Texture::DEPTH_FORMAT,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                    | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+                size: wgpu::Extent3d {
+                    width: ctx.config.width,
+                    height: ctx.config.height,
+                    depth_or_array_layers: 1,
+                },
+            },
+        );
+        let depth_bind_group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &ctx.shared_layouts.bind_groups.depth_tex,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(&depth_texture.view),
+            }],
+            label: Some("depth_bind_group"),
+        });
+        (color_texture, depth_texture, depth_bind_group)
     }
 }
