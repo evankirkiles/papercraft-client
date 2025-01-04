@@ -1,13 +1,16 @@
 use std::mem;
 
+use cgmath::SquareMatrix;
+
 use crate::gpu;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct CameraUniform {
     view_proj: [[f32; 4]; 4],
+    view_proj_inv: [[f32; 4]; 4],
     dimensions: [f32; 2],
-    // Extra padding bits to bring up to "80" size
+    // Extra padding bits to bring up to "144" size
     padding: [f32; 2],
 }
 
@@ -20,7 +23,13 @@ impl CameraUniform {
         let aspect = width / height;
         let view = cgmath::Matrix4::look_at_rh(camera.eye, camera.target, camera.up);
         let proj = cgmath::perspective(cgmath::Deg(camera.fovy), aspect, camera.znear, camera.zfar);
-        Self { dimensions: [width, height], view_proj: (proj * view).into(), padding: [0.0, 0.0] }
+        let view_proj = proj * view;
+        Self {
+            dimensions: [width, height],
+            view_proj: view_proj.into(),
+            view_proj_inv: view_proj.invert().unwrap().into(),
+            padding: [0.0, 0.0],
+        }
     }
 }
 

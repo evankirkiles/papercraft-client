@@ -4,6 +4,7 @@ use super::bind_groups;
 /// descriptions everywhere.
 pub struct SharedPipelineLayouts {
     pub pipeline_3d: wgpu::PipelineLayout,
+    pub pipeline_3d_deferred: wgpu::PipelineLayout,
 }
 
 impl SharedPipelineLayouts {
@@ -15,6 +16,11 @@ impl SharedPipelineLayouts {
             pipeline_3d: device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("pipeline_3d"),
                 bind_group_layouts: &[&bind_group_layouts.camera_3d],
+                push_constant_ranges: &[],
+            }),
+            pipeline_3d_deferred: device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("pipeline_3d_deferred"),
+                bind_group_layouts: &[&bind_group_layouts.camera_3d, &bind_group_layouts.depth_tex],
                 push_constant_ranges: &[],
             }),
         }

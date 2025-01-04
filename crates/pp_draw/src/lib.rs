@@ -111,7 +111,8 @@ impl<'window> Renderer<'window> {
                 // draw from each engine in the presentation render pass.
                 self.draw_cache.meshes.values().for_each(|mesh| {
                     self.engine_ink3.draw_mesh(render_pass, mesh);
-                })
+                });
+                self.engine_ink3.draw_overlays(render_pass);
             });
         });
         output.present();

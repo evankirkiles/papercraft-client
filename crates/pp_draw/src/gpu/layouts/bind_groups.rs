@@ -2,6 +2,7 @@
 /// pipelines to re-use Bind Groups without creating wholly new layouts.
 pub struct SharedBindGroupLayouts {
     pub camera_3d: wgpu::BindGroupLayout,
+    pub depth_tex: wgpu::BindGroupLayout,
 }
 
 impl SharedBindGroupLayouts {
@@ -11,7 +12,7 @@ impl SharedBindGroupLayouts {
                 label: Some("camera_3d"),
                 entries: &[wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -19,6 +20,27 @@ impl SharedBindGroupLayouts {
                     },
                     count: None,
                 }],
+            }),
+            depth_tex: device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("depth_tex"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        count: None,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                        },
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        count: None,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                    },
+                ],
             }),
         }
     }

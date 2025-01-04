@@ -187,7 +187,7 @@ impl ApplicationHandler for App {
                 _ => {}
             },
             WindowEvent::CursorMoved { device_id: _, position } => {
-                if self.input_state.mb3_pressed {
+                if self.input_state.mb3_pressed || self.input_state.mb1_pressed {
                     let viewport = self.state.viewports.get_mut(&self.active_viewport).unwrap();
                     if self.input_state.shift_pressed {
                         viewport.camera.pan(

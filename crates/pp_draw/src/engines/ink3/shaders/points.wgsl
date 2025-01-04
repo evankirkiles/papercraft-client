@@ -1,5 +1,5 @@
 // Vertex shader
-struct Camera { view_proj: mat4x4<f32>, dimensions: vec2<f32> };
+struct Camera { view_proj: mat4x4<f32>, view_proj_inv: mat4x4<f32>, dimensions: vec2<f32> };
 @group(0) @binding(0) var<uniform> camera: Camera;
 
 // Instanced rendering, so position corresponds to the instance's position
@@ -20,7 +20,7 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
 
-    // Pixel size
+    // Hard-code positions for each of the corners of the rect, indexed by vertex_index
     var OFFSETS = array<vec2<f32>, 4>(
         vec2<f32>(-0.5, -0.5),
         vec2<f32>(0.5, -0.5),

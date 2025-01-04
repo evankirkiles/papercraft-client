@@ -23,7 +23,7 @@ impl Default for CameraPerspective3D {
     fn default() -> Self {
         Self {
             eye: (4.0, 4.0, 4.0).into(),
-            target: (0.5, 0.5, 0.5).into(),
+            target: (0.0, 0.0, 0.5).into(),
             up: cgmath::Vector3::unit_z(),
             speed_orbit: 0.005,
             speed_dolly: 0.05,

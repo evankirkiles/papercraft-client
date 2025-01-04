@@ -42,7 +42,7 @@ impl Texture {
             view: &self.view,
             resolve_target: if self.is_ext_resolve_target { ext_resolve_target } else { None },
             ops: wgpu::Operations {
-                load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.01, g: 0.01, b: 0.01, a: 1.0 }),
+                load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.005, g: 0.005, b: 0.006, a: 1.0 }),
                 store: wgpu::StoreOp::Store,
             },
         }
