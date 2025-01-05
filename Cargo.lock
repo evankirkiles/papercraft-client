@@ -1463,6 +1463,7 @@ dependencies = [
  "log",
  "stable-vec",
  "tobj",
+ "winit",
 ]
 
 [[package]]

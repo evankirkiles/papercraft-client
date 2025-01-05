@@ -11,6 +11,7 @@ use crate::gpu;
 mod extract;
 
 /// All the possible VBOs a mesh might need to use.
+#[derive(Debug)]
 pub struct MeshGPUVBOs {
     // 3D View
     pub pos: gpu::VertBuf,
@@ -28,6 +29,7 @@ pub struct MeshGPUVBOs {
 }
 
 /// All the IBOs which a mesh might need to use.
+#[derive(Debug)]
 pub struct MeshGPUIBOs {
     pub tris: gpu::IndexBuf,
     pub lines: gpu::IndexBuf,
@@ -38,6 +40,7 @@ pub struct MeshGPUIBOs {
 }
 
 /// A manager for VBOs / IBOs derived from a mesh.
+#[derive(Debug)]
 pub struct MeshGPU {
     vbo: MeshGPUVBOs,
     ibo: MeshGPUIBOs,

@@ -9,7 +9,7 @@ use crate::id::{self, EdgeId, FaceId, Id, LoopId, MeshId, VertexId};
 use stable_vec::StableVec;
 
 bitflags! {
-    #[derive(Clone, Copy)]
+    #[derive(Debug, Clone, Copy)]
     pub struct MeshElementType: u8 {
         const VERTS = 1 << 0;
         const EDGES = 1 << 1;
@@ -38,6 +38,7 @@ impl From<MeshElementType> for bool {
 ///  - Use "faces.mat_nr" to buld IBOs
 ///
 /// @see https://developer.blender.org/docs/features/objects/mesh/bmesh/
+#[derive(Debug)]
 pub struct Mesh {
     pub id: MeshId,
     pub label: String,
@@ -53,7 +54,7 @@ pub struct Mesh {
 }
 
 /// A single vertex in space.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Vertex {
     /// Vertex positions
     pub po: [f32; 3],
@@ -67,7 +68,7 @@ pub struct Vertex {
 }
 
 /// An edge, formed by two vertices.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Edge {
     /// Vertices connected by this edge
     pub v: [VertexId; 2],
@@ -105,7 +106,7 @@ impl Edge {
 }
 
 /// A face, formed by three vertices and three edges.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Face {
     /// Face normal
     pub no: [f32; 3],
@@ -128,7 +129,7 @@ impl Face {
 }
 
 /// A disk link for quick iteration of edges around a vertex
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct DiskLink {
     pub prev: EdgeId,
     pub next: EdgeId,
@@ -143,7 +144,7 @@ impl DiskLink {
 
 /// A loop, best thought of as a "corner" of a face. Corresponds to exactly
 /// one face, vertex, and edge.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Loop {
     pub v: VertexId,
     pub e: EdgeId,

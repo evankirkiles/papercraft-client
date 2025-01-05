@@ -1,5 +1,7 @@
 use winit::dpi::PhysicalPosition;
 
+use crate::viewport::ViewportInput;
+
 /// Represents ephemeral user input states
 #[derive(Default)]
 pub struct InputState {

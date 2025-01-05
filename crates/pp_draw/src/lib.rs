@@ -1,6 +1,6 @@
 use std::iter;
 
-use cache::DrawCache;
+use cache::{DrawCache, ViewportGPU};
 use winit::dpi::PhysicalSize;
 
 mod cache;
@@ -13,12 +13,12 @@ pub struct Renderer<'window> {
     draw_cache: cache::DrawCache,
 
     // Rendering engines
+    engine_ink2: engines::InkEngine2D,
     engine_ink3: engines::InkEngine3D,
 
-    /// MSAA textures used in our two passes
+    /// MSAA textures
     color_texture: gpu::Texture,
     depth_texture: gpu::Texture,
-    depth_bind_group: wgpu::BindGroup,
 }
 
 impl<'window> Renderer<'window> {
@@ -92,16 +92,15 @@ impl<'window> Renderer<'window> {
         // Store the above GPU abstractions into a single context object we
         // can pass around in the future.
         let ctx = gpu::Context::new(device, config, surface, queue);
-        let (color_texture, depth_texture, depth_bind_group) =
-            Self::create_presentation_textures(&ctx);
+        let (color_texture, depth_texture) = Self::create_presentation_textures(&ctx);
 
         Self {
+            engine_ink2: engines::InkEngine2D::new(&ctx),
             engine_ink3: engines::InkEngine3D::new(&ctx),
-            draw_cache: DrawCache::default(),
+            draw_cache: DrawCache::new(&ctx),
             size: PhysicalSize { width, height },
             color_texture,
             depth_texture,
-            depth_bind_group,
             ctx,
         }
     }
@@ -128,7 +127,7 @@ impl<'window> Renderer<'window> {
                 label: Some("diffuse"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &self.color_texture.view,
-                    resolve_target: None,
+                    resolve_target: Some(&view),
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
                             r: 0.01,
@@ -150,34 +149,26 @@ impl<'window> Renderer<'window> {
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
-            self.draw_cache.viewports.values().for_each(|viewport| {
-                viewport.bind(&mut render_pass);
+
+            // Render 3D if viewport has area
+            if self.draw_cache.viewport_3d.bind(&mut render_pass).is_ok() {
                 // draw from each engine in the presentation render pass.
                 self.draw_cache.meshes.values().for_each(|mesh| {
                     self.engine_ink3.draw_mesh(&mut render_pass, mesh);
                 });
-            });
+                self.engine_ink3.draw_overlays(&mut render_pass);
+            }
+
+            // Render 2D if viewport has area
+            if self.draw_cache.viewport_2d.bind(&mut render_pass).is_ok() {
+                // draw from each engine in the presentation render pass.
+                // self.draw_cache.meshes.values().for_each(|mesh| {
+                //     self.engine_ink3.draw_mesh(&mut render_pass, mesh);
+                // });
+                self.engine_ink2.draw_overlays(&mut render_pass);
+            }
         }
 
-        {
-            // RENDER PASS 2: Deferred / Overlay
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("deferred"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &self.color_texture.view,
-                    resolve_target: Some(&view),
-                    ops: wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Store },
-                })],
-                depth_stencil_attachment: None,
-                occlusion_query_set: None,
-                timestamp_writes: None,
-            });
-            render_pass.set_bind_group(1, &self.depth_bind_group, &[]);
-            self.draw_cache.viewports.values().for_each(|viewport| {
-                viewport.bind(&mut render_pass);
-                self.engine_ink3.draw_overlays(&mut render_pass);
-            });
-        }
         self.ctx.queue.submit(iter::once(encoder.finish()));
         output.present();
     }
@@ -187,17 +178,13 @@ impl<'window> Renderer<'window> {
         if width > 0 && height > 0 {
             self.size = PhysicalSize { width, height };
             self.ctx.resize(width, height);
-            let (color_texture, depth_texture, depth_bind_group) =
-                Self::create_presentation_textures(&self.ctx);
+            let (color_texture, depth_texture) = Self::create_presentation_textures(&self.ctx);
             self.color_texture = color_texture;
             self.depth_texture = depth_texture;
-            self.depth_bind_group = depth_bind_group;
         }
     }
 
-    fn create_presentation_textures(
-        ctx: &gpu::Context,
-    ) -> (gpu::Texture, gpu::Texture, wgpu::BindGroup) {
+    fn create_presentation_textures(ctx: &gpu::Context) -> (gpu::Texture, gpu::Texture) {
         let color_texture = gpu::Texture::new(
             ctx,
             wgpu::TextureDescriptor {
@@ -223,8 +210,7 @@ impl<'window> Renderer<'window> {
                 sample_count: (&ctx.settings.msaa_level).into(),
                 dimension: wgpu::TextureDimension::D2,
                 format: gpu::Texture::DEPTH_FORMAT,
-                usage: wgpu::TextureUsages::RENDER_ATTACHMENT
-                    | wgpu::TextureUsages::TEXTURE_BINDING,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                 view_formats: &[],
                 size: wgpu::Extent3d {
                     width: ctx.config.width,
@@ -233,14 +219,6 @@ impl<'window> Renderer<'window> {
                 },
             },
         );
-        let depth_bind_group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &ctx.shared_layouts.bind_groups.depth_tex,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(&depth_texture.view),
-            }],
-            label: Some("depth_bind_group"),
-        });
-        (color_texture, depth_texture, depth_bind_group)
+        (color_texture, depth_texture)
     }
 }

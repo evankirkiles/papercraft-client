@@ -1,12 +1,13 @@
-use pp_core::id::{self, Id};
 use pp_core::mesh::Mesh;
 use std::sync::Arc;
+use viewport::ViewportInput;
 use winit::dpi::PhysicalPosition;
 use winit::{
     application::ApplicationHandler, dpi::PhysicalSize, event::WindowEvent, window::Window,
 };
 
 mod input;
+mod viewport;
 
 #[cfg(target_arch = "wasm32")]
 use futures::channel::oneshot::Receiver;
@@ -17,14 +18,24 @@ use wasm_bindgen::JsCast;
 #[cfg(target_arch = "wasm32")]
 const CANVAS_ID: &str = "paperarium-engine";
 
+/// Helps identify the active viewport for sending events to
+#[derive(Debug, Default)]
+enum ViewportType {
+    D2,
+    #[default]
+    D3,
+}
+
 pub struct App {
     window: Option<Arc<Window>>,
+    /// The size of the window
+    size: PhysicalSize<u32>,
     /// The core state of the application
     state: pp_core::state::State,
     /// User Input state (e.g. buttons pressed)
     input_state: input::InputState,
-    /// Which viewport to send inputs to (identified by Mouse Position or other)
-    active_viewport: pp_core::id::ViewportId,
+    /// A reference to the viewport to use for sending input
+    active_viewport: ViewportType,
     /// Manages synchronizing screen pixels with the app state
     renderer: Option<pp_draw::Renderer<'static>>,
     /// Receiver for asynchronous winit setup in WASM
@@ -36,10 +47,11 @@ impl Default for App {
     fn default() -> Self {
         let mut app = Self {
             window: Default::default(),
+            size: PhysicalSize { width: 1, height: 1 },
             state: Default::default(),
             input_state: Default::default(),
-            active_viewport: id::ViewportId::new(0),
             renderer: Default::default(),
+            active_viewport: Default::default(),
             #[cfg(target_arch = "wasm32")]
             renderer_receiver: Default::default(),
         };
@@ -156,10 +168,14 @@ impl ApplicationHandler for App {
             return;
         };
 
-        // Handle event if GUI didn't do anything with it
-        // if event != WindowEvent::RedrawRequested {
-        //     log::info!("{:?}", event);
-        // }
+        if (match self.active_viewport {
+            ViewportType::D2 => self.state.viewport_2d.handle_event(&event, &self.input_state),
+            ViewportType::D3 => self.state.viewport_3d.handle_event(&event, &self.input_state),
+        })
+        .is_err()
+        {
+            return;
+        }
 
         match event {
             WindowEvent::KeyboardInput {
@@ -187,50 +203,23 @@ impl ApplicationHandler for App {
                 _ => {}
             },
             WindowEvent::CursorMoved { device_id: _, position } => {
-                if self.input_state.mb3_pressed || self.input_state.mb1_pressed {
-                    let viewport = self.state.viewports.get_mut(&self.active_viewport).unwrap();
-                    if self.input_state.shift_pressed {
-                        viewport.camera.pan(
-                            position.x - self.input_state.cursor_pos.x,
-                            position.y - self.input_state.cursor_pos.y,
-                        );
+                self.input_state.cursor_pos = position;
+                self.active_viewport =
+                    if (position.x as f32 / self.size.width as f32) < self.state.viewport_split {
+                        ViewportType::D3
                     } else {
-                        viewport.camera.orbit(
-                            position.x - self.input_state.cursor_pos.x,
-                            position.y - self.input_state.cursor_pos.y,
-                        );
-                    }
-                }
-                self.input_state.cursor_pos = position
+                        ViewportType::D2
+                    };
             }
-            WindowEvent::MouseWheel { device_id: _, delta, phase } => {
-                match phase {
-                    winit::event::TouchPhase::Started => self.input_state.is_touch = true,
-                    winit::event::TouchPhase::Ended => self.input_state.is_touch = false,
-                    _ => {}
-                }
-                let (dx, dy) = match delta {
-                    // Standard scroll events should dolly in/out
-                    winit::event::MouseScrollDelta::LineDelta(x, y) => (x as f64, y as f64), // Touch "wheel" events should orbit
-                    winit::event::MouseScrollDelta::PixelDelta(PhysicalPosition { x, y }) => (x, y),
-                };
-                let viewport = self.state.viewports.get_mut(&self.active_viewport).unwrap();
-                if self.input_state.is_touch {
-                    if self.input_state.shift_pressed {
-                        viewport.camera.pan(dx, dy);
-                    } else {
-                        viewport.camera.orbit(dx, dy);
-                    }
-                } else {
-                    viewport.camera.dolly(dy);
-                }
-            }
-            WindowEvent::PinchGesture { device_id: _, delta, phase: _ } => {
-                let viewport = self.state.viewports.get_mut(&self.active_viewport).unwrap();
-                viewport.camera.dolly(delta * 50.0);
-            }
+            WindowEvent::MouseWheel { phase, .. } => match phase {
+                winit::event::TouchPhase::Started => self.input_state.is_touch = true,
+                winit::event::TouchPhase::Ended => self.input_state.is_touch = false,
+                _ => {}
+            },
             WindowEvent::Resized(PhysicalSize { width, height }) => {
                 let (width, height) = ((width).max(1), (height).max(1));
+                self.size.width = width;
+                self.size.height = height;
                 log::info!("Resizing renderer surface to: {width} x {height}");
                 renderer.resize(width, height);
             }

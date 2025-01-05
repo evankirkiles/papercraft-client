@@ -10,7 +10,7 @@ impl ProgramOverlayGrid {
             ctx.device.create_shader_module(wgpu::include_wgsl!("shaders/overlay_grid.wgsl"));
         let render_pipeline = ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("ink3.overlay_grid"),
-            layout: Some(&ctx.shared_layouts.pipelines.pipeline_3d),
+            layout: Some(&ctx.shared_layouts.pipelines.pipeline_2d),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
