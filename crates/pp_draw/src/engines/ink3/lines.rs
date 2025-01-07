@@ -1,20 +1,21 @@
 use crate::cache;
+use crate::engines::program::MeshDrawable;
 use crate::gpu;
 
-pub struct ProgramPoints {
+pub struct Program {
     pipeline: wgpu::RenderPipeline,
 }
 
-impl ProgramPoints {
-    pub fn new(ctx: &gpu::Context) -> Self {
-        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("shaders/points.wgsl"));
+impl MeshDrawable for Program {
+    fn new(ctx: &gpu::Context) -> Self {
+        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/lines.wgsl"));
         let render_pipeline = ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("ink3.points"),
+            label: Some("ink3.lines"),
             layout: Some(&ctx.shared_layouts.pipelines.pipeline_3d),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_EDIT_POINTS_INSTANCED,
+                buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_EDIT_LINES,
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -28,7 +29,7 @@ impl ProgramPoints {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleStrip,
+                topology: wgpu::PrimitiveTopology::LineList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: None,
@@ -56,10 +57,10 @@ impl ProgramPoints {
     }
 
     /// Writes geometry draw commands for all the materials in a mesh
-    pub fn draw_mesh(&self, render_pass: &mut wgpu::RenderPass, mesh: &cache::MeshGPU) {
+    fn draw_mesh(&self, render_pass: &mut wgpu::RenderPass, mesh: &cache::MeshGPU) {
         // Set the pipeline and draw the mesh
         // TODO: For each material...
         render_pass.set_pipeline(&self.pipeline);
-        mesh.draw_edit_points_instanced(render_pass);
+        mesh.draw_edit_lines(render_pass);
     }
 }

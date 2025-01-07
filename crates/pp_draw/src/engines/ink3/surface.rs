@@ -1,20 +1,22 @@
 use crate::cache;
+use crate::engines::program::MeshDrawable;
 use crate::gpu;
 
-pub struct ProgramLines {
-    pipeline: wgpu::RenderPipeline,
+pub struct Program {
+    surface_pipeline: wgpu::RenderPipeline,
 }
 
-impl ProgramLines {
-    pub fn new(ctx: &gpu::Context) -> Self {
-        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("shaders/lines.wgsl"));
+impl MeshDrawable for Program {
+    fn new(ctx: &gpu::Context) -> Self {
+        let shader =
+            ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/surface.wgsl"));
         let render_pipeline = ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("ink3.lines"),
+            label: Some("ink3.surface"),
             layout: Some(&ctx.shared_layouts.pipelines.pipeline_3d),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_EDIT_LINES,
+                buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_SURFACE,
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -28,7 +30,7 @@ impl ProgramLines {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::LineList,
+                topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: None,
@@ -39,9 +41,10 @@ impl ProgramLines {
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: gpu::Texture::DEPTH_FORMAT,
                 depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::LessEqual,
+                depth_compare: wgpu::CompareFunction::Less,
                 stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState::default(),
+                // Apply a tiny depth bias to reduce flickering of lines at same depth
+                bias: wgpu::DepthBiasState { constant: 1, slope_scale: 0.05, ..Default::default() },
             }),
             multisample: wgpu::MultisampleState {
                 count: (&ctx.settings.msaa_level).into(),
@@ -52,14 +55,12 @@ impl ProgramLines {
             cache: None,
         });
 
-        Self { pipeline: render_pipeline }
+        Self { surface_pipeline: render_pipeline }
     }
 
     /// Writes geometry draw commands for all the materials in a mesh
-    pub fn draw_mesh(&self, render_pass: &mut wgpu::RenderPass, mesh: &cache::MeshGPU) {
-        // Set the pipeline and draw the mesh
-        // TODO: For each material...
-        render_pass.set_pipeline(&self.pipeline);
-        mesh.draw_edit_lines(render_pass);
+    fn draw_mesh(&self, render_pass: &mut wgpu::RenderPass, mesh: &cache::MeshGPU) {
+        render_pass.set_pipeline(&self.surface_pipeline);
+        mesh.draw_surface(render_pass);
     }
 }

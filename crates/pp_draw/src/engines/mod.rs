@@ -1,5 +1,4 @@
-mod ink2;
-mod ink3;
-
-pub use ink2::*;
-pub use ink3::*;
+pub mod ink2;
+pub mod ink3;
+pub mod program;
+pub mod select;

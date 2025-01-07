@@ -1,7 +1,9 @@
 use pp_core::mesh::Mesh;
+use pp_draw::select::SelectionQuery;
 use std::sync::Arc;
 use viewport::ViewportInput;
 use winit::dpi::PhysicalPosition;
+use winit::event_loop::EventLoopProxy;
 use winit::{
     application::ApplicationHandler, dpi::PhysicalSize, event::WindowEvent, window::Window,
 };
@@ -38,13 +40,25 @@ pub struct App {
     active_viewport: ViewportType,
     /// Manages synchronizing screen pixels with the app state
     renderer: Option<pp_draw::Renderer<'static>>,
+    /// A proxy to the main event loop which this app runs on
+    event_loop_proxy: EventLoopProxy<AppEvent>,
     /// Receiver for asynchronous winit setup in WASM
     #[cfg(target_arch = "wasm32")]
     renderer_receiver: Option<Receiver<pp_draw::Renderer<'static>>>,
 }
 
-impl Default for App {
-    fn default() -> Self {
+pub enum AppSelectionAction {
+    Nearest,
+    NearestToggle,
+    All,
+}
+
+pub enum AppEvent {
+    Select { action: AppSelectionAction, query: SelectionQuery },
+}
+
+impl App {
+    pub fn new(event_loop_proxy: EventLoopProxy<AppEvent>) -> Self {
         let mut app = Self {
             window: Default::default(),
             size: PhysicalSize { width: 1, height: 1 },
@@ -52,6 +66,7 @@ impl Default for App {
             input_state: Default::default(),
             renderer: Default::default(),
             active_viewport: Default::default(),
+            event_loop_proxy,
             #[cfg(target_arch = "wasm32")]
             renderer_receiver: Default::default(),
         };
@@ -63,13 +78,14 @@ impl Default for App {
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn begin() {
-    let event_loop = winit::event_loop::EventLoop::builder().build().unwrap();
+    let event_loop: winit::event_loop::EventLoop<AppEvent> =
+        winit::event_loop::EventLoop::with_user_event().build().unwrap();
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
-    let mut app = App::default();
+    let mut app = App::new(event_loop.create_proxy());
     event_loop.run_app(&mut app).unwrap();
 }
 
-impl ApplicationHandler for App {
+impl ApplicationHandler<AppEvent> for App {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         #[cfg_attr(not(target_arch = "wasm32"), allow(unused_mut))]
         let mut attributes = Window::default_attributes();
@@ -143,6 +159,20 @@ impl ApplicationHandler for App {
         }
     }
 
+    fn user_event(&mut self, _: &winit::event_loop::ActiveEventLoop, event: AppEvent) {
+        let Some(renderer) = self.renderer.as_mut() else {
+            return;
+        };
+
+        match event {
+            AppEvent::Select { action, query } => {
+                // Tell the select engine we received the query!
+                renderer.recv_select_query(query);
+                log::info!("received query: {:?}", query);
+            }
+        }
+    }
+
     fn window_event(
         &mut self,
         event_loop: &winit::event_loop::ActiveEventLoop,
@@ -198,7 +228,36 @@ impl ApplicationHandler for App {
                     self.input_state.mb3_pressed = state.is_pressed()
                 }
                 winit::event::MouseButton::Left => {
-                    self.input_state.mb1_pressed = state.is_pressed()
+                    self.input_state.mb1_pressed = state.is_pressed();
+                    const SELECT_RADIUS: f64 = 30.0;
+                    let cursor_pos = self.input_state.cursor_pos;
+                    if !state.is_pressed() {
+                        let mask = pp_draw::select::SelectionMask::POINTS;
+                        let event_loop_proxy = self.event_loop_proxy.clone();
+                        renderer
+                            .send_select_query(
+                                pp_draw::select::SelectionQuery {
+                                    mask,
+                                    rect: pp_draw::select::SelectionRect {
+                                        x: (cursor_pos.x - SELECT_RADIUS).max(0.0) as u32,
+                                        y: (cursor_pos.y - SELECT_RADIUS).max(0.0) as u32,
+                                        width: SELECT_RADIUS as u32,
+                                        height: SELECT_RADIUS as u32,
+                                    },
+                                },
+                                move |query_state| {
+                                    if let pp_draw::select::SelectManagerQueryState::Ready(query) =
+                                        query_state
+                                    {
+                                        event_loop_proxy.send_event(AppEvent::Select {
+                                            action: AppSelectionAction::Nearest,
+                                            query,
+                                        });
+                                    }
+                                },
+                            )
+                            .expect("select query failed!");
+                    }
                 }
                 _ => {}
             },

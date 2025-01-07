@@ -1,24 +1,28 @@
 use crate::{cache, gpu};
 
-mod prg_lines;
-mod prg_overlay_grid;
-mod prg_points;
-mod prg_surface;
+use super::program::{Drawable, MeshDrawable};
+
+mod lines;
+mod overlay_grid;
+mod points;
+mod surface;
 
 pub struct InkEngine3D {
-    program_surface: prg_surface::ProgramSurface,
-    program_lines: prg_lines::ProgramLines,
-    program_points: prg_points::ProgramPoints,
-    program_overlay_grid: prg_overlay_grid::ProgramOverlayGrid,
+    // Mesh draw programs
+    program_surface: surface::Program,
+    program_lines: lines::Program,
+    program_points: points::Program,
+    // Overlay draw programs
+    program_overlay_grid: overlay_grid::Program,
 }
 
 impl InkEngine3D {
     pub fn new(ctx: &gpu::Context) -> Self {
         Self {
-            program_surface: prg_surface::ProgramSurface::new(ctx),
-            program_lines: prg_lines::ProgramLines::new(ctx),
-            program_points: prg_points::ProgramPoints::new(ctx),
-            program_overlay_grid: prg_overlay_grid::ProgramOverlayGrid::new(ctx),
+            program_surface: surface::Program::new(ctx),
+            program_lines: lines::Program::new(ctx),
+            program_points: points::Program::new(ctx),
+            program_overlay_grid: overlay_grid::Program::new(ctx),
         }
     }
 

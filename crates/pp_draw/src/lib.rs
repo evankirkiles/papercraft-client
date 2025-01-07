@@ -1,24 +1,29 @@
 use std::iter;
 
 use cache::{DrawCache, ViewportGPU};
+use select::SelectManagerQueryState;
 use winit::dpi::PhysicalSize;
 
 mod cache;
 mod engines;
 mod gpu;
 
+pub mod select;
+
 pub struct Renderer<'window> {
     ctx: gpu::Context<'window>,
     size: PhysicalSize<u32>,
     draw_cache: cache::DrawCache,
 
-    // Rendering engines
-    engine_ink2: engines::InkEngine2D,
-    engine_ink3: engines::InkEngine3D,
+    // Textures used as attachments in pipelines
+    textures: RendererAttachmentTextures,
 
-    /// MSAA textures
-    color_texture: gpu::Texture,
-    depth_texture: gpu::Texture,
+    // Rendering engines
+    engine_ink2: engines::ink2::InkEngine2D,
+    engine_ink3: engines::ink3::InkEngine3D,
+
+    /// Manages querying the GPU for pixels containing element indices to select
+    select: select::SelectManager,
 }
 
 impl<'window> Renderer<'window> {
@@ -92,15 +97,14 @@ impl<'window> Renderer<'window> {
         // Store the above GPU abstractions into a single context object we
         // can pass around in the future.
         let ctx = gpu::Context::new(device, config, surface, queue);
-        let (color_texture, depth_texture) = Self::create_presentation_textures(&ctx);
 
         Self {
-            engine_ink2: engines::InkEngine2D::new(&ctx),
-            engine_ink3: engines::InkEngine3D::new(&ctx),
+            engine_ink2: engines::ink2::InkEngine2D::new(&ctx),
+            engine_ink3: engines::ink3::InkEngine3D::new(&ctx),
+            textures: RendererAttachmentTextures::create(&ctx),
             draw_cache: DrawCache::new(&ctx),
+            select: select::SelectManager::new(&ctx),
             size: PhysicalSize { width, height },
-            color_texture,
-            depth_texture,
             ctx,
         }
     }
@@ -113,7 +117,7 @@ impl<'window> Renderer<'window> {
     }
 
     /// Draws all of the renderables to the screen in each viewport
-    pub fn draw(&mut self) {
+    pub fn draw(&self) {
         let output = self.ctx.surface.get_current_texture().unwrap();
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
         let mut encoder = self
@@ -122,11 +126,10 @@ impl<'window> Renderer<'window> {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("draw") });
 
         {
-            // RENDER PASS 1: Diffuse / Geometry
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("diffuse"),
+                label: Some("draw"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &self.color_texture.view,
+                    view: &self.textures.color.view,
                     resolve_target: Some(&view),
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -139,7 +142,7 @@ impl<'window> Renderer<'window> {
                     },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.depth_texture.view,
+                    view: &self.textures.depth.view,
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(1.0),
                         store: wgpu::StoreOp::Store,
@@ -173,52 +176,74 @@ impl<'window> Renderer<'window> {
         output.present();
     }
 
+    /// Queries the selection manager to prepare the supplied rect.
+    pub fn send_select_query(
+        &mut self,
+        query: select::SelectionQuery,
+        callback: impl Fn(select::SelectManagerQueryState) + wgpu::WasmNotSend + 'static,
+    ) -> Result<wgpu::SubmissionIndex, select::SelectionQueryError> {
+        self.select.submit_query(&self.ctx, &self.draw_cache, query, callback)
+    }
+
+    /// Must be called after the selection query calls `on_map`
+    pub fn recv_select_query(&mut self, query: select::SelectionQuery) {
+        self.select.recv_query(&self.ctx, query)
+    }
+
     /// Updates the GPUContext for new dimensions
     pub fn resize(&mut self, width: u32, height: u32) {
         if width > 0 && height > 0 {
             self.size = PhysicalSize { width, height };
             self.ctx.resize(width, height);
-            let (color_texture, depth_texture) = Self::create_presentation_textures(&self.ctx);
-            self.color_texture = color_texture;
-            self.depth_texture = depth_texture;
+            self.select.resize(&self.ctx);
+            self.textures = RendererAttachmentTextures::create(&self.ctx);
         }
     }
+}
 
-    fn create_presentation_textures(ctx: &gpu::Context) -> (gpu::Texture, gpu::Texture) {
-        let color_texture = gpu::Texture::new(
-            ctx,
-            wgpu::TextureDescriptor {
-                label: Some("color_texture"),
-                mip_level_count: 1,
-                sample_count: (&ctx.settings.msaa_level).into(),
-                dimension: wgpu::TextureDimension::D2,
-                format: ctx.config.format,
-                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-                view_formats: &[],
-                size: wgpu::Extent3d {
-                    width: ctx.config.width,
-                    height: ctx.config.height,
-                    depth_or_array_layers: 1,
+struct RendererAttachmentTextures {
+    // Display textures (maybe MSAA)
+    color: gpu::Texture,
+    depth: gpu::Texture,
+}
+
+impl RendererAttachmentTextures {
+    fn create(ctx: &gpu::Context) -> Self {
+        Self {
+            color: gpu::Texture::new(
+                ctx,
+                wgpu::TextureDescriptor {
+                    label: Some("renderer.color"),
+                    mip_level_count: 1,
+                    sample_count: (&ctx.settings.msaa_level).into(),
+                    dimension: wgpu::TextureDimension::D2,
+                    format: ctx.config.format,
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                    view_formats: &[],
+                    size: wgpu::Extent3d {
+                        width: ctx.config.width,
+                        height: ctx.config.height,
+                        depth_or_array_layers: 1,
+                    },
                 },
-            },
-        );
-        let depth_texture = gpu::Texture::new(
-            ctx,
-            wgpu::TextureDescriptor {
-                label: Some("depth_texture"),
-                mip_level_count: 1,
-                sample_count: (&ctx.settings.msaa_level).into(),
-                dimension: wgpu::TextureDimension::D2,
-                format: gpu::Texture::DEPTH_FORMAT,
-                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-                view_formats: &[],
-                size: wgpu::Extent3d {
-                    width: ctx.config.width,
-                    height: ctx.config.height,
-                    depth_or_array_layers: 1,
+            ),
+            depth: gpu::Texture::new(
+                ctx,
+                wgpu::TextureDescriptor {
+                    label: Some("renderer.depth"),
+                    mip_level_count: 1,
+                    sample_count: (&ctx.settings.msaa_level).into(),
+                    dimension: wgpu::TextureDimension::D2,
+                    format: gpu::Texture::DEPTH_FORMAT,
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                    view_formats: &[],
+                    size: wgpu::Extent3d {
+                        width: ctx.config.width,
+                        height: ctx.config.height,
+                        depth_or_array_layers: 1,
+                    },
                 },
-            },
-        );
-        (color_texture, depth_texture)
+            ),
+        }
     }
 }

@@ -1,28 +1,29 @@
+use crate::engines::program::MeshDrawable;
 use crate::gpu;
+use crate::{cache, select};
 
-pub struct ProgramOverlayGrid {
+pub struct Program {
     pipeline: wgpu::RenderPipeline,
 }
 
-impl ProgramOverlayGrid {
-    pub fn new(ctx: &gpu::Context) -> Self {
-        let shader =
-            ctx.device.create_shader_module(wgpu::include_wgsl!("shaders/overlay_grid.wgsl"));
+impl MeshDrawable for Program {
+    fn new(ctx: &gpu::Context) -> Self {
+        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/points.wgsl"));
         let render_pipeline = ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("ink3.overlay_grid"),
+            label: Some("select.points"),
             layout: Some(&ctx.shared_layouts.pipelines.pipeline_3d),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[],
+                buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_EDIT_POINTS_INSTANCED,
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
-                entry_point: Some("fs_main"),
+                entry_point: Some("fs_select"),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: ctx.config.format,
-                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    format: select::TEX_FORMAT,
+                    blend: None,
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
@@ -36,18 +37,18 @@ impl ProgramOverlayGrid {
                 unclipped_depth: false,
                 conservative: false,
             },
-            multisample: wgpu::MultisampleState {
-                count: (&ctx.settings.msaa_level).into(),
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: gpu::Texture::DEPTH_FORMAT,
-                depth_write_enabled: false,
+                depth_write_enabled: true,
                 depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
             multiview: None,
             cache: None,
         });
@@ -55,9 +56,9 @@ impl ProgramOverlayGrid {
         Self { pipeline: render_pipeline }
     }
 
-    /// Draws the grid (only done once)
-    pub fn draw(&self, render_pass: &mut wgpu::RenderPass) {
+    /// Writes geometry draw commands for all the materials in a mesh
+    fn draw_mesh(&self, render_pass: &mut wgpu::RenderPass, mesh: &cache::MeshGPU) {
         render_pass.set_pipeline(&self.pipeline);
-        render_pass.draw(0..4, 0..1);
+        mesh.draw_edit_points_instanced(render_pass);
     }
 }

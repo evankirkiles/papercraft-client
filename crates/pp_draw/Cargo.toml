@@ -11,6 +11,7 @@ edition = "2021"
 pp_core.workspace = true
 # External:
 anyhow.workspace = true
+bitflags.workspace = true
 bytemuck.workspace = true
 cfg-if.workspace = true
 cgmath.workspace = true

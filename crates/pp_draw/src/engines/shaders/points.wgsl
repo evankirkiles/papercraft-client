@@ -49,3 +49,8 @@ fn vs_main(
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     return vec4<f32>(0.7, 0.7, 0.7, 1.0);
 }
+
+@fragment
+fn fs_select(in: VertexOutput) -> @location(0) vec4<u32> {
+    return vec4<u32>(0, 0, 0, 0);
+}

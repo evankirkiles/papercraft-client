@@ -1471,6 +1471,7 @@ name = "pp_draw"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "bitflags 2.6.0",
  "bytemuck",
  "cfg-if",
  "cgmath",
