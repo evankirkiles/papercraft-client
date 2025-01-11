@@ -26,9 +26,9 @@ pub struct SelectionQuery {
 /// Represents whether a selection query is currently being processed.
 #[derive(Debug, Clone)]
 pub enum SelectManagerQueryState {
-    Idle,
+    Unmapped,
     InFlight { index: wgpu::SubmissionIndex },
-    Ready(SelectionQuery),
+    Mapped(SelectionQuery),
 }
 
 pub struct SelectManager {
@@ -55,7 +55,7 @@ impl SelectManager {
             select_engine: SelectEngine::new(ctx),
             select_buf,
             textures,
-            query_state: SelectManagerQueryState::Idle,
+            query_state: SelectManagerQueryState::Unmapped,
         }
     }
 
@@ -64,15 +64,15 @@ impl SelectManager {
         // Block until any in-flight selection queries have been processed, as
         // they expect a corresponding buffer to map into (which we are recreating)
         match self.query_state {
-            SelectManagerQueryState::Idle => {}
+            SelectManagerQueryState::Unmapped => {}
             SelectManagerQueryState::InFlight { .. } => {
                 while !ctx.device.poll(wgpu::MaintainBase::Wait).is_queue_empty() {}
             }
-            SelectManagerQueryState::Ready(_) => {
+            SelectManagerQueryState::Mapped(_) => {
                 self.select_buf.unmap();
             }
         }
-        self.query_state = SelectManagerQueryState::Idle;
+        self.query_state = SelectManagerQueryState::Unmapped;
         self.textures = SelectManagerAttachmentTextures::create(ctx);
         self.select_buf = self.textures.get_buf(ctx);
     }
@@ -93,8 +93,8 @@ impl SelectManager {
         callback: impl Fn(SelectManagerQueryState) + wgpu::WasmNotSend + 'static,
     ) -> Result<wgpu::SubmissionIndex, SelectionQueryError> {
         match self.query_state {
-            SelectManagerQueryState::Idle => {}
-            SelectManagerQueryState::Ready(_) => self.select_buf.unmap(),
+            SelectManagerQueryState::Unmapped => {}
+            SelectManagerQueryState::Mapped(_) => self.select_buf.unmap(),
             SelectManagerQueryState::InFlight { .. } => {
                 return Err(SelectionQueryError::QueryInFlight);
             }
@@ -178,7 +178,7 @@ impl SelectManager {
         // portion back into CPU-land and run the callback using it.
         self.select_buf.slice(..).map_async(wgpu::MapMode::Read, move |result| {
             result.expect("map_async failed");
-            callback(SelectManagerQueryState::Ready(query));
+            callback(SelectManagerQueryState::Mapped(query));
         });
         ctx.device.poll(wgpu::MaintainBase::Poll);
 
@@ -190,7 +190,7 @@ impl SelectManager {
     pub fn recv_query(&mut self, ctx: &gpu::Context, query: SelectionQuery) {
         if let SelectManagerQueryState::InFlight { index } = &self.query_state {
             ctx.device.poll(wgpu::MaintainBase::WaitForSubmissionIndex(index.clone()));
-            self.query_state = SelectManagerQueryState::Ready(query);
+            self.query_state = SelectManagerQueryState::Mapped(query);
         }
     }
 }
@@ -202,7 +202,7 @@ struct SelectManagerAttachmentTextures {
 }
 
 /// The format of the selection idx texture.
-pub const TEX_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba32Uint;
+pub const TEX_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rg32Uint;
 
 /// Rounds a number up to the nearest multiple of `align`
 pub const fn align_up(num: u32, align: u32) -> u32 {
@@ -229,7 +229,7 @@ impl SelectManagerAttachmentTextures {
                     mip_level_count: 1,
                     sample_count: 1,
                     dimension: wgpu::TextureDimension::D2,
-                    format: wgpu::TextureFormat::Rgba32Uint,
+                    format: TEX_FORMAT,
                     usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
                     view_formats: &[],
                     size,

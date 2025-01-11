@@ -1,8 +1,8 @@
+use pp_core::id::{Id, MeshId, VertexId};
 use pp_core::mesh::Mesh;
-use pp_draw::select::SelectionQuery;
+use pp_draw::select::{self, SelectionQuery};
 use std::sync::Arc;
 use viewport::ViewportInput;
-use winit::dpi::PhysicalPosition;
 use winit::event_loop::EventLoopProxy;
 use winit::{
     application::ApplicationHandler, dpi::PhysicalSize, event::WindowEvent, window::Window,
@@ -33,7 +33,7 @@ pub struct App {
     /// The size of the window
     size: PhysicalSize<u32>,
     /// The core state of the application
-    state: pp_core::state::State,
+    state: pp_core::State,
     /// User Input state (e.g. buttons pressed)
     input_state: input::InputState,
     /// A reference to the viewport to use for sending input
@@ -72,6 +72,10 @@ impl App {
         };
         let cube = Mesh::new_cube(0);
         app.state.meshes.insert(cube.id, cube);
+        let cube = app.state.meshes.get(&MeshId::new(0)).unwrap();
+        app.state
+            .selection
+            .select_verts(cube, &[VertexId::new(0), VertexId::new(1), VertexId::new(2)]);
         app
     }
 }
@@ -168,7 +172,21 @@ impl ApplicationHandler<AppEvent> for App {
             AppEvent::Select { action, query } => {
                 // Tell the select engine we received the query!
                 renderer.recv_select_query(query);
+                let block_size = select::TEX_FORMAT.block_copy_size(None).unwrap();
+                let len_pixe = renderer
+                    .select
+                    .select_buf
+                    .slice(..)
+                    .get_mapped_range()
+                    .chunks(block_size as usize)
+                    .len();
+                log::info!("pixels: {:?}", len_pixe);
                 log::info!("received query: {:?}", query);
+                // match action {
+                //     AppSelectionAction::Nearest => todo!(),
+                //     AppSelectionAction::NearestToggle => todo!(),
+                //     AppSelectionAction::All => todo!(),
+                // }
             }
         }
     }
@@ -246,7 +264,7 @@ impl ApplicationHandler<AppEvent> for App {
                                     },
                                 },
                                 move |query_state| {
-                                    if let pp_draw::select::SelectManagerQueryState::Ready(query) =
+                                    if let pp_draw::select::SelectManagerQueryState::Mapped(query) =
                                         query_state
                                     {
                                         event_loop_proxy.send_event(AppEvent::Select {

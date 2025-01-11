@@ -5,12 +5,16 @@ struct Camera { view_proj: mat4x4<f32>, dimensions: vec2<f32> };
 // Instanced rendering, so position corresponds to the instance's position
 // and the vertex_index comes from the triangle strip defining the point rect.
 struct VertexInput { 
+  @builtin(vertex_index) vertex_index: u32,
   @location(0) position: vec3<f32>,
-  @builtin(vertex_index) vertex_index: u32
+  @location(1) flags: u32,
+  @location(2) select_idx: vec2<u32>
 };
 
 struct VertexOutput { 
   @builtin(position) clip_position: vec4<f32>,
+  @location(0) flags: u32,
+  @location(1) select_idx: vec2<u32>
 };
 
 
@@ -40,6 +44,8 @@ fn vs_main(
     );
 
     out.clip_position = offset_mat * camera.view_proj * vec4<f32>(vert.position, 1.0);
+    out.flags = vert.flags;
+    out.select_idx = vert.select_idx;
     return out;
 }
 
@@ -47,10 +53,14 @@ fn vs_main(
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4<f32>(0.7, 0.7, 0.7, 1.0);
+    if bool(in.flags & 1) {
+        return vec4<f32>(1.0, 0.8, 0.0, 1.0);
+    } else {
+        return vec4<f32>(0.7, 0.7, 0.7, 1.0);
+    }
 }
 
 @fragment
-fn fs_select(in: VertexOutput) -> @location(0) vec4<u32> {
-    return vec4<u32>(0, 0, 0, 0);
+fn fs_select(in: VertexOutput) -> @location(0) vec2<u32> {
+    return in.select_idx;
 }

@@ -33,6 +33,9 @@ impl SelectEngine {
         mesh: &cache::MeshGPU,
         mask: SelectionMask,
     ) {
+        if mask.intersects(SelectionMask::POINTS) {
+            self.program_points.draw_mesh(render_pass, mesh);
+        }
         if mask.intersects(SelectionMask::LINES) {
             self.program_lines.draw_mesh(render_pass, mesh);
         }

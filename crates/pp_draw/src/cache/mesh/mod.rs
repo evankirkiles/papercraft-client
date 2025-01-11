@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use pp_core::{
     id,
     mesh::{Mesh, MeshElementType},
+    select::SelectionState,
 };
 
-use super::prelude::*;
 use crate::gpu;
 
 mod extract;
@@ -19,13 +19,12 @@ pub struct MeshGPUVBOs {
     pub uv: gpu::VertBuf,
     // 2D View
     pub pos_2d: gpu::VertBuf,
+    // Edit flags (select state, active state, etc)
+    pub vert_flags: gpu::VertBuf, // Per-vertex
     // Selection Indices
-    pub vert_idx: gpu::VertBuf,
-    pub edge_idx: gpu::VertBuf,
-    pub face_idx: gpu::VertBuf,
-
-    // Rect (for points)
-    pub edit_rect: gpu::VertBuf,
+    pub vert_idx: gpu::VertBuf, // Per-vertex
+    pub edge_idx: gpu::VertBuf, // Per-edge
+    pub face_idx: gpu::VertBuf, // Per-tri
 }
 
 /// All the IBOs which a mesh might need to use.
@@ -49,22 +48,21 @@ pub struct MeshGPU {
     is_dirty: bool,
 }
 
-impl GPUCache<Mesh> for MeshGPU {
+impl MeshGPU {
     /// Creates the GPU representation of a mesh and populates its buffers
-    fn new(ctx: &gpu::Context, mesh: &Mesh) -> Self {
-        // let batches = MeshBufferBatches::new(&bufs);
+    pub fn new(mesh: &Mesh) -> Self {
         let mesh_lbl = mesh.label.as_str();
-        let mut cache_item = Self {
+        Self {
             is_dirty: true,
             vbo: MeshGPUVBOs {
                 pos: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.pos")),
                 nor: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.nor")),
                 uv: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.uv")),
                 pos_2d: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.pos_2d")),
+                vert_flags: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.vert_flags")),
                 vert_idx: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.vert_idx")),
                 edge_idx: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.edge_idx")),
                 face_idx: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.face_idx")),
-                edit_rect: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.edit_rect")),
             },
             ibo: MeshGPUIBOs {
                 tris: gpu::IndexBuf::new(format!("{mesh_lbl}.ibo.tris")),
@@ -72,25 +70,32 @@ impl GPUCache<Mesh> for MeshGPU {
                 points: gpu::IndexBuf::new(format!("{mesh_lbl}.ibo.points")),
                 tris_per_mat: HashMap::new(),
             },
-        };
-        cache_item.sync(ctx, mesh);
-        cache_item
+        }
     }
 
     /// Updates any outdated VBOs / IBOs in this mesh
-    fn sync(&mut self, ctx: &gpu::Context, mesh: &Mesh) {
-        let dirty_flags = if self.is_dirty { &MeshElementType::all() } else { &mesh.elem_dirty };
-        if dirty_flags.intersects(MeshElementType::VERTS) {
+    pub fn sync(&mut self, ctx: &gpu::Context, mesh: &mut Mesh, selection: &SelectionState) {
+        let elem_dirty = if self.is_dirty { &MeshElementType::all() } else { &mesh.elem_dirty };
+        let index_dirty = if self.is_dirty { &MeshElementType::all() } else { &mesh.index_dirty };
+        if elem_dirty.intersects(MeshElementType::VERTS) {
             extract::vbo::pos(ctx, mesh, &mut self.vbo.pos);
             extract::vbo::vnor(ctx, mesh, &mut self.vbo.nor);
         }
-        if dirty_flags.intersects(MeshElementType::LOOPS) {
+        if index_dirty.intersects(MeshElementType::VERTS) {
+            extract::vbo::vert_idx(ctx, mesh, &mut self.vbo.vert_idx);
+        }
+        if index_dirty.intersects(MeshElementType::LOOPS) {
             extract::ibo::tris(ctx, mesh, &mut self.ibo.tris);
         }
-        if dirty_flags.intersects(MeshElementType::EDGES) {
+        if index_dirty.intersects(MeshElementType::EDGES) {
             extract::ibo::lines(ctx, mesh, &mut self.ibo.lines);
         }
-        self.is_dirty = false
+        if self.is_dirty || selection.is_dirty {
+            extract::vbo::vert_flags(ctx, mesh, selection, &mut self.vbo.vert_flags);
+        }
+        mesh.elem_dirty = MeshElementType::empty();
+        mesh.index_dirty = MeshElementType::empty();
+        self.is_dirty = false;
     }
 }
 
@@ -111,7 +116,8 @@ impl MeshGPUVBOs {
     vertex_format!(nor Float32x3);
     vertex_format!(uv Float32x2);
     vertex_format!(pos_2d Float32x2);
-    vertex_format!(vert_idx Float32);
+    vertex_format!(vert_flags Uint32);
+    vertex_format!(vert_idx Uint32x2);
     vertex_format!(edge_idx Float32);
     vertex_format!(face_idx Float32);
 }
@@ -147,7 +153,6 @@ impl MeshGPU {
     make_batch_impl!(tris surface_2d { 0 => pos_2d });
     make_batch_impl!(tris edit_triangles { 0 => pos });
     make_batch_impl!(lines edit_lines { 0 => pos });
-    // make_batch_impl!(points edit_points { 0 => pos });
 
     pub const BATCH_BUFFER_LAYOUT_EDIT_POINTS_INSTANCED: &[wgpu::VertexBufferLayout<'static>] = &[
         wgpu::VertexBufferLayout {
@@ -161,17 +166,28 @@ impl MeshGPU {
         },
         wgpu::VertexBufferLayout {
             array_stride: 0,
-            step_mode: wgpu::VertexStepMode::Vertex,
+            step_mode: wgpu::VertexStepMode::Instance,
             attributes: &[wgpu::VertexAttribute {
-                format: MeshGPUVBOs::VERTEX_FORMAT_POS_2D,
+                format: MeshGPUVBOs::VERTEX_FORMAT_VERT_FLAGS,
                 offset: 0,
                 shader_location: 1,
+            }],
+        },
+        wgpu::VertexBufferLayout {
+            array_stride: 0,
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &[wgpu::VertexAttribute {
+                format: MeshGPUVBOs::VERTEX_FORMAT_VERT_IDX,
+                offset: 0,
+                shader_location: 2,
             }],
         },
     ];
 
     pub fn draw_edit_points_instanced(&self, render_pass: &mut wgpu::RenderPass) {
         render_pass.set_vertex_buffer(0, self.vbo.pos.slice());
+        render_pass.set_vertex_buffer(1, self.vbo.vert_flags.slice());
+        render_pass.set_vertex_buffer(2, self.vbo.vert_idx.slice());
         render_pass.draw(0..4, 0..self.vbo.pos.len);
     }
 }

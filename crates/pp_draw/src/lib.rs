@@ -1,7 +1,6 @@
 use std::iter;
 
 use cache::{DrawCache, ViewportGPU};
-use select::SelectManagerQueryState;
 use winit::dpi::PhysicalSize;
 
 mod cache;
@@ -23,7 +22,7 @@ pub struct Renderer<'window> {
     engine_ink3: engines::ink3::InkEngine3D,
 
     /// Manages querying the GPU for pixels containing element indices to select
-    select: select::SelectManager,
+    pub select: select::SelectManager,
 }
 
 impl<'window> Renderer<'window> {
@@ -110,7 +109,7 @@ impl<'window> Renderer<'window> {
     }
 
     /// Synchronizes the DrawCache with the App's current state.
-    pub fn sync(&mut self, state: &mut pp_core::state::State) {
+    pub fn sync(&mut self, state: &mut pp_core::State) {
         self.draw_cache.sync_meshes(&self.ctx, state);
         self.draw_cache.sync_materials(&self.ctx, state);
         self.draw_cache.sync_viewports(&self.ctx, state);

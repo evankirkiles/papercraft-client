@@ -4,9 +4,6 @@ use pp_core::id;
 use pp_core::mesh::MeshElementType;
 use std::collections::HashMap;
 
-use prelude::*;
-pub mod prelude;
-
 mod mesh;
 mod viewport;
 
@@ -41,21 +38,20 @@ impl DrawCache {
         }
     }
 
-    pub fn sync_meshes(&mut self, ctx: &gpu::Context, state: &mut pp_core::state::State) {
+    pub fn sync_meshes(&mut self, ctx: &gpu::Context, state: &mut pp_core::State) {
         // Ensure AppState's meshes are all synced in the DrawCache
         state.meshes.iter_mut().for_each(|(key, mesh)| {
             mesh.ensure_elem_index(MeshElementType::all());
-            let m = self.meshes.entry(*key).or_insert(MeshGPU::new(ctx, mesh));
-            m.sync(ctx, mesh);
-            mesh.elem_dirty = MeshElementType::empty();
-            mesh.index_dirty = MeshElementType::empty();
+            let m = self.meshes.entry(*key).or_insert(MeshGPU::new(mesh));
+            m.sync(ctx, mesh, &state.selection);
         });
+        state.selection.is_dirty = false;
         // TODO: Remove unused meshes from the DrawCache
     }
 
-    pub fn sync_materials(&mut self, ctx: &gpu::Context, state: &mut pp_core::state::State) {}
+    pub fn sync_materials(&mut self, ctx: &gpu::Context, state: &mut pp_core::State) {}
 
-    pub fn sync_viewports(&mut self, ctx: &gpu::Context, state: &mut pp_core::state::State) {
+    pub fn sync_viewports(&mut self, ctx: &gpu::Context, state: &mut pp_core::State) {
         let (width, height) = (ctx.config.width as f32, ctx.config.height as f32);
         let x_border = state.viewport_split * width;
         self.viewport_3d.sync(ctx, &state.viewport_3d, 0.0, 0.0, x_border, height);
