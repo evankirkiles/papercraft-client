@@ -152,7 +152,7 @@ impl MeshGPU {
     make_batch_impl!(tris surface { 0 => pos, 1 => nor});
     make_batch_impl!(tris surface_2d { 0 => pos_2d });
     make_batch_impl!(tris edit_triangles { 0 => pos });
-    make_batch_impl!(lines edit_lines { 0 => pos });
+    make_batch_impl!(lines edit_lines { 0 => pos, 1 => vert_flags });
 
     pub const BATCH_BUFFER_LAYOUT_EDIT_POINTS_INSTANCED: &[wgpu::VertexBufferLayout<'static>] = &[
         wgpu::VertexBufferLayout {

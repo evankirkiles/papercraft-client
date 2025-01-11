@@ -54,13 +54,13 @@ fn vs_main(
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     if bool(in.flags & 1) {
-        return vec4<f32>(1.0, 0.8, 0.0, 1.0);
+        return vec4<f32>(1.0, 0.5, 0.0, 1.0);
     } else {
-        return vec4<f32>(0.7, 0.7, 0.7, 1.0);
+        return vec4<f32>(0.0, 0.0, 0.0, 1.0);
     }
 }
 
 @fragment
 fn fs_select(in: VertexOutput) -> @location(0) vec2<u32> {
-    return in.select_idx;
+    return in.select_idx + vec2<u32>(1, 0);
 }

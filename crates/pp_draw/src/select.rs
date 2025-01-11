@@ -23,6 +23,16 @@ pub struct SelectionQuery {
     pub rect: SelectionRect,
 }
 
+impl SelectionQuery {
+    pub fn contains(&self, other: &SelectionQuery) -> bool {
+        self.mask.contains(other.mask)
+            && other.rect.x >= self.rect.x
+            && other.rect.y >= self.rect.y
+            && other.rect.x + other.rect.width <= self.rect.x + self.rect.width
+            && other.rect.y + other.rect.height <= self.rect.y + self.rect.height
+    }
+}
+
 /// Represents whether a selection query is currently being processed.
 #[derive(Debug, Clone)]
 pub enum SelectManagerQueryState {
@@ -85,7 +95,7 @@ impl SelectManager {
     /// alongside an event loop - once the GPU marks the buffer as mapped and
     /// ready to be used, an event will be emitted onto the event loop for
     /// further processing.
-    pub fn submit_query(
+    pub fn query_submit(
         &mut self,
         ctx: &gpu::Context,
         draw_cache: &cache::DrawCache,
@@ -187,11 +197,48 @@ impl SelectManager {
 
     /// Must be called once the select buffer is successfully mapped to allow
     /// the program to be resized again / perform another selection query.
-    pub fn recv_query(&mut self, ctx: &gpu::Context, query: SelectionQuery) {
+    pub fn query_recv(&mut self, ctx: &gpu::Context, query: SelectionQuery) {
         if let SelectManagerQueryState::InFlight { index } = &self.query_state {
             ctx.device.poll(wgpu::MaintainBase::WaitForSubmissionIndex(index.clone()));
             self.query_state = SelectManagerQueryState::Mapped(query);
         }
+    }
+
+    /// Iterates over select pixels in the supplied rectangle, top-to-left.
+    /// If the rect does not fit within the currently-mapped section of the buffer,
+    /// or has a different selection mask applied, this function will panic.
+    pub fn iter_pixels<F: FnMut((u32, u32, &PixelData))>(&self, query: &SelectionQuery, cb: F) {
+        let SelectManagerQueryState::Mapped(curr_query) = &self.query_state else {
+            panic!("Attempted to read pixels in unmapped select buffer")
+        };
+        if !curr_query.contains(query) {
+            panic!("Desired query does not match mapped query")
+        }
+        let rect = query.rect;
+        let tex_width = self.textures.idx.texture.width();
+        let tex_block_size = self.textures.block_size;
+        let start_idx = ((rect.y * tex_width + rect.x) * tex_block_size) as u64;
+        let end_idx =
+            (((rect.y + rect.height) * tex_width + rect.x + rect.width) * tex_block_size) as u64;
+        let query = *query;
+        self.select_buf
+            .slice(start_idx..end_idx)
+            .get_mapped_range()
+            .chunks_exact(tex_block_size as usize)
+            .zip(0u64..)
+            .map(move |(chunk, i)| {
+                let pixel_idx = start_idx / tex_block_size as u64 + i;
+                let x = (pixel_idx % tex_width as u64) as u32;
+                let y = (pixel_idx / tex_width as u64) as u32;
+                (x, y, bytemuck::from_bytes::<PixelData>(chunk))
+            })
+            .filter(move |&(x, y, _)| {
+                x >= query.rect.x
+                    && x < query.rect.x + query.rect.width
+                    && y >= query.rect.y
+                    && y < query.rect.y + query.rect.height
+            })
+            .for_each(cb)
     }
 }
 
@@ -199,10 +246,21 @@ struct SelectManagerAttachmentTextures {
     // Object picking / select textures
     idx: gpu::Texture,
     depth: gpu::Texture,
+
+    // The number of bytes in each pixel
+    pub block_size: u32,
 }
 
 /// The format of the selection idx texture.
 pub const TEX_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rg32Uint;
+
+/// The actual data stored in each pixel
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
+pub struct PixelData {
+    pub mesh_id: u32,
+    pub el_id: u32,
+}
 
 /// Rounds a number up to the nearest multiple of `align`
 pub const fn align_up(num: u32, align: u32) -> u32 {
@@ -248,15 +306,16 @@ impl SelectManagerAttachmentTextures {
                     size,
                 },
             ),
+            block_size,
         }
     }
 
     /// Returns a corresponding buf to be copied into from the texture
     fn get_buf(&self, ctx: &gpu::Context) -> wgpu::Buffer {
-        let block_size = TEX_FORMAT.block_copy_size(None).unwrap();
         ctx.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("select.idx_buf"),
-            size: (self.depth.texture.width() * self.depth.texture.height() * block_size).into(),
+            size: (self.depth.texture.width() * self.depth.texture.height() * self.block_size)
+                .into(),
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
             mapped_at_creation: false,
         })

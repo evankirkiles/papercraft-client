@@ -176,17 +176,17 @@ impl<'window> Renderer<'window> {
     }
 
     /// Queries the selection manager to prepare the supplied rect.
-    pub fn send_select_query(
+    pub fn select_query_submit(
         &mut self,
         query: select::SelectionQuery,
         callback: impl Fn(select::SelectManagerQueryState) + wgpu::WasmNotSend + 'static,
     ) -> Result<wgpu::SubmissionIndex, select::SelectionQueryError> {
-        self.select.submit_query(&self.ctx, &self.draw_cache, query, callback)
+        self.select.query_submit(&self.ctx, &self.draw_cache, query, callback)
     }
 
-    /// Must be called after the selection query calls `on_map`
-    pub fn recv_select_query(&mut self, query: select::SelectionQuery) {
-        self.select.recv_query(&self.ctx, query)
+    /// Indicates that the buffer is ready to read from for the supplied rect.
+    pub fn select_query_recv(&mut self, query: select::SelectionQuery) {
+        self.select.query_recv(&self.ctx, query)
     }
 
     /// Updates the GPUContext for new dimensions

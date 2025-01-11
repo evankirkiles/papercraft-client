@@ -72,10 +72,6 @@ impl App {
         };
         let cube = Mesh::new_cube(0);
         app.state.meshes.insert(cube.id, cube);
-        let cube = app.state.meshes.get(&MeshId::new(0)).unwrap();
-        app.state
-            .selection
-            .select_verts(cube, &[VertexId::new(0), VertexId::new(1), VertexId::new(2)]);
         app
     }
 }
@@ -171,22 +167,16 @@ impl ApplicationHandler<AppEvent> for App {
         match event {
             AppEvent::Select { action, query } => {
                 // Tell the select engine we received the query!
-                renderer.recv_select_query(query);
-                let block_size = select::TEX_FORMAT.block_copy_size(None).unwrap();
-                let len_pixe = renderer
-                    .select
-                    .select_buf
-                    .slice(..)
-                    .get_mapped_range()
-                    .chunks(block_size as usize)
-                    .len();
-                log::info!("pixels: {:?}", len_pixe);
-                log::info!("received query: {:?}", query);
-                // match action {
-                //     AppSelectionAction::Nearest => todo!(),
-                //     AppSelectionAction::NearestToggle => todo!(),
-                //     AppSelectionAction::All => todo!(),
-                // }
+                renderer.select_query_recv(query);
+                self.state.selection.deselect_all();
+                renderer.select.iter_pixels(&query, |(x, y, pixel_data)| {
+                    if pixel_data.mesh_id > 0 {
+                        let mesh_id = MeshId::new(pixel_data.mesh_id - 1);
+                        let vert_id = VertexId::new(pixel_data.el_id);
+                        self.state.selection.select_verts(&self.state.meshes[&mesh_id], &[vert_id]);
+                        log::info!("({x}, {y}): {mesh_id:?} {vert_id:?}")
+                    }
+                });
             }
         }
     }
@@ -247,20 +237,20 @@ impl ApplicationHandler<AppEvent> for App {
                 }
                 winit::event::MouseButton::Left => {
                     self.input_state.mb1_pressed = state.is_pressed();
-                    const SELECT_RADIUS: f64 = 30.0;
+                    const SELECT_RADIUS: f64 = 50.0;
                     let cursor_pos = self.input_state.cursor_pos;
                     if !state.is_pressed() {
                         let mask = pp_draw::select::SelectionMask::POINTS;
                         let event_loop_proxy = self.event_loop_proxy.clone();
                         renderer
-                            .send_select_query(
+                            .select_query_submit(
                                 pp_draw::select::SelectionQuery {
                                     mask,
                                     rect: pp_draw::select::SelectionRect {
                                         x: (cursor_pos.x - SELECT_RADIUS).max(0.0) as u32,
                                         y: (cursor_pos.y - SELECT_RADIUS).max(0.0) as u32,
-                                        width: SELECT_RADIUS as u32,
-                                        height: SELECT_RADIUS as u32,
+                                        width: SELECT_RADIUS as u32 * 2,
+                                        height: SELECT_RADIUS as u32 * 2,
                                     },
                                 },
                                 move |query_state| {
