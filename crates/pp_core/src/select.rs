@@ -36,5 +36,17 @@ impl SelectionState {
         self.is_dirty = true
     }
 
+    pub fn toggle_verts(&mut self, mesh: &Mesh, verts: &[id::VertexId]) {
+        verts.iter().for_each(|v| {
+            let key = (mesh.id, *v);
+            if self.verts.contains(&key) {
+                self.verts.remove(&key);
+            } else {
+                self.verts.insert(key);
+            }
+        });
+        self.is_dirty = true
+    }
+
     fn ensure_valid(&mut self) {}
 }

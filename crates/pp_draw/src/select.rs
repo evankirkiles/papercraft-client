@@ -100,7 +100,7 @@ impl SelectManager {
         ctx: &gpu::Context,
         draw_cache: &cache::DrawCache,
         query: SelectionQuery,
-        callback: impl Fn(SelectManagerQueryState) + wgpu::WasmNotSend + 'static,
+        callback: impl Fn(SelectionQuery) + wgpu::WasmNotSend + 'static,
     ) -> Result<wgpu::SubmissionIndex, SelectionQueryError> {
         match self.query_state {
             SelectManagerQueryState::Unmapped => {}
@@ -160,7 +160,7 @@ impl SelectManager {
 
         // After render pass completes, copy the desired region of the texture
         // into the select buf, all still on the GPU
-        let block_size = TEX_FORMAT.block_copy_size(None).unwrap();
+        let block_size = self.textures.block_size;
         let bytes_per_row = self.textures.idx.texture.width() * block_size;
         encoder.copy_texture_to_buffer(
             wgpu::ImageCopyTextureBase {
@@ -188,7 +188,7 @@ impl SelectManager {
         // portion back into CPU-land and run the callback using it.
         self.select_buf.slice(..).map_async(wgpu::MapMode::Read, move |result| {
             result.expect("map_async failed");
-            callback(SelectManagerQueryState::Mapped(query));
+            callback(query);
         });
         ctx.device.poll(wgpu::MaintainBase::Poll);
 
@@ -207,36 +207,39 @@ impl SelectManager {
     /// Iterates over select pixels in the supplied rectangle, top-to-left.
     /// If the rect does not fit within the currently-mapped section of the buffer,
     /// or has a different selection mask applied, this function will panic.
-    pub fn iter_pixels<F: FnMut((u32, u32, &PixelData))>(&self, query: &SelectionQuery, cb: F) {
+    pub fn query_use<F: FnMut((f32, f32, &PixelData))>(&self, query: &SelectionQuery, cb: F) {
         let SelectManagerQueryState::Mapped(curr_query) = &self.query_state else {
             panic!("Attempted to read pixels in unmapped select buffer")
         };
         if !curr_query.contains(query) {
             panic!("Desired query does not match mapped query")
         }
-        let rect = query.rect;
         let tex_width = self.textures.idx.texture.width();
         let tex_block_size = self.textures.block_size;
-        let start_idx = ((rect.y * tex_width + rect.x) * tex_block_size) as u64;
+        let start_idx = (query.rect.y * tex_width + query.rect.x) * tex_block_size;
         let end_idx =
-            (((rect.y + rect.height) * tex_width + rect.x + rect.width) * tex_block_size) as u64;
-        let query = *query;
+            ((query.rect.y + query.rect.height) * tex_width + query.rect.x + query.rect.width)
+                * tex_block_size;
         self.select_buf
-            .slice(start_idx..end_idx)
+            .slice((start_idx as u64)..(end_idx as u64))
             .get_mapped_range()
             .chunks_exact(tex_block_size as usize)
-            .zip(0u64..)
-            .map(move |(chunk, i)| {
-                let pixel_idx = start_idx / tex_block_size as u64 + i;
-                let x = (pixel_idx % tex_width as u64) as u32;
-                let y = (pixel_idx / tex_width as u64) as u32;
-                (x, y, bytemuck::from_bytes::<PixelData>(chunk))
-            })
-            .filter(move |&(x, y, _)| {
-                x >= query.rect.x
-                    && x < query.rect.x + query.rect.width
+            .zip(0u32..)
+            .filter_map(move |(chunk, i)| {
+                let pixel_idx = start_idx / tex_block_size + i;
+                let x = pixel_idx % tex_width;
+                let y = pixel_idx / tex_width;
+                let pixel_data = bytemuck::from_bytes::<PixelData>(chunk);
+                if pixel_data.mesh_id != 0 // Mesh indices are offset by 1 for valid elements
+                    && x >= query.rect.x
                     && y >= query.rect.y
+                    && x < query.rect.x + query.rect.width
                     && y < query.rect.y + query.rect.height
+                {
+                    Some((x as f32, y as f32, pixel_data))
+                } else {
+                    None
+                }
             })
             .for_each(cb)
     }

@@ -179,7 +179,7 @@ impl<'window> Renderer<'window> {
     pub fn select_query_submit(
         &mut self,
         query: select::SelectionQuery,
-        callback: impl Fn(select::SelectManagerQueryState) + wgpu::WasmNotSend + 'static,
+        callback: impl Fn(select::SelectionQuery) + wgpu::WasmNotSend + 'static,
     ) -> Result<wgpu::SubmissionIndex, select::SelectionQueryError> {
         self.select.query_submit(&self.ctx, &self.draw_cache, query, callback)
     }

@@ -47,12 +47,14 @@ pub struct App {
     renderer_receiver: Option<Receiver<pp_draw::Renderer<'static>>>,
 }
 
+#[derive(Debug, Copy, Clone)]
 pub enum AppSelectionAction {
     Nearest,
     NearestToggle,
     All,
 }
 
+#[derive(Debug, Copy, Clone)]
 pub enum AppEvent {
     Select { action: AppSelectionAction, query: SelectionQuery },
 }
@@ -168,15 +170,43 @@ impl ApplicationHandler<AppEvent> for App {
             AppEvent::Select { action, query } => {
                 // Tell the select engine we received the query!
                 renderer.select_query_recv(query);
-                self.state.selection.deselect_all();
-                renderer.select.iter_pixels(&query, |(x, y, pixel_data)| {
-                    if pixel_data.mesh_id > 0 {
+                if matches!(action, AppSelectionAction::Nearest) {
+                    self.state.selection.deselect_all();
+                }
+
+                match action {
+                    AppSelectionAction::Nearest | AppSelectionAction::NearestToggle => {
+                        let mut nearest: Option<(select::PixelData, f32)> = None;
+                        let center_x = (2 * query.rect.x + query.rect.width) as f32 / 2.0;
+                        let center_y = (2 * query.rect.y + query.rect.height) as f32 / 2.0;
+                        renderer.select.query_use(&query, |(x, y, pixel_data)| {
+                            let distance = ((x - center_x).powi(2) + (y - center_y).powi(2)).sqrt();
+                            if let Some(nearest) = nearest {
+                                if distance >= nearest.1 {
+                                    return;
+                                }
+                            }
+                            nearest = Some((*pixel_data, distance));
+                        });
+                        let Some((pixel_data, _)) = nearest else { return };
                         let mesh_id = MeshId::new(pixel_data.mesh_id - 1);
                         let vert_id = VertexId::new(pixel_data.el_id);
-                        self.state.selection.select_verts(&self.state.meshes[&mesh_id], &[vert_id]);
-                        log::info!("({x}, {y}): {mesh_id:?} {vert_id:?}")
+                        match action {
+                            AppSelectionAction::Nearest => {
+                                self.state
+                                    .selection
+                                    .select_verts(&self.state.meshes[&mesh_id], &[vert_id]);
+                            }
+                            AppSelectionAction::NearestToggle => {
+                                self.state
+                                    .selection
+                                    .toggle_verts(&self.state.meshes[&mesh_id], &[vert_id]);
+                            }
+                            _ => {}
+                        }
                     }
-                });
+                    AppSelectionAction::All => todo!(),
+                }
             }
         }
     }
@@ -225,10 +255,10 @@ impl ApplicationHandler<AppEvent> for App {
                     },
                 ..
             } => {
-                if key_code == winit::keyboard::KeyCode::Escape {
-                    event_loop.exit()
-                } else if key_code == winit::keyboard::KeyCode::ShiftLeft {
+                if key_code == winit::keyboard::KeyCode::ShiftLeft {
                     self.input_state.shift_pressed = state.is_pressed()
+                } else if key_code == winit::keyboard::KeyCode::AltLeft {
+                    self.input_state.alt_pressed = state.is_pressed()
                 }
             }
             WindowEvent::MouseInput { device_id: _, state, button } => match button {
@@ -240,30 +270,27 @@ impl ApplicationHandler<AppEvent> for App {
                     const SELECT_RADIUS: f64 = 50.0;
                     let cursor_pos = self.input_state.cursor_pos;
                     if !state.is_pressed() {
-                        let mask = pp_draw::select::SelectionMask::POINTS;
                         let event_loop_proxy = self.event_loop_proxy.clone();
+                        let action = if self.input_state.shift_pressed {
+                            AppSelectionAction::NearestToggle
+                        } else {
+                            AppSelectionAction::Nearest
+                        };
+                        let query = pp_draw::select::SelectionQuery {
+                            mask: pp_draw::select::SelectionMask::POINTS,
+                            rect: pp_draw::select::SelectionRect {
+                                x: (cursor_pos.x - SELECT_RADIUS).max(0.0) as u32,
+                                y: (cursor_pos.y - SELECT_RADIUS).max(0.0) as u32,
+                                width: SELECT_RADIUS as u32 * 2,
+                                height: SELECT_RADIUS as u32 * 2,
+                            },
+                        };
                         renderer
-                            .select_query_submit(
-                                pp_draw::select::SelectionQuery {
-                                    mask,
-                                    rect: pp_draw::select::SelectionRect {
-                                        x: (cursor_pos.x - SELECT_RADIUS).max(0.0) as u32,
-                                        y: (cursor_pos.y - SELECT_RADIUS).max(0.0) as u32,
-                                        width: SELECT_RADIUS as u32 * 2,
-                                        height: SELECT_RADIUS as u32 * 2,
-                                    },
-                                },
-                                move |query_state| {
-                                    if let pp_draw::select::SelectManagerQueryState::Mapped(query) =
-                                        query_state
-                                    {
-                                        event_loop_proxy.send_event(AppEvent::Select {
-                                            action: AppSelectionAction::Nearest,
-                                            query,
-                                        });
-                                    }
-                                },
-                            )
+                            .select_query_submit(query, move |query| {
+                                event_loop_proxy
+                                    .send_event(AppEvent::Select { action, query })
+                                    .expect("Event loop unexpectedly closed");
+                            })
                             .expect("select query failed!");
                     }
                 }
@@ -278,11 +305,6 @@ impl ApplicationHandler<AppEvent> for App {
                         ViewportType::D2
                     };
             }
-            WindowEvent::MouseWheel { phase, .. } => match phase {
-                winit::event::TouchPhase::Started => self.input_state.is_touch = true,
-                winit::event::TouchPhase::Ended => self.input_state.is_touch = false,
-                _ => {}
-            },
             WindowEvent::Resized(PhysicalSize { width, height }) => {
                 let (width, height) = ((width).max(1), (height).max(1));
                 self.size.width = width;

@@ -37,6 +37,8 @@ impl ViewportInput for Viewport3D {
                 };
                 if input_state.shift_pressed {
                     self.camera.pan(dx, dy);
+                } else if input_state.alt_pressed {
+                    self.camera.dolly(dy * 0.5);
                 } else {
                     self.camera.orbit(dx, dy);
                 }

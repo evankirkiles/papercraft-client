@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { Engine } from "@/components/Engine/Engine";
+import { Engine } from "@/Engine";
 
 import "./main.scss";
 

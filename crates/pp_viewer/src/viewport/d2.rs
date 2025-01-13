@@ -28,7 +28,11 @@ impl ViewportInput for Viewport2D {
                         (*x, *y)
                     }
                 };
-                self.camera.pan(dx, dy);
+                if input_state.alt_pressed {
+                    self.camera.dolly(dy * 0.5);
+                } else {
+                    self.camera.pan(dx, dy);
+                }
             }
             WindowEvent::PinchGesture { delta, .. } => {
                 self.camera.dolly(delta * 50.0);
