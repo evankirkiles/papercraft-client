@@ -1,3 +1,6 @@
+@use "@/styles/globals";
+@use "@/styles/global/theme";
+
 html,
 body,
 #root {
@@ -6,6 +9,6 @@ body,
   inline-size: 100%;
   block-size: 100%;
   margin: 0;
-  background-color: #121212;
-  color: white;
+  background-color: theme.color("bg");
+  color: theme.color("fg");
 }

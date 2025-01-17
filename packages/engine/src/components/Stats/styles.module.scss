@@ -1,0 +1,16 @@
+@use "@/styles/global/theme";
+
+.container {
+  grid-area: stats;
+  justify-self: start;
+  align-self: end;
+  height: fit-content;
+  justify-content: center;
+  font-family: monospace;
+  color: #808080;
+  font-size: 0.75rem;
+
+  & p {
+    line-height: 1.3;
+  }
+}

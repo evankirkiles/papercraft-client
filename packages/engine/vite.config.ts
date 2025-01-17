@@ -3,9 +3,13 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tsconfigPaths from "vite-tsconfig-paths";
 import dts from "vite-plugin-dts";
-import wasmPack from "@evankirkiles/vite-plugin-wasm-pack";
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "@": resolve(__dirname, "src"),
+    },
+  },
   plugins: [
     react(),
     tsconfigPaths(),

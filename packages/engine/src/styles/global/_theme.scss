@@ -1,0 +1,14 @@
+@use "../settings/colors";
+
+:root {
+  // By default, read light mode color variables from SCSS settings
+  color-scheme: light;
+  @each $color, $hexCode in colors.$colors-dark {
+    --pp-color-#{$color}: #{$hexCode};
+  }
+}
+
+// Returns a color from the above color map
+@function color($color-name) {
+  @return var(--pp-color-#{$color-name});
+}

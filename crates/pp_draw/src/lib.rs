@@ -135,7 +135,7 @@ impl<'window> Renderer<'window> {
                             r: 0.01,
                             g: 0.01,
                             b: 0.01,
-                            a: 1.0,
+                            a: 0.0,
                         }),
                         store: wgpu::StoreOp::Store,
                     },

@@ -1,0 +1,33 @@
+@use "@/styles/global/theme";
+
+.container {
+  grid-area: nav;
+  display: flex;
+  height: fit-content;
+  gap: 0.7em;
+}
+
+.control_main {
+  padding: 0.7em;
+  padding-bottom: 0.6em;
+  background-color: theme.color("bg");
+  border: 1px solid theme.color("bg2");
+  border-radius: 0.5em;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.control_small {
+  padding: 0.2em 1em;
+  width: 80px;
+  height: 1.5em;
+  background-color: theme.color("bg");
+  border: 1px solid theme.color("bg2");
+  border-radius: 0.5em;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.icon {
+  & path {
+    opacity: 0.7;
+  }
+}

@@ -20,6 +20,7 @@
   "scripts": {
     "wasm": "wasm-pack build ../../crates/pp_viewer --target web --out-name pp_viewer",
     "dev": "pnpm wasm && vite",
+    "vite": "vite",
     "build": "pnpm wasm && vite build",
     "preview": "vite preview"
   },
