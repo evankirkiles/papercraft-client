@@ -156,9 +156,9 @@ impl<'window> Renderer<'window> {
             if self.draw_cache.viewport_3d.bind(&mut render_pass).is_ok() {
                 // draw from each engine in the presentation render pass.
                 self.draw_cache.meshes.values().for_each(|mesh| {
-                    self.engine_ink3.draw_mesh(&mut render_pass, mesh);
+                    self.engine_ink3.draw_mesh(&self.ctx, &mut render_pass, mesh);
                 });
-                self.engine_ink3.draw_overlays(&mut render_pass);
+                self.engine_ink3.draw_overlays(&self.ctx, &mut render_pass);
             }
 
             // Render 2D if viewport has area
@@ -167,7 +167,7 @@ impl<'window> Renderer<'window> {
                 // self.draw_cache.meshes.values().for_each(|mesh| {
                 //     self.engine_ink3.draw_mesh(&mut render_pass, mesh);
                 // });
-                self.engine_ink2.draw_overlays(&mut render_pass);
+                self.engine_ink2.draw_overlays(&self.ctx, &mut render_pass);
             }
         }
 

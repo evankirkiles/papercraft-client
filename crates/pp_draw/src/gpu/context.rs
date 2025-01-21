@@ -1,4 +1,8 @@
+use wgpu::util::DeviceExt;
+
 use super::{layouts::SharedLayouts, settings::Settings};
+
+const BUF_RECT_CONTENTS: [[f32; 2]; 4] = [[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]];
 
 /// A GPU Context owns the resources connected to a Surface's lifetime. It is
 /// created when the Renderer is created and used to pass around shared
@@ -10,6 +14,8 @@ pub struct Context<'ctx> {
     pub queue: wgpu::Queue,
     /// Common wgpu layouts of various types for re-use across programs
     pub shared_layouts: SharedLayouts,
+    /// Common buffers (e.g. rect)
+    pub buf_rect: wgpu::Buffer,
     /// Global configuration for draw calls
     pub settings: Settings,
 }
@@ -24,6 +30,11 @@ impl<'ctx> Context<'ctx> {
         let ctx = Context {
             shared_layouts: SharedLayouts::new(&device),
             settings: Settings::default(),
+            buf_rect: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("ctx.buf_rect"),
+                contents: bytemuck::bytes_of(&BUF_RECT_CONTENTS),
+                usage: wgpu::BufferUsages::VERTEX,
+            }),
             device,
             config,
             surface,

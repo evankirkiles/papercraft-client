@@ -4,24 +4,41 @@ bitflags! {
     /// A mask of items to render for selection in the buffer
     #[repr(C)]
     #[derive(Debug, Copy, Clone)]
-    pub struct SelectionMask: u32 {
+    pub struct VertFlags: u32 {
         const SELECTED = 1 << 0;
         const ACTIVE = 1 << 1;
+    }
+
+    /// A mask of items to render for selection in the buffer
+    #[repr(C)]
+    #[derive(Debug, Copy, Clone)]
+    pub struct EdgeFlags: u32 {
+        const SELECTED = 1 << 0;
+        const ACTIVE = 1 << 1;
+        const V0_SELECTED = 1 << 2;
+        const V1_SELECTED = 1 << 3;
     }
 }
 
 /// Helper functions for extracting VBOs from a Mesh
 pub mod vbo {
-    use pp_core::id::Id;
+    use pp_core::id::{self, Id};
 
-    use crate::gpu;
+    use crate::{cache::mesh::extract::EdgeFlags, gpu};
 
-    use super::SelectionMask;
+    use super::VertFlags;
 
     /// Reloads the pos VBO from the mesh's data
     pub fn pos(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
         let data: Vec<_> = mesh.iter_loops().map(|l| mesh[mesh[l].v].po).collect();
         vbo.update(ctx, data.as_slice());
+    }
+
+    /// Reloads the vertex selection idx from the mesh
+    pub fn edge_pos(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
+        let data: Vec<_> =
+            mesh.edges.values().map(|e| [mesh[e.v[0]].po, mesh[e.v[1]].po]).collect();
+        vbo.update(ctx, data.as_slice())
     }
 
     /// Reloads the vertex normals VBO from the mesh's data
@@ -46,9 +63,36 @@ pub mod vbo {
         let data: Vec<_> = mesh
             .iter_loops()
             .map(|l| {
-                let mut flags = SelectionMask::empty();
+                let mut flags = VertFlags::empty();
                 if selection.verts.contains(&(mesh.id, mesh[l].v)) {
-                    flags |= SelectionMask::SELECTED;
+                    flags |= VertFlags::SELECTED;
+                }
+                flags.bits()
+            })
+            .collect();
+        vbo.update(ctx, data.as_slice())
+    }
+
+    /// Reloads flags indicating the state of the vertex (select, active)
+    pub fn edge_flags(
+        ctx: &gpu::Context,
+        mesh: &pp_core::mesh::Mesh,
+        selection: &pp_core::select::SelectionState,
+        vbo: &mut gpu::VertBuf,
+    ) {
+        let data: Vec<_> = mesh
+            .edges
+            .iter()
+            .map(|(e_id, e)| {
+                let mut flags = EdgeFlags::empty();
+                if selection.edges.contains(&(mesh.id, id::EdgeId::from_usize(e_id))) {
+                    flags |= EdgeFlags::SELECTED;
+                }
+                if selection.verts.contains(&(mesh.id, e.v[0])) {
+                    flags |= EdgeFlags::V0_SELECTED;
+                }
+                if selection.verts.contains(&(mesh.id, e.v[1])) {
+                    flags |= EdgeFlags::V1_SELECTED;
                 }
                 flags.bits()
             })
@@ -59,6 +103,12 @@ pub mod vbo {
     /// Reloads the vertex selection idx from the mesh
     pub fn vert_idx(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
         let data: Vec<_> = mesh.iter_loops().map(|l| [mesh.id.idx(), mesh[l].v.idx()]).collect();
+        vbo.update(ctx, data.as_slice())
+    }
+
+    /// Reloads the vertex selection idx from the mesh
+    pub fn edge_idx(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
+        let data: Vec<_> = mesh.edges.indices().map(|e| [mesh.id.idx(), e as u32]).collect();
         vbo.update(ctx, data.as_slice())
     }
 

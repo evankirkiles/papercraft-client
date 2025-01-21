@@ -42,7 +42,7 @@ impl DrawCache {
         // Ensure AppState's meshes are all synced in the DrawCache
         state.meshes.iter_mut().for_each(|(key, mesh)| {
             mesh.ensure_elem_index(MeshElementType::all());
-            let m = self.meshes.entry(*key).or_insert(MeshGPU::new(mesh));
+            let m = self.meshes.entry(*key).or_insert(MeshGPU::new(ctx, mesh));
             m.sync(ctx, mesh, &state.selection);
         });
         state.selection.is_dirty = false;

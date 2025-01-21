@@ -3,7 +3,7 @@ struct Camera { view_proj: mat4x4<f32>, dimensions: vec2<f32> };
 @group(0) @binding(0) var<uniform> camera: Camera;
 
 struct VertexInput {
-   @builtin(vertex_index) vertex_index: u32
+   @location(0) offset: vec2<f32>
 };
 
 struct VertexOutput {
@@ -16,15 +16,8 @@ fn vs_main(
     vert: VertexInput,
 ) -> VertexOutput {
     var out: VertexOutput;
-    // Hard-code positions for each of the corners of the rect, indexed by vertex_index
-    var OFFSETS = array<vec2<f32>, 4>(
-        vec2<f32>(-1, -1),
-        vec2<f32>(1, -1),
-        vec2<f32>(-1, 1),
-        vec2<f32>(1, 1)
-    );
 
-    var p = OFFSETS[vert.vertex_index] * 8.0;
+    var p = (vert.offset * 2 - 1) * 8.0;
     out.world_position = vec3<f32>(p, 0.0);
     out.clip_position = camera.view_proj * vec4<f32>(out.world_position, 1.0);
     return out;

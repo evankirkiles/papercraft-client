@@ -13,7 +13,7 @@ impl InkEngine2D {
         Self { program_overlay_grid: overlay_grid::Program::new(ctx) }
     }
 
-    pub fn draw_overlays(&self, render_pass: &mut wgpu::RenderPass) {
-        self.program_overlay_grid.draw(render_pass);
+    pub fn draw_overlays(&self, ctx: &gpu::Context, render_pass: &mut wgpu::RenderPass) {
+        self.program_overlay_grid.draw(ctx, render_pass);
     }
 }

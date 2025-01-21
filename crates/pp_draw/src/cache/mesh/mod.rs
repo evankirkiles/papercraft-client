@@ -5,6 +5,7 @@ use pp_core::{
     mesh::{Mesh, MeshElementType},
     select::SelectionState,
 };
+use wgpu::util::DeviceExt;
 
 use crate::gpu;
 
@@ -13,18 +14,21 @@ mod extract;
 /// All the possible VBOs a mesh might need to use.
 #[derive(Debug)]
 pub struct MeshGPUVBOs {
-    // 3D View
+    // For vertices & faces
     pub pos: gpu::VertBuf,
     pub nor: gpu::VertBuf,
     pub uv: gpu::VertBuf,
-    // 2D View
     pub pos_2d: gpu::VertBuf,
     // Edit flags (select state, active state, etc)
-    pub vert_flags: gpu::VertBuf, // Per-vertex
-    // Selection Indices
-    pub vert_idx: gpu::VertBuf, // Per-vertex
-    pub edge_idx: gpu::VertBuf, // Per-edge
-    pub face_idx: gpu::VertBuf, // Per-tri
+    pub vert_idx: gpu::VertBuf,
+    pub vert_flags: gpu::VertBuf,
+    pub face_idx: gpu::VertBuf,
+    pub face_flags: gpu::VertBuf,
+
+    // For edges
+    pub edge_pos: gpu::VertBuf,
+    pub edge_idx: gpu::VertBuf,
+    pub edge_flags: gpu::VertBuf,
 }
 
 /// All the IBOs which a mesh might need to use.
@@ -50,7 +54,7 @@ pub struct MeshGPU {
 
 impl MeshGPU {
     /// Creates the GPU representation of a mesh and populates its buffers
-    pub fn new(mesh: &Mesh) -> Self {
+    pub fn new(ctx: &gpu::Context, mesh: &Mesh) -> Self {
         let mesh_lbl = mesh.label.as_str();
         Self {
             is_dirty: true,
@@ -61,8 +65,11 @@ impl MeshGPU {
                 pos_2d: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.pos_2d")),
                 vert_flags: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.vert_flags")),
                 vert_idx: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.vert_idx")),
+                edge_pos: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.edge_pos")),
                 edge_idx: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.edge_idx")),
+                edge_flags: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.edge_flags")),
                 face_idx: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.face_idx")),
+                face_flags: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.face_flags")),
             },
             ibo: MeshGPUIBOs {
                 tris: gpu::IndexBuf::new(format!("{mesh_lbl}.ibo.tris")),
@@ -80,9 +87,13 @@ impl MeshGPU {
         if elem_dirty.intersects(MeshElementType::VERTS) {
             extract::vbo::pos(ctx, mesh, &mut self.vbo.pos);
             extract::vbo::vnor(ctx, mesh, &mut self.vbo.nor);
+            extract::vbo::edge_pos(ctx, mesh, &mut self.vbo.edge_pos);
         }
         if index_dirty.intersects(MeshElementType::VERTS) {
             extract::vbo::vert_idx(ctx, mesh, &mut self.vbo.vert_idx);
+        }
+        if index_dirty.intersects(MeshElementType::EDGES) {
+            extract::vbo::edge_idx(ctx, mesh, &mut self.vbo.edge_idx);
         }
         if index_dirty.intersects(MeshElementType::LOOPS) {
             extract::ibo::tris(ctx, mesh, &mut self.ibo.tris);
@@ -92,6 +103,7 @@ impl MeshGPU {
         }
         if self.is_dirty || selection.is_dirty {
             extract::vbo::vert_flags(ctx, mesh, selection, &mut self.vbo.vert_flags);
+            extract::vbo::edge_flags(ctx, mesh, selection, &mut self.vbo.edge_flags);
         }
         mesh.elem_dirty = MeshElementType::empty();
         mesh.index_dirty = MeshElementType::empty();
@@ -112,14 +124,20 @@ macro_rules! vertex_format {
 }
 
 impl MeshGPUVBOs {
+    // For vertices & faces
     vertex_format!(pos Float32x3);
+    vertex_format!(pos_2d Float32x2);
     vertex_format!(nor Float32x3);
     vertex_format!(uv Float32x2);
-    vertex_format!(pos_2d Float32x2);
     vertex_format!(vert_flags Uint32);
     vertex_format!(vert_idx Uint32x2);
-    vertex_format!(edge_idx Float32);
     vertex_format!(face_idx Float32);
+
+    // For edges
+    vertex_format!(edge_pos Float32x3);
+    vertex_format!(edge_pos_2d Float32x3);
+    vertex_format!(edge_flags Uint32);
+    vertex_format!(edge_idx Float32);
 }
 
 /// Creates shared VertexBufferLayouts to use in engine functions, as well as
@@ -152,14 +170,59 @@ impl MeshGPU {
     make_batch_impl!(tris surface { 0 => pos, 1 => nor});
     make_batch_impl!(tris surface_2d { 0 => pos_2d });
     make_batch_impl!(tris edit_triangles { 0 => pos });
-    make_batch_impl!(lines edit_lines { 0 => pos, 1 => vert_flags });
 
-    pub const BATCH_BUFFER_LAYOUT_EDIT_POINTS_INSTANCED: &[wgpu::VertexBufferLayout<'static>] = &[
+    pub const BATCH_BUFFER_LAYOUT_EDIT_LINES_INSTANCED: &[wgpu::VertexBufferLayout<'static>] = &[
+        wgpu::VertexBufferLayout {
+            array_stride: 0,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[wgpu::VertexAttribute {
+                format: wgpu::VertexFormat::Float32x2,
+                offset: 0,
+                shader_location: 0,
+            }],
+        },
+        wgpu::VertexBufferLayout {
+            array_stride: MeshGPUVBOs::VERTEX_FORMAT_EDGE_POS.size() * 2,
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    format: MeshGPUVBOs::VERTEX_FORMAT_EDGE_POS,
+                    offset: 0,
+                    shader_location: 1,
+                },
+                wgpu::VertexAttribute {
+                    format: MeshGPUVBOs::VERTEX_FORMAT_EDGE_POS,
+                    offset: MeshGPUVBOs::VERTEX_FORMAT_EDGE_POS.size(),
+                    shader_location: 2,
+                },
+            ],
+        },
         wgpu::VertexBufferLayout {
             array_stride: 0,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &[wgpu::VertexAttribute {
-                format: MeshGPUVBOs::VERTEX_FORMAT_POS,
+                format: MeshGPUVBOs::VERTEX_FORMAT_EDGE_FLAGS,
+                offset: 0,
+                shader_location: 3,
+            }],
+        },
+        wgpu::VertexBufferLayout {
+            array_stride: 0,
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &[wgpu::VertexAttribute {
+                format: MeshGPUVBOs::VERTEX_FORMAT_EDGE_IDX,
+                offset: 0,
+                shader_location: 4,
+            }],
+        },
+    ];
+
+    pub const BATCH_BUFFER_LAYOUT_EDIT_POINTS_INSTANCED: &[wgpu::VertexBufferLayout<'static>] = &[
+        wgpu::VertexBufferLayout {
+            array_stride: 0,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[wgpu::VertexAttribute {
+                format: wgpu::VertexFormat::Float32x2,
                 offset: 0,
                 shader_location: 0,
             }],
@@ -168,7 +231,7 @@ impl MeshGPU {
             array_stride: 0,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &[wgpu::VertexAttribute {
-                format: MeshGPUVBOs::VERTEX_FORMAT_VERT_FLAGS,
+                format: MeshGPUVBOs::VERTEX_FORMAT_POS,
                 offset: 0,
                 shader_location: 1,
             }],
@@ -177,17 +240,43 @@ impl MeshGPU {
             array_stride: 0,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &[wgpu::VertexAttribute {
-                format: MeshGPUVBOs::VERTEX_FORMAT_VERT_IDX,
+                format: MeshGPUVBOs::VERTEX_FORMAT_VERT_FLAGS,
                 offset: 0,
                 shader_location: 2,
             }],
         },
+        wgpu::VertexBufferLayout {
+            array_stride: 0,
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &[wgpu::VertexAttribute {
+                format: MeshGPUVBOs::VERTEX_FORMAT_VERT_IDX,
+                offset: 0,
+                shader_location: 3,
+            }],
+        },
     ];
 
-    pub fn draw_edit_points_instanced(&self, render_pass: &mut wgpu::RenderPass) {
-        render_pass.set_vertex_buffer(0, self.vbo.pos.slice());
-        render_pass.set_vertex_buffer(1, self.vbo.vert_flags.slice());
-        render_pass.set_vertex_buffer(2, self.vbo.vert_idx.slice());
-        render_pass.draw(0..4, 0..self.vbo.pos.len);
+    pub fn draw_edit_points_instanced(
+        &self,
+        ctx: &gpu::Context,
+        render_pass: &mut wgpu::RenderPass,
+    ) {
+        render_pass.set_vertex_buffer(0, ctx.buf_rect.slice(..));
+        render_pass.set_vertex_buffer(1, self.vbo.pos.slice());
+        render_pass.set_vertex_buffer(2, self.vbo.vert_flags.slice());
+        render_pass.set_vertex_buffer(3, self.vbo.vert_idx.slice());
+        render_pass.draw(0..4, 0..self.vbo.vert_idx.len);
+    }
+
+    pub fn draw_edit_lines_instanced(
+        &self,
+        ctx: &gpu::Context,
+        render_pass: &mut wgpu::RenderPass,
+    ) {
+        render_pass.set_vertex_buffer(0, ctx.buf_rect.slice(..));
+        render_pass.set_vertex_buffer(1, self.vbo.edge_pos.slice());
+        render_pass.set_vertex_buffer(2, self.vbo.edge_flags.slice());
+        render_pass.set_vertex_buffer(3, self.vbo.edge_idx.slice());
+        render_pass.draw(0..4, 0..self.vbo.edge_idx.len);
     }
 }

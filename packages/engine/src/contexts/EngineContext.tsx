@@ -20,7 +20,6 @@ export const useEngineContext = () => useContext(EngineContext);
 export function EngineProvider({ children }: PropsWithChildren) {
   const [engine, setEngine] = useState<InitOutput | undefined>(undefined);
   useEffect(() => {
-    console.log("hi");
     let mounted = true;
     init().then((output) => {
       if (!mounted) return;

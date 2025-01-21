@@ -145,7 +145,7 @@ impl SelectManager {
             if draw_cache.viewport_3d.bind(&mut render_pass).is_ok() {
                 // draw from each engine in the presentation render pass.
                 draw_cache.meshes.values().for_each(|mesh| {
-                    self.select_engine.draw_mesh(&mut render_pass, mesh, mask);
+                    self.select_engine.draw_mesh(ctx, &mut render_pass, mesh, mask);
                 });
             }
 

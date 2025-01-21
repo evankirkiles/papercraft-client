@@ -15,7 +15,7 @@ impl MeshDrawable for Program {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_EDIT_LINES,
+                buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_EDIT_LINES_INSTANCED,
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -29,7 +29,7 @@ impl MeshDrawable for Program {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::LineList,
+                topology: wgpu::PrimitiveTopology::TriangleStrip,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: None,
@@ -57,10 +57,15 @@ impl MeshDrawable for Program {
     }
 
     /// Writes geometry draw commands for all the materials in a mesh
-    fn draw_mesh(&self, render_pass: &mut wgpu::RenderPass, mesh: &cache::MeshGPU) {
+    fn draw_mesh(
+        &self,
+        ctx: &gpu::Context,
+        render_pass: &mut wgpu::RenderPass,
+        mesh: &cache::MeshGPU,
+    ) {
         // Set the pipeline and draw the mesh
         // TODO: For each material...
         render_pass.set_pipeline(&self.pipeline);
-        mesh.draw_edit_lines(render_pass);
+        mesh.draw_edit_lines_instanced(ctx, render_pass);
     }
 }

@@ -26,13 +26,18 @@ impl InkEngine3D {
         }
     }
 
-    pub fn draw_overlays(&self, render_pass: &mut wgpu::RenderPass) {
-        self.program_overlay_grid.draw(render_pass);
+    pub fn draw_overlays(&self, ctx: &gpu::Context, render_pass: &mut wgpu::RenderPass) {
+        self.program_overlay_grid.draw(ctx, render_pass);
     }
 
-    pub fn draw_mesh(&self, render_pass: &mut wgpu::RenderPass, mesh: &cache::MeshGPU) {
-        self.program_surface.draw_mesh(render_pass, mesh);
-        self.program_lines.draw_mesh(render_pass, mesh);
-        self.program_points.draw_mesh(render_pass, mesh);
+    pub fn draw_mesh(
+        &self,
+        ctx: &gpu::Context,
+        render_pass: &mut wgpu::RenderPass,
+        mesh: &cache::MeshGPU,
+    ) {
+        self.program_surface.draw_mesh(ctx, render_pass, mesh);
+        self.program_lines.draw_mesh(ctx, render_pass, mesh);
+        self.program_points.draw_mesh(ctx, render_pass, mesh);
     }
 }

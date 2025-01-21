@@ -14,7 +14,15 @@ impl Drawable for Program {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[],
+                buffers: &[wgpu::VertexBufferLayout {
+                    array_stride: 0,
+                    step_mode: wgpu::VertexStepMode::Vertex,
+                    attributes: &[wgpu::VertexAttribute {
+                        format: wgpu::VertexFormat::Float32x2,
+                        offset: 0,
+                        shader_location: 0,
+                    }],
+                }],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -46,7 +54,7 @@ impl Drawable for Program {
                 depth_write_enabled: false,
                 depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState::default(),
+                bias: wgpu::DepthBiasState { constant: 1, ..Default::default() },
             }),
             multiview: None,
             cache: None,
@@ -56,8 +64,9 @@ impl Drawable for Program {
     }
 
     /// Draws the grid (only done once)
-    fn draw(&self, render_pass: &mut wgpu::RenderPass) {
+    fn draw(&self, ctx: &gpu::Context, render_pass: &mut wgpu::RenderPass) {
         render_pass.set_pipeline(&self.pipeline);
+        render_pass.set_vertex_buffer(0, ctx.buf_rect.slice(..));
         render_pass.draw(0..4, 0..1);
     }
 }

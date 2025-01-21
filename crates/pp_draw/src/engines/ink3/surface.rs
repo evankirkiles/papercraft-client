@@ -59,7 +59,12 @@ impl MeshDrawable for Program {
     }
 
     /// Writes geometry draw commands for all the materials in a mesh
-    fn draw_mesh(&self, render_pass: &mut wgpu::RenderPass, mesh: &cache::MeshGPU) {
+    fn draw_mesh(
+        &self,
+        ctx: &gpu::Context,
+        render_pass: &mut wgpu::RenderPass,
+        mesh: &cache::MeshGPU,
+    ) {
         render_pass.set_pipeline(&self.surface_pipeline);
         mesh.draw_surface(render_pass);
     }

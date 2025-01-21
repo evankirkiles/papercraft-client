@@ -11,7 +11,7 @@ export default function SidePanel() {
     >
       <button
         onClick={() => setExpanded((prev) => !prev)}
-        area-expanded={expanded}
+        aria-expanded={expanded}
         className={styles.header}
       >
         HI

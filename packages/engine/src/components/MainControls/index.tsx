@@ -15,7 +15,7 @@ export default function MainControls() {
           <path
             d="M4 88.0804V256.339L147 339M4 88.0804L147 170.741M4 88.0804L147 5L290 88.0804M147 170.741V339M147 170.741L290 88.0804M147 170.741L180 190L272 138.5L290 88.0804M147 339L290 256.339V88.0804"
             stroke="currentColor"
-            stroke-width="20"
+            strokeWidth="20"
           />
         </svg>
       </button>

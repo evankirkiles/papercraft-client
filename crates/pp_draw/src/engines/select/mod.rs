@@ -29,15 +29,16 @@ impl SelectEngine {
 
     pub fn draw_mesh(
         &self,
+        ctx: &gpu::Context,
         render_pass: &mut wgpu::RenderPass,
         mesh: &cache::MeshGPU,
         mask: SelectionMask,
     ) {
         if mask.intersects(SelectionMask::POINTS) {
-            self.program_points.draw_mesh(render_pass, mesh);
+            self.program_points.draw_mesh(ctx, render_pass, mesh);
         }
         if mask.intersects(SelectionMask::LINES) {
-            self.program_lines.draw_mesh(render_pass, mesh);
+            self.program_lines.draw_mesh(ctx, render_pass, mesh);
         }
         // if mask.intersects(SelectionMask::POINTS) {
         //     self.program_points.draw_mesh(render_pass, mesh);
