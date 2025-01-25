@@ -35,11 +35,15 @@ fn vs_main(
     return out;
 }
 
-// Fragment shader
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    if bool(in.flags & 1) {
+    // Fragment shader
+    let FLAG_SELECTED: u32 = 1u << 0;
+    let FLAG_ACTIVE: u32 = 1u << 1;
+    if bool(in.flags & FLAG_ACTIVE) {
+        return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+    } else if bool(in.flags & FLAG_SELECTED) {
         return vec4<f32>(1.0, 0.5, 0.0, 1.0);
     } else {
         return vec4<f32>(0.0, 0.0, 0.0, 1.0);

@@ -22,7 +22,10 @@ bitflags! {
 
 /// Helper functions for extracting VBOs from a Mesh
 pub mod vbo {
-    use pp_core::id::{self, Id};
+    use pp_core::{
+        id::{self, Id},
+        select::SelectionActiveElement,
+    };
 
     use crate::{cache::mesh::extract::EdgeFlags, gpu};
 
@@ -66,6 +69,14 @@ pub mod vbo {
                 let mut flags = VertFlags::empty();
                 if selection.verts.contains(&(mesh.id, mesh[l].v)) {
                     flags |= VertFlags::SELECTED;
+                }
+                if selection.active_element.as_ref().is_some_and(|el| match el {
+                    SelectionActiveElement::Vert((m_id, v_id)) => {
+                        *m_id == mesh.id && *v_id == mesh[l].v
+                    }
+                    _ => false,
+                }) {
+                    flags |= VertFlags::ACTIVE;
                 }
                 flags.bits()
             })
