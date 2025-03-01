@@ -13,6 +13,7 @@ struct VertexInput {
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(1) color: vec4<f32>,
+    @location(2) uv: vec2<f32>,
 };
 
 @vertex
@@ -22,7 +23,7 @@ fn vs_main(
     var out: VertexOutput;
 
     // Width of the line in pixels
-    let SIZE = 1.5;
+    let SIZE = 5.0;
 
     // Find screen-space positions of each vertex
     var clip_v0 = camera.view_proj * vec4<f32>(in.v0_pos, 1.0);
@@ -36,6 +37,10 @@ fn vs_main(
     var pt = screen_v0 + in.offset.x * basis_x + (0.5 - in.offset.y) * basis_y * SIZE;
     var clip = mix(clip_v0, clip_v1, in.offset.x);
     out.clip_position = vec4<f32>(clip.w * (2.0 * pt / camera.resolution - 1.0), clip.z, clip.w);
+  
+    // Pass UV coordinates to the fragment shader
+    // y-coordinate is normalized distance from center of line
+    out.uv = in.offset;
     out.color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
 
     // Color each vertex based on its select status
@@ -51,7 +56,19 @@ fn vs_main(
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return in.color;
+// Ratio of inner line width to outer line width
+    let INNER_RATIO = 0.2;
+    
+    // Calculate how far we are from the center of the line
+    let distance_from_center = abs(in.uv.y - 0.5);
+    
+    // If we're within the inner line's boundary, use white color
+    if distance_from_center < INNER_RATIO {
+        return in.color;
+    }
+    
+    // Otherwise use the side color
+    return vec4<f32>(1.0, 0.0, 0.0, 0.0);
 }
 
 @fragment
