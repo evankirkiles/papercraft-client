@@ -420,7 +420,7 @@ impl Mesh {
         }
     }
 
-    /// Walks the edges including a vertex (faces)
+    /// Walks the edges around a vertex (faces)
     pub fn disk_edge_walk(&self, e: EdgeId, v: VertexId) -> DiskCycleWalker {
         DiskCycleWalker::new(self, e, v)
     }

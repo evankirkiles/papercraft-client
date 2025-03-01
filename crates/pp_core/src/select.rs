@@ -59,15 +59,16 @@ impl SelectionState {
             self.verts.remove(&(mesh.id, v_id));
         }
         let Some(e) = mesh[v_id].e else { return };
-        mesh.disk_edge_walk(e, v_id).for_each(|e| {
-            if selected == self.edges.contains(&(mesh.id, e)) {
+        mesh.disk_edge_walk(e, v_id).for_each(|e_id| {
+            if selected == self.edges.contains(&(mesh.id, e_id)) {
                 return;
             }
-            let [v1, v2] = mesh[e].v;
-            if v1 == v_id && (selected == self.verts.contains(&(mesh.id, v2)))
-                || v2 == v_id && (selected == self.verts.contains(&(mesh.id, v1)))
+            let [v1, v2] = mesh[e_id].v;
+            if !selected
+                || (v1 == v_id && self.verts.contains(&(mesh.id, v2)))
+                || (v2 == v_id && self.verts.contains(&(mesh.id, v1)))
             {
-                self.set_edge(mesh, e, selected)
+                self.set_edge(mesh, e_id, selected)
             }
         });
     }
@@ -81,12 +82,15 @@ impl SelectionState {
         let Some(walker) = mesh.radial_loop_walk(e_id) else { return };
         walker.for_each(|l| {
             let f_id = mesh[l].f;
-            if selected == self.faces.contains(&(mesh.id, f_id)) {
+            let face_selected = self.faces.contains(&(mesh.id, f_id));
+            if selected == face_selected {
                 return;
             };
             if mesh.face_loop_walk(f_id).all(|l| self.edges.contains(&(mesh.id, mesh[l].e))) {
-                self.faces.insert((mesh.id, f_id));
-            } else {
+                if !face_selected {
+                    self.faces.insert((mesh.id, f_id));
+                }
+            } else if face_selected {
                 self.faces.remove(&(mesh.id, f_id));
             }
         });
