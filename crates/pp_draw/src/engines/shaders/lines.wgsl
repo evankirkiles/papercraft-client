@@ -37,6 +37,8 @@ fn vs_main(
     var clip = mix(clip_v0, clip_v1, in.offset.x);
     out.clip_position = vec4<f32>(clip.w * (2.0 * pt / camera.resolution - 1.0), clip.z, clip.w);
     out.color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
+
+    // Color each vertex based on its select status
     let V0_SELECTED: u32 = u32(1) << 2;
     let V1_SELECTED: u32 = u32(1) << 3;
     if (in.offset.x == 0 && bool(in.flags & V0_SELECTED)) || (in.offset.x == 1 && bool(in.flags & V1_SELECTED)) {

@@ -6,12 +6,14 @@ mod lines;
 mod overlay_grid;
 mod points;
 mod surface;
+mod tris;
 
 pub struct InkEngine3D {
     // Mesh draw programs
     program_surface: surface::Program,
     program_lines: lines::Program,
     program_points: points::Program,
+    program_tris: tris::Program,
     // Overlay draw programs
     program_overlay_grid: overlay_grid::Program,
 }
@@ -22,6 +24,7 @@ impl InkEngine3D {
             program_surface: surface::Program::new(ctx),
             program_lines: lines::Program::new(ctx),
             program_points: points::Program::new(ctx),
+            program_tris: tris::Program::new(ctx),
             program_overlay_grid: overlay_grid::Program::new(ctx),
         }
     }
@@ -39,5 +42,6 @@ impl InkEngine3D {
         self.program_surface.draw_mesh(ctx, render_pass, mesh);
         self.program_lines.draw_mesh(ctx, render_pass, mesh);
         self.program_points.draw_mesh(ctx, render_pass, mesh);
+        self.program_tris.draw_mesh(ctx, render_pass, mesh);
     }
 }

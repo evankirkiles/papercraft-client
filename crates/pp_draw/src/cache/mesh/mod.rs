@@ -167,7 +167,7 @@ macro_rules! make_batch_impl {
 }
 
 impl MeshGPU {
-    make_batch_impl!(tris surface { 0 => pos, 1 => nor});
+    make_batch_impl!(tris surface { 0 => pos, 1 => nor, 2 => vert_flags });
     make_batch_impl!(tris surface_2d { 0 => pos_2d });
     make_batch_impl!(tris edit_triangles { 0 => pos });
 

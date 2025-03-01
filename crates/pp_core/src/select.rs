@@ -1,26 +1,39 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::{id, mesh::Mesh};
 
+type MeshVertId = (id::MeshId, id::VertexId);
+type MeshEdgeId = (id::MeshId, id::EdgeId);
+type MeshFaceId = (id::MeshId, id::FaceId);
+
 #[derive(Debug, Clone)]
 pub enum SelectionActiveElement {
-    Vert((id::MeshId, id::VertexId)),
-    Edge((id::MeshId, id::EdgeId)),
-    Face((id::MeshId, id::FaceId)),
+    Vert(MeshVertId),
+    Edge(MeshEdgeId),
+    Face(MeshFaceId),
+}
+
+#[derive(Debug, Clone)]
+pub enum SelectionMode {
+    Vert,
+    Edge,
+    Face,
 }
 
 #[derive(Debug, Clone)]
 pub struct SelectionState {
+    pub mode: SelectionMode,
     pub active_element: Option<SelectionActiveElement>,
-    pub verts: HashSet<(id::MeshId, id::VertexId)>,
-    pub edges: HashSet<(id::MeshId, id::EdgeId)>,
-    pub faces: HashSet<(id::MeshId, id::FaceId)>,
+    pub verts: HashSet<MeshVertId>,
+    pub edges: HashSet<MeshEdgeId>,
+    pub faces: HashSet<MeshFaceId>,
     pub is_dirty: bool,
 }
 
 impl Default for SelectionState {
     fn default() -> Self {
         Self {
+            mode: SelectionMode::Vert,
             active_element: None,
             verts: Default::default(),
             edges: Default::default(),
@@ -39,31 +52,68 @@ impl SelectionState {
         self.is_dirty = true
     }
 
-    pub fn select_verts(&mut self, mesh: &Mesh, verts: &[id::VertexId]) {
-        verts.iter().for_each(|v| {
-            let key = (mesh.id, *v);
-            self.verts.insert((mesh.id, *v));
-            if verts.len() == 1 {
-                self.active_element = Some(SelectionActiveElement::Vert(key));
+    pub fn set_vert(&mut self, mesh: &Mesh, v_id: id::VertexId, selected: bool) {
+        if selected {
+            self.verts.insert((mesh.id, v_id));
+        } else {
+            self.verts.remove(&(mesh.id, v_id));
+        }
+        let Some(e) = mesh[v_id].e else { return };
+        mesh.disk_edge_walk(e, v_id).for_each(|e| {
+            if selected == self.edges.contains(&(mesh.id, e)) {
+                return;
+            }
+            let [v1, v2] = mesh[e].v;
+            if v1 == v_id && (selected == self.verts.contains(&(mesh.id, v2)))
+                || v2 == v_id && (selected == self.verts.contains(&(mesh.id, v1)))
+            {
+                self.set_edge(mesh, e, selected)
             }
         });
+    }
+
+    pub fn set_edge(&mut self, mesh: &Mesh, e_id: id::EdgeId, selected: bool) {
+        if selected {
+            self.edges.insert((mesh.id, e_id));
+        } else {
+            self.edges.remove(&(mesh.id, e_id));
+        }
+        let Some(walker) = mesh.radial_loop_walk(e_id) else { return };
+        walker.for_each(|l| {
+            let f_id = mesh[l].f;
+            if selected == self.faces.contains(&(mesh.id, f_id)) {
+                return;
+            };
+            if mesh.face_loop_walk(f_id).all(|l| self.edges.contains(&(mesh.id, mesh[l].e))) {
+                self.faces.insert((mesh.id, f_id));
+            } else {
+                self.faces.remove(&(mesh.id, f_id));
+            }
+        });
+    }
+
+    pub fn select_verts(&mut self, mesh: &Mesh, verts: &[id::VertexId]) {
+        verts.iter().for_each(|v| {
+            self.set_vert(mesh, *v, true);
+        });
+        self.active_element = if verts.len() == 1 {
+            Some(SelectionActiveElement::Vert((mesh.id, verts[0])))
+        } else {
+            None
+        };
         self.is_dirty = true
     }
 
     pub fn toggle_verts(&mut self, mesh: &Mesh, verts: &[id::VertexId]) {
         verts.iter().for_each(|v| {
-            let key = (mesh.id, *v);
-            if self.verts.contains(&key) {
-                self.verts.remove(&key);
-            } else {
-                self.verts.insert(key);
-                if verts.len() == 1 {
-                    self.active_element = Some(SelectionActiveElement::Vert(key));
-                }
-            }
+            self.set_vert(mesh, *v, !self.verts.contains(&(mesh.id, *v)));
         });
+        let key = (mesh.id, verts[0]);
+        self.active_element = if verts.len() == 1 && self.verts.contains(&key) {
+            Some(SelectionActiveElement::Vert(key))
+        } else {
+            None
+        };
         self.is_dirty = true
     }
-
-    fn ensure_valid(&mut self) {}
 }

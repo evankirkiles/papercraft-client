@@ -7,6 +7,7 @@ bitflags! {
     pub struct VertFlags: u32 {
         const SELECTED = 1 << 0;
         const ACTIVE = 1 << 1;
+        const FACE_SELECTED = 1 << 2;
     }
 
     /// A mask of items to render for selection in the buffer
@@ -67,6 +68,9 @@ pub mod vbo {
             .iter_loops()
             .map(|l| {
                 let mut flags = VertFlags::empty();
+                if selection.faces.contains(&(mesh.id, mesh[l].f)) {
+                    flags |= VertFlags::FACE_SELECTED;
+                }
                 if selection.verts.contains(&(mesh.id, mesh[l].v)) {
                     flags |= VertFlags::SELECTED;
                 }
@@ -122,9 +126,6 @@ pub mod vbo {
         let data: Vec<_> = mesh.edges.indices().map(|e| [mesh.id.idx(), e as u32]).collect();
         vbo.update(ctx, data.as_slice())
     }
-
-    /// Flags used for rendering select state / active state
-    pub fn edit_data(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {}
 }
 
 /// Helper functions for extracting IBOs from a Mesh

@@ -8,8 +8,7 @@ pub struct Program {
 
 impl MeshDrawable for Program {
     fn new(ctx: &gpu::Context) -> Self {
-        let shader =
-            ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/surface.wgsl"));
+        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/tris.wgsl"));
         let render_pipeline = ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("ink3.surface"),
             layout: Some(&ctx.shared_layouts.pipelines.pipeline_3d),
@@ -24,7 +23,7 @@ impl MeshDrawable for Program {
                 entry_point: Some("fs_main"),
                 targets: &[Some(wgpu::ColorTargetState {
                     format: ctx.config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
@@ -44,7 +43,7 @@ impl MeshDrawable for Program {
                 depth_compare: wgpu::CompareFunction::Less,
                 stencil: wgpu::StencilState::default(),
                 // Apply a tiny depth bias to reduce flickering of lines at same depth
-                bias: wgpu::DepthBiasState { constant: 2, slope_scale: 0.05, ..Default::default() },
+                bias: wgpu::DepthBiasState { constant: 1, slope_scale: 0.05, ..Default::default() },
             }),
             multisample: wgpu::MultisampleState {
                 count: (&ctx.settings.msaa_level).into(),
