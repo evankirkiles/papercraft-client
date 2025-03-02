@@ -18,7 +18,6 @@ image.workspace = true
 tobj.workspace = true
 stable-vec.workspace = true
 log.workspace = true
-winit.workspace = true
 
 [build-dependencies]
 anyhow.workspace = true

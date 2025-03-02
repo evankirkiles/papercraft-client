@@ -1,7 +1,6 @@
 use std::iter;
 
 use cache::{DrawCache, ViewportGPU};
-use winit::dpi::PhysicalSize;
 
 mod cache;
 mod engines;
@@ -11,7 +10,6 @@ pub mod select;
 
 pub struct Renderer<'window> {
     ctx: gpu::Context<'window>,
-    size: PhysicalSize<u32>,
     draw_cache: cache::DrawCache,
 
     // Textures used as attachments in pipelines
@@ -103,7 +101,6 @@ impl<'window> Renderer<'window> {
             textures: RendererAttachmentTextures::create(&ctx),
             draw_cache: DrawCache::new(&ctx),
             select: select::SelectManager::new(&ctx),
-            size: PhysicalSize { width, height },
             ctx,
         }
     }
@@ -192,7 +189,6 @@ impl<'window> Renderer<'window> {
     /// Updates the GPUContext for new dimensions
     pub fn resize(&mut self, width: u32, height: u32) {
         if width > 0 && height > 0 {
-            self.size = PhysicalSize { width, height };
             self.ctx.resize(width, height);
             self.select.resize(&self.ctx);
             self.textures = RendererAttachmentTextures::create(&self.ctx);
