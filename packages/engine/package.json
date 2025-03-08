@@ -18,7 +18,7 @@
     }
   },
   "scripts": {
-    "wasm": "wasm-pack build ../../crates/pp_viewer --target web --out-name pp_viewer",
+    "wasm": "wasm-pack build ../../crates/pp_control --target web --out-name pp_control",
     "dev": "pnpm wasm && vite",
     "vite": "vite",
     "build": "pnpm wasm && vite build",
@@ -32,7 +32,7 @@
   },
   "packageManager": "pnpm@8.9.0+sha256.8f5264ad1d100da11a6add6bb8a94c6f1e913f9e9261b2a551fabefad2ec0fec",
   "dependencies": {
-    "pp_viewer": "workspace:*",
+    "pp_control": "workspace:*",
     "react-query": "^3.39.3"
   },
   "peerDependencies": {
@@ -40,7 +40,6 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@evankirkiles/vite-plugin-wasm-pack": "^0.1.14",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@typescript-eslint/eslint-plugin": "^8.11.0",

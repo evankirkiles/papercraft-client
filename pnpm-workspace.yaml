@@ -1,4 +1,4 @@
 packages:
   - "packages/*"
-  - "crates/pp_viewer/pkg"
+  - "crates/pp_control/pkg"
   - "!**/test/**"

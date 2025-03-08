@@ -1450,6 +1450,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2f3a9f18d041e6d0e102a0a46750538147e5e8992d3b4873aaafee2520b00ce3"
 
 [[package]]
+name = "pp_control"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "cfg-if",
+ "console_error_panic_hook",
+ "console_log",
+ "env_logger",
+ "fs_extra",
+ "futures",
+ "glob",
+ "log",
+ "pollster",
+ "pp_core",
+ "pp_draw",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "winit",
+]
+
+[[package]]
 name = "pp_core"
 version = "0.0.1"
 dependencies = [
@@ -1480,28 +1502,6 @@ dependencies = [
  "paste",
  "pp_core",
  "wgpu",
-]
-
-[[package]]
-name = "pp_viewer"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "cfg-if",
- "console_error_panic_hook",
- "console_log",
- "env_logger",
- "fs_extra",
- "futures",
- "glob",
- "log",
- "pollster",
- "pp_core",
- "pp_draw",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
- "winit",
 ]
 
 [[package]]

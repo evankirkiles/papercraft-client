@@ -7,8 +7,6 @@ repository = "https://github.com/evankirkiles/papercraft-client"
 edition = "2021"
 
 [dependencies]
-# Internal:
-# pp_viewer.workspace = true
 # External:
 anyhow.workspace = true
 bitflags.workspace = true

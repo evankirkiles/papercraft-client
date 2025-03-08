@@ -1,4 +1,4 @@
-import init, { InitOutput, begin } from "pp_viewer";
+import init, { InitOutput, begin } from "pp_control";
 import {
   createContext,
   PropsWithChildren,

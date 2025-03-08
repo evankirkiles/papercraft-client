@@ -1,6 +1,6 @@
 [package]
-name = "pp_viewer"
-description = "The WASM engine for Paperarium"
+name = "pp_control"
+description = "The controller for commands / events on the core state."
 readme = "README.md"
 authors.workspace = true
 edition.workspace = true

@@ -220,15 +220,11 @@ impl ApplicationHandler<AppEvent> for App {
         // Catch the new window created asynchronously on web
         #[cfg(target_arch = "wasm32")]
         {
-            let mut renderer_received = false;
             if let Some(receiver) = self.renderer_receiver.as_mut() {
                 if let Ok(Some(renderer)) = receiver.try_recv() {
                     self.renderer = Some(renderer);
-                    renderer_received = true;
+                    self.renderer_receiver = None;
                 }
-            }
-            if renderer_received {
-                self.renderer_receiver = None;
             }
         }
 

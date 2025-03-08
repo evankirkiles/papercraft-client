@@ -8,20 +8,17 @@ importers:
 
   .: {}
 
-  crates/pp_viewer/pkg: {}
+  crates/pp_control/pkg: {}
 
   packages/engine:
     dependencies:
-      pp_viewer:
+      pp_control:
         specifier: workspace:*
-        version: link:../../crates/pp_viewer/pkg
+        version: link:../../crates/pp_control/pkg
       react-query:
         specifier: ^3.39.3
         version: 3.39.3(react-dom@18.3.1)(react@18.3.1)
     devDependencies:
-      '@evankirkiles/vite-plugin-wasm-pack':
-        specifier: ^0.1.14
-        version: 0.1.14
       '@types/react':
         specifier: ^18.3.12
         version: 18.3.12
@@ -1092,14 +1089,6 @@ packages:
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     dependencies:
       levn: 0.4.1
-    dev: true
-
-  /@evankirkiles/vite-plugin-wasm-pack@0.1.14:
-    resolution: {integrity: sha512-obnwTh0BHgnMptoXd3F3NDpRFxGdHF8ZqjTekILBfsbj2tODVYPmHGusJcS81H/vs65xqRdoiekREKSIkgTwdQ==}
-    dependencies:
-      chalk: 4.1.2
-      fs-extra: 10.1.0
-      narrowing: 1.5.0
     dev: true
 
   /@humanfs/core@0.19.0:
@@ -5464,10 +5453,6 @@ packages:
     resolution: {integrity: sha512-eSRppjcPIatRIMC1U6UngP8XFcz8MQWGQdt1MTBQ7NaAmvXDfvNxbvWV3x2y6CdEUciCSsDHDQZbhYaB8QEo2g==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
-    dev: true
-
-  /narrowing@1.5.0:
-    resolution: {integrity: sha512-DUu4XdKgkfAPTAL28k79pdnshDE2W5T24QAnidSPo2F/W1TX6CjNzmEeXQfE5O1lxQvC0GYI6ZRDsLcyzugEYA==}
     dev: true
 
   /natural-compare@1.4.0:
