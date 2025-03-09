@@ -1,5 +1,6 @@
 use crate::{engines::program::Drawable, gpu};
 
+#[derive(Debug)]
 pub struct Program {
     pipeline: wgpu::RenderPipeline,
 }

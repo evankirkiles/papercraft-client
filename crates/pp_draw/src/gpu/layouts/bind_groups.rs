@@ -1,5 +1,6 @@
 /// Shared BindGroup layouts created at the start of the program, allowing
 /// pipelines to re-use Bind Groups without creating wholly new layouts.
+#[derive(Debug)]
 pub struct SharedBindGroupLayouts {
     pub camera: wgpu::BindGroupLayout,
 }

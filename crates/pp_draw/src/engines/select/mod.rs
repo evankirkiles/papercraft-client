@@ -17,6 +17,7 @@ bitflags! {
     }
 }
 
+#[derive(Debug)]
 pub struct SelectEngine {
     program_points: points::Program,
     program_lines: lines::Program,

@@ -8,6 +8,8 @@ use winit::{
     application::ApplicationHandler, dpi::PhysicalSize, event::WindowEvent, window::Window,
 };
 
+// mod commands;
+pub mod api;
 mod input;
 mod viewport;
 
@@ -17,6 +19,8 @@ use futures::channel::oneshot::Receiver;
 use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
+#[cfg(target_arch = "wasm32")]
+use winit::platform::web::EventLoopExtWebSys;
 #[cfg(target_arch = "wasm32")]
 const CANVAS_ID: &str = "paperarium-engine";
 
@@ -28,6 +32,8 @@ enum ViewportType {
     D3,
 }
 
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+#[derive(Debug)]
 pub struct App {
     window: Option<Arc<Window>>,
     /// The size of the window

@@ -4,6 +4,7 @@ use super::program::Drawable;
 
 mod overlay_grid;
 
+#[derive(Debug)]
 pub struct InkEngine2D {
     program_overlay_grid: overlay_grid::Program,
 }

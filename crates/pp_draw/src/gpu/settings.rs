@@ -1,4 +1,4 @@
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub enum MSAALevel {
     None,
     #[default]
@@ -15,7 +15,7 @@ impl From<&MSAALevel> for u32 {
 }
 
 /// User-configurable settings for the draw state
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Settings {
     pub msaa_level: MSAALevel,
 }

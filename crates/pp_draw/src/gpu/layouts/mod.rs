@@ -1,6 +1,7 @@
 mod bind_groups;
 mod pipelines;
 
+#[derive(Debug)]
 pub struct SharedLayouts {
     pub bind_groups: bind_groups::SharedBindGroupLayouts,
     pub pipelines: pipelines::SharedPipelineLayouts,

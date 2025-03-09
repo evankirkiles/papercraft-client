@@ -8,6 +8,7 @@ mod points;
 mod surface;
 mod tris;
 
+#[derive(Debug)]
 pub struct InkEngine3D {
     // Mesh draw programs
     program_surface: surface::Program,

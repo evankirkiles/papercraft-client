@@ -41,6 +41,7 @@ pub enum SelectManagerQueryState {
     Mapped(SelectionQuery),
 }
 
+#[derive(Debug)]
 pub struct SelectManager {
     textures: SelectManagerAttachmentTextures,
 
@@ -245,6 +246,7 @@ impl SelectManager {
     }
 }
 
+#[derive(Debug)]
 struct SelectManagerAttachmentTextures {
     // Object picking / select textures
     idx: gpu::Texture,

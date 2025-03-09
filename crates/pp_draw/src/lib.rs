@@ -8,6 +8,7 @@ mod gpu;
 
 pub mod select;
 
+#[derive(Debug)]
 pub struct Renderer<'window> {
     ctx: gpu::Context<'window>,
     draw_cache: cache::DrawCache,
@@ -196,6 +197,7 @@ impl<'window> Renderer<'window> {
     }
 }
 
+#[derive(Debug)]
 struct RendererAttachmentTextures {
     // Display textures (maybe MSAA)
     color: gpu::Texture,

@@ -2,6 +2,7 @@ use super::bind_groups;
 
 /// Shared pipeline layouts to re-use to avoid needing to update bind group
 /// descriptions everywhere.
+#[derive(Debug)]
 pub struct SharedPipelineLayouts {
     pub pipeline_3d: wgpu::PipelineLayout,
     pub pipeline_2d: wgpu::PipelineLayout,

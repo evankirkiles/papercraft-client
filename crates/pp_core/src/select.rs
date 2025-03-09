@@ -71,6 +71,7 @@ impl SelectionState {
                 self.set_edge(mesh, e_id, selected)
             }
         });
+        self.is_dirty = true
     }
 
     pub fn set_edge(&mut self, mesh: &Mesh, e_id: id::EdgeId, selected: bool) {
@@ -94,6 +95,7 @@ impl SelectionState {
                 self.faces.remove(&(mesh.id, f_id));
             }
         });
+        self.is_dirty = true
     }
 
     pub fn select_verts(&mut self, mesh: &Mesh, verts: &[id::VertexId]) {

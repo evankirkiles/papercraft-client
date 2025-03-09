@@ -7,6 +7,7 @@ const BUF_RECT_CONTENTS: [[f32; 2]; 4] = [[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1
 /// A GPU Context owns the resources connected to a Surface's lifetime. It is
 /// created when the Renderer is created and used to pass around shared
 /// fields for allocating / communicating with the GPU.
+#[derive(Debug)]
 pub struct Context<'ctx> {
     pub device: wgpu::Device,
     pub config: wgpu::SurfaceConfiguration,

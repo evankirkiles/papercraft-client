@@ -2,6 +2,7 @@ use crate::cache;
 use crate::engines::program::MeshDrawable;
 use crate::gpu;
 
+#[derive(Debug)]
 pub struct Program {
     pipeline: wgpu::RenderPipeline,
 }

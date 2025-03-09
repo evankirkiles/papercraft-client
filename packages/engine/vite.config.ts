@@ -20,7 +20,6 @@ export default defineConfig({
         content,
       }),
     }),
-    // wasmPack("./rs"),
   ],
   build: {
     minify: false,

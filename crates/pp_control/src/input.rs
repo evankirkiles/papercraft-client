@@ -1,7 +1,7 @@
 use winit::dpi::PhysicalPosition;
 
 /// Represents ephemeral user input states
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct InputState {
     pub mb1_pressed: bool,
     pub mb3_pressed: bool,
