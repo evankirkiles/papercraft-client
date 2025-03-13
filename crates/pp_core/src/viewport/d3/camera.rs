@@ -28,7 +28,7 @@ impl Default for Camera3D {
             up: cgmath::Vector3::unit_z(),
             speed_orbit: 0.005,
             speed_dolly: 0.05,
-            speed_pan: 0.003,
+            speed_pan: 0.005,
             fovy: 45.0,
             znear: 0.1,
             zfar: 100.0,

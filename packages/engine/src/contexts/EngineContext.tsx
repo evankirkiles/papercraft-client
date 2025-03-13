@@ -1,4 +1,4 @@
-import init, { InitOutput, begin } from "pp_control";
+import init, { InitOutput, App } from "pp_control2";
 import {
   createContext,
   PropsWithChildren,
@@ -9,21 +9,31 @@ import {
 
 interface EngineContextType {
   engine: InitOutput | undefined;
+  app: App | undefined;
 }
 
 export const EngineContext = createContext<EngineContextType>({
   engine: undefined,
+  app: undefined,
 });
 
 export const useEngineContext = () => useContext(EngineContext);
 
 export function EngineProvider({ children }: PropsWithChildren) {
+  const [app, setApp] = useState<App | undefined>(undefined);
   const [engine, setEngine] = useState<InitOutput | undefined>(undefined);
   useEffect(() => {
     let mounted = true;
-    init().then((output) => {
+    init().then(async (output) => {
       if (!mounted) return;
-      begin();
+      const app = new App("paperarium-engine");
+      await app.begin();
+      const draw = () => {
+        app.draw();
+        requestAnimationFrame(draw);
+      };
+      draw();
+      setApp(app);
       setEngine(output);
     });
     return () => {
@@ -32,7 +42,7 @@ export function EngineProvider({ children }: PropsWithChildren) {
   }, []);
 
   return (
-    <EngineContext.Provider value={{ engine }}>
+    <EngineContext.Provider value={{ app, engine }}>
       {children}
     </EngineContext.Provider>
   );

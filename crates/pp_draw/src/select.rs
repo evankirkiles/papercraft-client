@@ -164,15 +164,15 @@ impl SelectManager {
         let block_size = self.textures.block_size;
         let bytes_per_row = self.textures.idx.texture.width() * block_size;
         encoder.copy_texture_to_buffer(
-            wgpu::ImageCopyTextureBase {
+            wgpu::TexelCopyTextureInfo {
                 aspect: wgpu::TextureAspect::All,
                 texture: &self.textures.idx.texture,
                 origin: wgpu::Origin3d { x: rect.x, y: rect.y, z: 0 },
                 mip_level: 0,
             },
-            wgpu::ImageCopyBufferBase {
+            wgpu::TexelCopyBufferInfo {
                 buffer: &self.select_buf,
-                layout: wgpu::ImageDataLayout {
+                layout: wgpu::TexelCopyBufferLayout {
                     offset: (rect.y * bytes_per_row + rect.x * block_size).into(),
                     bytes_per_row: Some(bytes_per_row),
                     rows_per_image: Some(self.textures.idx.texture.height()),

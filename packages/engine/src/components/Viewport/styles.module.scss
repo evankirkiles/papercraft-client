@@ -21,4 +21,16 @@
   width: 1px;
   height: 100%;
   background-color: theme.color("bg2");
+  cursor: col-resize;
+
+  &:hover {
+    background-color: #d0d0d0;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0 -5px;
+    width: calc(100% + 10px);
+  }
 }

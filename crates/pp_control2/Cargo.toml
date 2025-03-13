@@ -1,0 +1,41 @@
+[package]
+name = "pp_control2"
+description = "The 2nd controller for commands / events on the core state."
+readme = "README.md"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"] # Support both WASM and Native compilation
+
+[dependencies]
+# Internal:
+pp_core.workspace = true
+pp_draw.workspace = true
+# External:
+web-sys = { version = "0.3", features = [
+  "Window",
+  "Document",
+  "Element",
+  "DomRect",
+  "HtmlCanvasElement",
+  "PointerEvent",
+  "WheelEvent",
+  "console",
+] }
+cfg-if.workspace = true
+log.workspace = true
+futures.workspace = true
+console_error_panic_hook = { workspace = true, optional = true }
+console_log.workspace = true
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
+wgpu.workspace = true
+
+[build-dependencies]
+anyhow.workspace = true
+glob.workspace = true

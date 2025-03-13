@@ -32,10 +32,7 @@ impl<'window> Renderer<'window> {
         width: u32,
         height: u32,
     ) -> Self {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            #[cfg(not(target_arch = "wasm32"))]
-            backends: wgpu::Backends::PRIMARY,
-            #[cfg(target_arch = "wasm32")]
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::GL,
             ..Default::default()
         });
@@ -58,11 +55,7 @@ impl<'window> Renderer<'window> {
                         // TODO: Abstract this into its own config class
                         max_buffer_size: adapter.limits().max_buffer_size,
                         max_texture_dimension_2d: adapter.limits().max_texture_dimension_2d,
-                        ..(if cfg!(target_arch = "wasm32") {
-                            wgpu::Limits::downlevel_webgl2_defaults()
-                        } else {
-                            wgpu::Limits::default()
-                        })
+                        ..wgpu::Limits::downlevel_webgl2_defaults()
                     },
                     label: None,
                     memory_hints: Default::default(),
@@ -130,9 +123,9 @@ impl<'window> Renderer<'window> {
                     resolve_target: Some(&view),
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.01,
-                            g: 0.01,
-                            b: 0.01,
+                            r: 0.000,
+                            g: 0.000,
+                            b: 0.000,
                             a: 0.0,
                         }),
                         store: wgpu::StoreOp::Store,

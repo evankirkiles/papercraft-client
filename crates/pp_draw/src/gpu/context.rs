@@ -8,10 +8,10 @@ const BUF_RECT_CONTENTS: [[f32; 2]; 4] = [[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1
 /// created when the Renderer is created and used to pass around shared
 /// fields for allocating / communicating with the GPU.
 #[derive(Debug)]
-pub struct Context<'ctx> {
+pub struct Context<'window> {
+    pub surface: wgpu::Surface<'window>,
     pub device: wgpu::Device,
     pub config: wgpu::SurfaceConfiguration,
-    pub surface: wgpu::Surface<'ctx>,
     pub queue: wgpu::Queue,
     /// Common wgpu layouts of various types for re-use across programs
     pub shared_layouts: SharedLayouts,
@@ -21,11 +21,11 @@ pub struct Context<'ctx> {
     pub settings: Settings,
 }
 
-impl<'ctx> Context<'ctx> {
+impl<'window> Context<'window> {
     pub fn new(
         device: wgpu::Device,
         config: wgpu::SurfaceConfiguration,
-        surface: wgpu::Surface<'ctx>,
+        surface: wgpu::Surface<'window>,
         queue: wgpu::Queue,
     ) -> Self {
         let ctx = Context {

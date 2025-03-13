@@ -9,7 +9,6 @@ use winit::{
 };
 
 // mod commands;
-pub mod api;
 mod input;
 mod viewport;
 
