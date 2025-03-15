@@ -23,7 +23,8 @@
   background-color: theme.color("bg2");
   cursor: col-resize;
 
-  &:hover {
+  &:hover,
+  &.active {
     background-color: #d0d0d0;
   }
 

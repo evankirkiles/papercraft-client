@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import Draggable from "react-draggable";
+import Draggable, { DraggableCore } from "react-draggable";
 import styles from "./styles.module.scss";
 import { useEngineContext } from "@/contexts/EngineContext";
 
@@ -12,18 +12,21 @@ export default function Viewport() {
   return (
     <section className={styles.container} aria-label="Viewport">
       <canvas className={styles.canvas} id={CANVAS_ID} />
-      <Draggable
-        axis="x"
+      <DraggableCore
         nodeRef={ref as React.RefObject<HTMLElement>}
+        onStart={() => ref.current?.classList?.add(styles.active)}
+        onStop={() => ref.current?.classList?.remove(styles.active)}
         onDrag={(e, data) => {
-          e.stopPropagation();
-          const splitX = window.innerWidth / 2 + data.x;
+          if (!ref.current) return;
+          const splitX = data.x;
           const split = Math.max(0, Math.min(1, splitX / window.innerWidth));
+          ref.current.style.left = `${split * 100}%`;
           app?.resize_viewport(split);
+          e.stopPropagation();
         }}
       >
         <div className={styles.divider} ref={ref} />
-      </Draggable>
+      </DraggableCore>
     </section>
   );
 }
