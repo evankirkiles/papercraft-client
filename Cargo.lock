@@ -1490,12 +1490,14 @@ name = "pp_control2"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "bitflags 2.9.0",
  "cfg-if",
  "console_error_panic_hook",
  "console_log",
  "futures",
  "glob",
  "log",
+ "paste",
  "pp_core",
  "pp_draw",
  "wasm-bindgen",

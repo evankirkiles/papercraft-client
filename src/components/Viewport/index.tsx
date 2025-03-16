@@ -7,21 +7,28 @@ const CANVAS_ID = "paperarium-engine";
 
 export default function Viewport() {
   const { app } = useEngineContext();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   return (
     <section className={styles.container} aria-label="Viewport">
-      <canvas className={styles.canvas} id={CANVAS_ID} />
+      <canvas className={styles.canvas} id={CANVAS_ID} ref={canvasRef} />
       <DraggableCore
         nodeRef={ref as React.RefObject<HTMLElement>}
-        onStart={() => ref.current?.classList?.add(styles.active)}
-        onStop={() => ref.current?.classList?.remove(styles.active)}
+        onStart={() => {
+          canvasRef.current?.classList?.add(styles.inactive);
+          ref.current?.classList?.add(styles.active);
+        }}
+        onStop={() => {
+          canvasRef.current?.classList?.remove(styles.inactive);
+          ref.current?.classList?.remove(styles.active);
+        }}
         onDrag={(e, data) => {
           if (!ref.current) return;
           const splitX = data.x;
           const split = Math.max(0, Math.min(1, splitX / window.innerWidth));
           ref.current.style.left = `${split * 100}%`;
-          app?.resize_viewport(split);
+          app?.update_horizontal_split(split);
           e.stopPropagation();
         }}
       >

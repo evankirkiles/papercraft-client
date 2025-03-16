@@ -53,7 +53,7 @@ impl DrawCache {
 
     pub fn sync_viewports(&mut self, ctx: &gpu::Context, state: &mut pp_core::State) {
         let (width, height) = (ctx.config.width as f32, ctx.config.height as f32);
-        let x_border = state.viewport_split * width;
+        let x_border = state.viewport_split_x as f32 * width;
         self.viewport_3d.sync(ctx, &state.viewport_3d, 0.0, 0.0, x_border, height);
         self.viewport_2d.sync(ctx, &state.viewport_2d, x_border, 0.0, width - x_border, height);
     }

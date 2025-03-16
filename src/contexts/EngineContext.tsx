@@ -1,4 +1,5 @@
-import init, { InitOutput, App } from "pp_control2";
+import PaperApp from "@/controller";
+import init, { InitOutput } from "pp_control2";
 import {
   createContext,
   PropsWithChildren,
@@ -9,7 +10,7 @@ import {
 
 interface EngineContextType {
   engine: InitOutput | undefined;
-  app: App | undefined;
+  app: PaperApp | undefined;
 }
 
 export const EngineContext = createContext<EngineContextType>({
@@ -20,19 +21,16 @@ export const EngineContext = createContext<EngineContextType>({
 export const useEngineContext = () => useContext(EngineContext);
 
 export function EngineProvider({ children }: PropsWithChildren) {
-  const [app, setApp] = useState<App | undefined>(undefined);
+  const [app, setApp] = useState<PaperApp | undefined>(undefined);
   const [engine, setEngine] = useState<InitOutput | undefined>(undefined);
   useEffect(() => {
     let mounted = true;
     init().then(async (output) => {
       if (!mounted) return;
-      const app = new App("paperarium-engine");
-      await app.begin();
-      const draw = () => {
-        app.draw();
-        requestAnimationFrame(draw);
-      };
-      draw();
+      const app = new PaperApp();
+      const canvas = document.getElementById("paperarium-engine");
+      if (!canvas) throw new Error("missing canvas...");
+      await app.attach(canvas as HTMLCanvasElement);
       setApp(app);
       setEngine(output);
     });

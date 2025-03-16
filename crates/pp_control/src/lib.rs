@@ -300,7 +300,7 @@ impl ApplicationHandler<AppEvent> for App {
             WindowEvent::CursorMoved { device_id: _, position } => {
                 self.input_state.cursor_pos = position;
                 self.active_viewport =
-                    if (position.x as f32 / self.size.width as f32) < self.state.viewport_split {
+                    if (position.x as f32 / self.size.width as f32) < self.state.viewport_split_x {
                         ViewportType::D3
                     } else {
                         ViewportType::D2
