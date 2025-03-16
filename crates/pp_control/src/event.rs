@@ -1,14 +1,22 @@
 use std::{cell::RefCell, rc::Rc};
 
-use bitflags::bitflags;
-use paste::paste;
 use wasm_bindgen::prelude::*;
+
+use crate::keyboard;
 
 #[derive(Debug, Clone, Copy)]
 pub enum PointerEvent {
     Enter,
     Exit,
     Move(PhysicalPosition<f64>),
+}
+
+/// Whether or not a button is pressed.
+#[wasm_bindgen]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub enum PressedState {
+    Pressed,
+    Unpressed,
 }
 
 /// Describes a button of a mouse controller.
@@ -29,10 +37,18 @@ pub enum MouseInputEvent {
     Up(MouseButton),
 }
 
-#[derive(Debug, Clone, Copy)]
+/// An keyboard button press has been received.
+#[derive(Debug, Clone)]
+pub enum KeyboardInputEvent {
+    Down(keyboard::Key),
+    Up(keyboard::Key),
+}
+
+#[derive(Debug, Clone)]
 pub enum UserEvent {
     Pointer(PointerEvent),
     MouseInput(MouseInputEvent),
+    KeyboardInput(KeyboardInputEvent),
     MouseWheel { dx: f64, dy: f64 },
 }
 
@@ -88,56 +104,8 @@ pub struct PhysicalPosition<T> {
 pub struct EventContext {
     pub state: Rc<RefCell<pp_core::State>>,
     pub renderer: Rc<RefCell<Option<pp_draw::Renderer<'static>>>>,
-    pub modifiers: EventModifierKeys,
+    pub modifiers: keyboard::ModifierKeys,
     pub surface_dpi: f64,
     pub surface_size: PhysicalSize<f64>,
     pub last_mouse_pos: Option<PhysicalPosition<f64>>,
-}
-
-bitflags! {
-    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-    pub struct EventModifierKeys: u32 {
-        const LSHIFT = 0b00000001;
-        const RSHIFT = 0b00000010;
-        const LALT = 0b00000100;
-        const RALT = 0b00001000;
-        const LCTRL = 0b00010000;
-        const RCTRL = 0b00100000;
-        const LSUPER = 0b01000000;
-        const RSUPER = 0b10000000;
-    }
-}
-
-macro_rules! pressed_impl {
-    ( $key:ident) => {
-        paste! {
-            pub fn [<$key:lower _pressed>](&self) -> bool {
-                self.intersects(EventModifierKeys::$key)
-            }
-        }
-    };
-}
-
-impl EventModifierKeys {
-    pressed_impl! { LSHIFT }
-    pressed_impl! { RSHIFT }
-    pressed_impl! { LALT }
-    pressed_impl! { RALT }
-    pressed_impl! { LCTRL }
-    pressed_impl! { RCTRL }
-    pressed_impl! { LSUPER }
-    pressed_impl! { RSUPER }
-
-    pub fn shift_pressed(&self) -> bool {
-        self.lshift_pressed() || self.rshift_pressed()
-    }
-    pub fn alt_pressed(&self) -> bool {
-        self.lalt_pressed() || self.ralt_pressed()
-    }
-    pub fn ctrl_pressed(&self) -> bool {
-        self.lctrl_pressed() || self.rctrl_pressed()
-    }
-    pub fn super_pressed(&self) -> bool {
-        self.lsuper_pressed() || self.rsuper_pressed()
-    }
 }

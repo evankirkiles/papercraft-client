@@ -50,7 +50,6 @@ impl EventHandler for SelectTool {
                         },
                     })
                     .unwrap();
-                log::info!("Select query sent");
                 Ok(EventHandleSuccess::StopPropagation)
             }
             _ => Ok(Default::default()),

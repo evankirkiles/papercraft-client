@@ -52,9 +52,11 @@ fn grid(pos: vec3<f32>, scale: f32) -> vec4<f32> {
 
     // Highlight axes (red for Y=0 (X axis), green for X=0 (Y axis))
     if abs(coord.y) < 0.05 {
-        axis_color = vec3<f32>(1.0, 0.0, 0.0);
+        axis_color = vec3<f32>(0.3, 0.3, 0.3);
+        // axis_color = vec3<f32>(1.0, 0.0, 0.0);
     } else if abs(coord.x) < 0.05 {
-        axis_color = vec3<f32>(0.0, 1.0, 0.0);
+        axis_color = vec3<f32>(0.3, 0.3, 0.3);
+        // axis_color = vec3<f32>(0.0, 1.0, 0.0);
     // Highlight bounds (red for Y=0 (X axis), green for X=0 (Y axis))
     } else if abs(coord.y + height * scale) < 0.05 || abs(coord.x - width * scale) < 0.05 {
         axis_color = vec3<f32>(0.3, 0.3, 0.3);

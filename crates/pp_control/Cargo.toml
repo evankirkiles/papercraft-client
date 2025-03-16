@@ -17,11 +17,13 @@ crate-type = ["cdylib", "rlib"] # Support both WASM and Native compilation
 pp_core.workspace = true
 pp_draw.workspace = true
 # External:
+ascii = "1.1.0"
 bitflags.workspace = true
 web-sys = { version = "0.3", features = ["HtmlCanvasElement", "console"] }
 cfg-if.workspace = true
 log.workspace = true
 futures.workspace = true
+compact_str = "0.9.0"
 console_error_panic_hook = { workspace = true, optional = true }
 console_log.workspace = true
 paste.workspace = true

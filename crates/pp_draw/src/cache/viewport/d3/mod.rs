@@ -11,6 +11,7 @@ use super::{ViewportGPU, ViewportNotVisible};
 #[derive(Debug)]
 pub struct Viewport3DGPU {
     pub camera: camera::Camera3DGPU,
+    pub xray_mode: bool,
     x: f32,
     y: f32,
     width: f32,
@@ -19,7 +20,14 @@ pub struct Viewport3DGPU {
 
 impl Viewport3DGPU {
     pub fn new(ctx: &gpu::Context) -> Self {
-        Self { camera: Camera3DGPU::new(ctx), x: 0.0, y: 0.0, width: 0.0, height: 0.0 }
+        Self {
+            camera: Camera3DGPU::new(ctx),
+            x: 0.0,
+            y: 0.0,
+            width: 0.0,
+            height: 0.0,
+            xray_mode: false,
+        }
     }
 }
 
@@ -48,5 +56,6 @@ impl ViewportGPU<Viewport3D> for Viewport3DGPU {
         self.width = width;
         self.height = height;
         self.camera.sync(ctx, &viewport.camera, self.width, self.height);
+        self.xray_mode = viewport.xray_mode;
     }
 }

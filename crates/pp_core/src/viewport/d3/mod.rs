@@ -5,11 +5,12 @@ pub mod camera;
 #[derive(Debug, Clone)]
 pub struct Viewport3D {
     pub camera: camera::Camera3D,
+    pub xray_mode: bool,
 }
 
 impl Default for Viewport3D {
     /// The default viewport is full
     fn default() -> Self {
-        Self { camera: Default::default() }
+        Self { camera: Default::default(), xray_mode: false }
     }
 }

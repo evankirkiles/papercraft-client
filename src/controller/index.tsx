@@ -1,4 +1,10 @@
-import { App, MouseButton } from "crates/pp_control/pkg/pp_control";
+import {
+  App,
+  EventHandleSuccess,
+  MouseButton,
+  NamedKey,
+  PressedState,
+} from "crates/pp_control/pkg/pp_control";
 import { ModifierKeys } from "./modifiers";
 
 const DOCUMENT_EVENTS = [
@@ -96,24 +102,57 @@ export default class PaperApp
   }
 
   onkeydown(e: KeyboardEvent) {
+    if (this.dispatch_key_event(e.key, PressedState.Pressed)) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+
     if (this.modifiers.handledEvent(e)) {
       this.handle_modifiers_changed(this.modifiers.value);
-      return;
     }
   }
 
   onkeyup(e: KeyboardEvent) {
+    console.log(e);
+    if (this.dispatch_key_event(e.key, PressedState.Unpressed)) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+
     if (this.modifiers.handledEvent(e)) {
       this.handle_modifiers_changed(this.modifiers.value);
-      return;
     }
   }
 
   onmousedown(e: MouseEvent) {
-    this.handle_mouse_down(e.button);
+    this.handle_mouse_button(e.button, PressedState.Pressed);
   }
 
   onmouseup(e: MouseEvent) {
-    this.handle_mouse_up(e.button);
+    this.handle_mouse_button(e.button, PressedState.Unpressed);
+  }
+
+  /** AN internal wrapper for sending key evnets to the proper Rust callback. */
+  private dispatch_key_event(key: string, pressed: PressedState) {
+    if (key.length > 1) {
+      const val = NAMED_KEY_MAP[key];
+      if (val) return this.handle_named_key(val, pressed);
+    } else {
+      const val = key.charCodeAt(0);
+      return this.handle_key(val, pressed);
+    }
+    return EventHandleSuccess.ContinuePropagation;
   }
 }
+
+const NAMED_KEY_MAP: Record<string, NamedKey> = {
+  Alt: NamedKey.Alt,
+  CapsLock: NamedKey.CapsLock,
+  Control: NamedKey.Control,
+  Enter: NamedKey.Enter,
+  Meta: NamedKey.Meta,
+  Redo: NamedKey.Redo,
+  Tab: NamedKey.Tab,
+  Undo: NamedKey.Undo,
+  Escape: NamedKey.Escape,
+};

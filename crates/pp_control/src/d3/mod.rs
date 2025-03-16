@@ -1,4 +1,9 @@
-use crate::event::{self, EventHandler};
+use ascii::AsciiChar;
+
+use crate::{
+    event::{self, EventHandler},
+    keyboard,
+};
 
 mod tool_select;
 
@@ -23,6 +28,22 @@ impl EventHandler for Controller3D {
         // If no tool took the event, pass it to the camera.
         #[allow(clippy::single_match)]
         match ev {
+            event::UserEvent::KeyboardInput(event::KeyboardInputEvent::Down(key)) => match key {
+                keyboard::Key::Named(keyboard::NamedKey::Tab) => {
+                    let mut state = ctx.state.borrow_mut();
+                    state.viewport_3d.xray_mode = !state.viewport_3d.xray_mode;
+                }
+                keyboard::Key::Character(char) => match char {
+                    AsciiChar::a => {
+                        if (ctx.modifiers.alt_pressed()) {
+                            let mut state = ctx.state.borrow_mut();
+                            state.selection.deselect_all();
+                        }
+                    }
+                    _ => (),
+                },
+                _ => (),
+            },
             event::UserEvent::MouseWheel { dx, dy } => {
                 let mut state = ctx.state.borrow_mut();
                 if ctx.modifiers.shift_pressed() {

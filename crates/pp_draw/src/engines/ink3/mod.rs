@@ -39,10 +39,22 @@ impl InkEngine3D {
         ctx: &gpu::Context,
         render_pass: &mut wgpu::RenderPass,
         mesh: &cache::MeshGPU,
+        xray: bool,
     ) {
         self.program_surface.draw_mesh(ctx, render_pass, mesh);
-        self.program_lines.draw_mesh(ctx, render_pass, mesh);
-        self.program_points.draw_mesh(ctx, render_pass, mesh);
+        if xray {
+            self.program_tris.draw_mesh_xrayed(ctx, render_pass, mesh);
+        };
         self.program_tris.draw_mesh(ctx, render_pass, mesh);
+
+        if xray {
+            self.program_lines.draw_mesh_xrayed(ctx, render_pass, mesh);
+        };
+        self.program_lines.draw_mesh(ctx, render_pass, mesh);
+
+        if xray {
+            self.program_points.draw_mesh_xrayed(ctx, render_pass, mesh);
+        };
+        self.program_points.draw_mesh(ctx, render_pass, mesh);
     }
 }

@@ -1,4 +1,4 @@
-use cgmath::InnerSpace;
+use cgmath::{InnerSpace, MetricSpace};
 
 #[derive(Debug, Clone)]
 pub struct Camera3D {
@@ -8,6 +8,9 @@ pub struct Camera3D {
     pub fovy: f32,
     pub znear: f32,
     pub zfar: f32,
+
+    // Maximum distance from the center object
+    pub max_distance: f32,
 
     /// Speed of orbiting, e.g. rotating around target
     pub speed_orbit: f32,
@@ -26,6 +29,7 @@ impl Default for Camera3D {
             eye: (4.0, 4.0, 4.0).into(),
             target: (0.0, 0.0, 0.5).into(),
             up: cgmath::Vector3::unit_z(),
+            max_distance: 12.0,
             speed_orbit: 0.005,
             speed_dolly: 0.05,
             speed_pan: 0.005,
@@ -71,7 +75,14 @@ impl Camera3D {
     /// Dollies the camera towards / away from the target
     pub fn dolly(&mut self, delta: f64) {
         let forward = self.eye - self.target;
-        self.eye -= forward * delta as f32 * self.speed_dolly; // Move the eye along the forward direction
+        let new_eye = self.eye - forward * delta as f32 * self.speed_dolly; // Move the eye along the forward direction
+
+        // Ensure the new eye position does not exceed max_distance from the target
+        if new_eye.distance(self.target) <= self.max_distance {
+            self.eye = new_eye;
+        } else {
+            self.eye = self.target + forward.normalize() * self.max_distance;
+        }
 
         // Mark the camera as dirty for recalculations
         self.is_dirty = true;

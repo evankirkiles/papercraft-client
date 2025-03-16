@@ -1,11 +1,14 @@
+use ascii::ToAsciiChar;
 use d2::Controller2D;
 use d3::Controller3D;
-use event::{EventContext, EventHandler, EventModifierKeys, UserEvent};
+use event::{EventContext, EventHandler, PressedState, UserEvent};
+use keyboard::ModifierKeys;
 use wasm_bindgen::prelude::*;
 
 mod d2;
 mod d3;
 mod event;
+mod keyboard;
 
 use std::{cell::RefCell, ops::DerefMut, rc::Rc};
 
@@ -119,8 +122,9 @@ impl App {
     }
 
     /// Internal function used to route an event to the viewport a user is currently
-    /// interacting with, e.g. where their mouse is hovered.
-    fn send_event_to_active_viewport(
+    /// interacting with, e.g. where their mouse is hovered. If the event still
+    /// propagated, then the controller can maybe do some last-minute processing.
+    fn handle_event(
         &mut self,
         ev: &UserEvent,
     ) -> Result<event::EventHandleSuccess, event::EventHandleError> {
@@ -143,8 +147,7 @@ impl App {
         let curr_viewport = self.get_viewport_at(x, y);
         self.active_viewport = curr_viewport;
         self.event_context.last_mouse_pos = None;
-        self.send_event_to_active_viewport(&UserEvent::Pointer(event::PointerEvent::Enter))?;
-        Ok(Default::default())
+        self.handle_event(&UserEvent::Pointer(event::PointerEvent::Enter))
     }
 
     pub fn handle_mouse_move(
@@ -158,7 +161,7 @@ impl App {
         // If the user left an active viewport, notify the old viewport
         if let Some(active) = active_viewport {
             if curr_viewport.is_none_or(|curr| curr != active) {
-                self.send_event_to_active_viewport(&UserEvent::Pointer(event::PointerEvent::Exit))?;
+                self.handle_event(&UserEvent::Pointer(event::PointerEvent::Exit))?;
             }
         }
 
@@ -167,25 +170,22 @@ impl App {
             if active_viewport.is_none_or(|active| curr != active) {
                 self.active_viewport = Some(curr);
                 self.event_context.last_mouse_pos = None;
-                self.send_event_to_active_viewport(&UserEvent::Pointer(
-                    event::PointerEvent::Enter,
-                ))?;
+                self.handle_event(&UserEvent::Pointer(event::PointerEvent::Enter))?;
             }
         }
 
         // Always emit the mouse move event to the most-recent viewport
         let pos = event::PhysicalPosition { x, y };
         self.event_context.last_mouse_pos = Some(pos);
-        self.send_event_to_active_viewport(&UserEvent::Pointer(event::PointerEvent::Move(pos)))?;
-        Ok(Default::default())
+        self.handle_event(&UserEvent::Pointer(event::PointerEvent::Move(pos)))
     }
 
     pub fn handle_mouse_exit(
         &mut self,
     ) -> Result<event::EventHandleSuccess, event::EventHandleError> {
-        self.send_event_to_active_viewport(&UserEvent::Pointer(event::PointerEvent::Exit))?;
+        let res = self.handle_event(&UserEvent::Pointer(event::PointerEvent::Exit));
         self.active_viewport = None;
-        Ok(Default::default())
+        res
     }
 
     pub fn handle_wheel(
@@ -193,33 +193,53 @@ impl App {
         dx: f64,
         dy: f64,
     ) -> Result<event::EventHandleSuccess, event::EventHandleError> {
-        let (dx, dy) = (-dx, -dy);
-        self.send_event_to_active_viewport(&UserEvent::MouseWheel { dx, dy })?;
-        Ok(Default::default())
+        self.handle_event(&UserEvent::MouseWheel { dx: -dx, dy: -dy })
     }
 
     pub fn handle_modifiers_changed(&mut self, modifiers: u32) {
-        self.event_context.modifiers = EventModifierKeys::from_bits_truncate(modifiers);
+        self.event_context.modifiers = ModifierKeys::from_bits_truncate(modifiers);
     }
 
-    pub fn handle_mouse_down(
+    /// Handles named key input.
+    pub fn handle_named_key(
         &mut self,
-        button: event::MouseButton,
+        key: keyboard::NamedKey,
+        pressed: PressedState,
     ) -> Result<event::EventHandleSuccess, event::EventHandleError> {
-        self.send_event_to_active_viewport(&UserEvent::MouseInput(event::MouseInputEvent::Down(
-            button,
-        )))?;
-        Ok(Default::default())
+        let key = keyboard::Key::Named(key);
+        self.handle_event(&UserEvent::KeyboardInput(match pressed {
+            PressedState::Pressed => event::KeyboardInputEvent::Down(key),
+            PressedState::Unpressed => event::KeyboardInputEvent::Up(key),
+        }))
     }
 
-    pub fn handle_mouse_up(
+    /// Handles single-character keyboard input. This is so we can map to ASCII
+    /// and not have to do string transformations across the WASM boundary.
+    pub fn handle_key(
+        &mut self,
+        key: u8,
+        pressed: PressedState,
+    ) -> Result<event::EventHandleSuccess, event::EventHandleError> {
+        let Ok(char) = key.to_ascii_char() else {
+            return Ok(Default::default());
+        };
+        let key = keyboard::Key::Character(char);
+        self.handle_event(&UserEvent::KeyboardInput(match pressed {
+            PressedState::Pressed => event::KeyboardInputEvent::Down(key),
+            PressedState::Unpressed => event::KeyboardInputEvent::Up(key),
+        }))
+    }
+
+    /// Handles clicks of all mouse buttons
+    pub fn handle_mouse_button(
         &mut self,
         button: event::MouseButton,
+        pressed: PressedState,
     ) -> Result<event::EventHandleSuccess, event::EventHandleError> {
-        self.send_event_to_active_viewport(&UserEvent::MouseInput(event::MouseInputEvent::Up(
-            button,
-        )))?;
-        Ok(Default::default())
+        self.handle_event(&UserEvent::MouseInput(match pressed {
+            PressedState::Pressed => event::MouseInputEvent::Down(button),
+            PressedState::Unpressed => event::MouseInputEvent::Up(button),
+        }))
     }
 }
 
