@@ -1,4 +1,4 @@
-import { App } from "crates/pp_control2/pkg/pp_control2";
+import { App, MouseButton } from "crates/pp_control2/pkg/pp_control2";
 import { ModifierKeys } from "./modifiers";
 
 const DOCUMENT_EVENTS = [
@@ -10,6 +10,8 @@ const DOCUMENT_EVENTS = [
 const CANVAS_EVENTS = [
   "wheel",
   "pointermove",
+  "mousedown",
+  "mouseup",
 ] as const satisfies (keyof HTMLElementEventMap)[];
 
 export default class PaperApp
@@ -105,5 +107,13 @@ export default class PaperApp
       this.handle_modifiers_changed(this.modifiers.value);
       return;
     }
+  }
+
+  onmousedown(e: MouseEvent) {
+    this.handle_mouse_down(e.button);
+  }
+
+  onmouseup(e: MouseEvent) {
+    this.handle_mouse_up(e.button);
   }
 }

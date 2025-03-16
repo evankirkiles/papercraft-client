@@ -51,6 +51,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 }
 
 @fragment
-fn fs_select(in: VertexOutput) -> @location(0) vec2<u32> {
-    return in.select_idx + vec2<u32>(1, 0);
+fn fs_select(in: VertexOutput) -> @location(0) vec4<u32> {
+    return vec4<u32>(0, 0, in.select_idx + vec2<u32>(1, 0));
 }

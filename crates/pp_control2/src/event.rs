@@ -1,21 +1,44 @@
+use std::{cell::RefCell, rc::Rc};
+
 use bitflags::bitflags;
 use paste::paste;
 use wasm_bindgen::prelude::*;
 
-pub enum MouseEvent {
+#[derive(Debug, Clone, Copy)]
+pub enum PointerEvent {
     Enter,
     Exit,
-    Move { x: f64, y: f64 },
+    Move(PhysicalPosition<f64>),
 }
 
+/// Describes a button of a mouse controller.
+#[wasm_bindgen]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub enum MouseButton {
+    Left,
+    Middle,
+    Right,
+    Back,
+    Forward,
+}
+
+/// An mouse button press has been received.
+#[derive(Debug, Clone, Copy)]
+pub enum MouseInputEvent {
+    Down(MouseButton),
+    Up(MouseButton),
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum UserEvent {
-    Mouse(MouseEvent),
-    Wheel { dx: f64, dy: f64 },
+    Pointer(PointerEvent),
+    MouseInput(MouseInputEvent),
+    MouseWheel { dx: f64, dy: f64 },
 }
 
 // Successful responses of an Event Handler
 #[wasm_bindgen]
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
 pub enum EventHandleSuccess {
     #[default]
     ContinuePropagation,
@@ -24,8 +47,9 @@ pub enum EventHandleSuccess {
 
 // All potential errors that can come from event handlers.
 #[wasm_bindgen]
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
 pub enum EventHandleError {
+    #[default]
     Unknown,
 }
 
@@ -60,8 +84,10 @@ pub struct PhysicalPosition<T> {
 }
 
 /// A common "event" context, including the state of any modifiers.
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone)]
 pub struct EventContext {
+    pub state: Rc<RefCell<pp_core::State>>,
+    pub renderer: Rc<RefCell<Option<pp_draw::Renderer<'static>>>>,
     pub modifiers: EventModifierKeys,
     pub surface_dpi: f64,
     pub surface_size: PhysicalSize<f64>,

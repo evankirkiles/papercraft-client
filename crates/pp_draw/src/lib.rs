@@ -170,14 +170,15 @@ impl<'window> Renderer<'window> {
     pub fn select_query_submit(
         &mut self,
         query: select::SelectionQuery,
-        callback: impl Fn(select::SelectionQuery) + wgpu::WasmNotSend + 'static,
-    ) -> Result<wgpu::SubmissionIndex, select::SelectionQueryError> {
-        self.select.query_submit(&self.ctx, &self.draw_cache, query, callback)
+    ) -> Result<(), select::SelectionQueryError> {
+        self.select.query_submit(&self.ctx, &self.draw_cache, query)
     }
 
-    /// Indicates that the buffer is ready to read from for the supplied rect.
-    pub fn select_query_recv(&mut self, query: select::SelectionQuery) {
-        self.select.query_recv(&self.ctx, query)
+    /// Polls the select engine to see if there are any fulfilled selection queries.
+    /// If there are, this will register their completion and perform any
+    /// selection actions they were queried with.
+    pub fn select_query_sync(&mut self, state: &mut pp_core::State) {
+        self.select.query_sync(&self.ctx, state);
     }
 
     /// Updates the GPUContext for new dimensions

@@ -2,20 +2,8 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::event::{self, EventHandler};
 
-#[derive(Debug)]
-pub struct Controller2D {
-    state: Rc<RefCell<pp_core::State>>,
-    renderer: Rc<RefCell<Option<pp_draw::Renderer<'static>>>>,
-}
-
-impl Controller2D {
-    pub fn new(
-        state: Rc<RefCell<pp_core::State>>,
-        renderer: Rc<RefCell<Option<pp_draw::Renderer<'static>>>>,
-    ) -> Self {
-        Self { state, renderer }
-    }
-}
+#[derive(Debug, Default, Copy, Clone)]
+pub struct Controller2D {}
 
 impl EventHandler for Controller2D {
     fn handle_event(
@@ -33,8 +21,8 @@ impl EventHandler for Controller2D {
             //     event::MouseEvent::Exit => todo!(),
             //     event::MouseEvent::Move { x, y } => todo!(),
             // },
-            event::UserEvent::Wheel { dx, dy } => {
-                let mut state = self.state.borrow_mut();
+            event::UserEvent::MouseWheel { dx, dy } => {
+                let mut state = ctx.state.borrow_mut();
                 if ctx.modifiers.alt_pressed() {
                     state.viewport_2d.camera.dolly(*dy * 0.5);
                 } else {

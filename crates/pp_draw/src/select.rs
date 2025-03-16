@@ -1,4 +1,6 @@
-use std::iter;
+use std::{cell::RefCell, iter, ops::Deref, rc::Rc};
+
+use pp_core::id::{Id, MeshId, VertexId};
 
 pub use crate::engines::select::SelectionMask;
 use crate::{
@@ -16,9 +18,21 @@ pub struct SelectionRect {
     pub height: u32,
 }
 
+/// Once the selection query is ready, what should we do to it?
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
+pub enum SelectImmediateAction {
+    /// Select the valid pixel for selection nearest to the center
+    Nearest,
+    /// Toggle the selection state of the pixel nearest to the center
+    NearestToggle,
+    /// Select everything in the queried region
+    All,
+}
+
 /// A single query submitted to the GPU to populate the
 #[derive(Debug, Copy, Clone)]
 pub struct SelectionQuery {
+    pub action: Option<SelectImmediateAction>,
     pub mask: SelectionMask,
     pub rect: SelectionRect,
 }
@@ -37,7 +51,8 @@ impl SelectionQuery {
 #[derive(Debug, Clone)]
 pub enum SelectManagerQueryState {
     Unmapped,
-    InFlight { index: wgpu::SubmissionIndex },
+    InFlight { index: wgpu::SubmissionIndex, query: SelectionQuery },
+    UnhandledMapped { index: wgpu::SubmissionIndex, query: SelectionQuery },
     Mapped(SelectionQuery),
 }
 
@@ -49,7 +64,7 @@ pub struct SelectManager {
     select_engine: SelectEngine,
 
     // Reading back of selection state
-    pub query_state: SelectManagerQueryState,
+    pub query_state: Rc<RefCell<SelectManagerQueryState>>,
     pub select_buf: wgpu::Buffer,
 }
 
@@ -66,7 +81,7 @@ impl SelectManager {
             select_engine: SelectEngine::new(ctx),
             select_buf,
             textures,
-            query_state: SelectManagerQueryState::Unmapped,
+            query_state: Rc::new(RefCell::new(SelectManagerQueryState::Unmapped)),
         }
     }
 
@@ -74,16 +89,17 @@ impl SelectManager {
     pub fn resize(&mut self, ctx: &gpu::Context) {
         // Block until any in-flight selection queries have been processed, as
         // they expect a corresponding buffer to map into (which we are recreating)
-        match self.query_state {
+        match self.query_state.borrow().deref() {
             SelectManagerQueryState::Unmapped => {}
             SelectManagerQueryState::InFlight { .. } => {
                 while !ctx.device.poll(wgpu::MaintainBase::Wait).is_queue_empty() {}
             }
-            SelectManagerQueryState::Mapped(_) => {
+            SelectManagerQueryState::Mapped(_)
+            | SelectManagerQueryState::UnhandledMapped { .. } => {
                 self.select_buf.unmap();
             }
         }
-        self.query_state = SelectManagerQueryState::Unmapped;
+        self.query_state.replace(SelectManagerQueryState::Unmapped);
         self.textures = SelectManagerAttachmentTextures::create(ctx);
         self.select_buf = self.textures.get_buf(ctx);
     }
@@ -101,16 +117,18 @@ impl SelectManager {
         ctx: &gpu::Context,
         draw_cache: &cache::DrawCache,
         query: SelectionQuery,
-        callback: impl Fn(SelectionQuery) + wgpu::WasmNotSend + 'static,
-    ) -> Result<wgpu::SubmissionIndex, SelectionQueryError> {
-        match self.query_state {
+    ) -> Result<(), SelectionQueryError> {
+        match self.query_state.borrow().deref() {
             SelectManagerQueryState::Unmapped => {}
-            SelectManagerQueryState::Mapped(_) => self.select_buf.unmap(),
             SelectManagerQueryState::InFlight { .. } => {
                 return Err(SelectionQueryError::QueryInFlight);
             }
+            SelectManagerQueryState::Mapped(_)
+            | SelectManagerQueryState::UnhandledMapped { .. } => {
+                self.select_buf.unmap();
+            }
         };
-        let SelectionQuery { rect, mask } = query;
+        let SelectionQuery { action: _, rect, mask } = query;
 
         // Begin render pass to draw into the selection buffer
         let mut encoder = ctx
@@ -144,7 +162,6 @@ impl SelectManager {
 
             // Render 3D if viewport has area
             if draw_cache.viewport_3d.bind(&mut render_pass).is_ok() {
-                // draw from each engine in the presentation render pass.
                 draw_cache.meshes.values().for_each(|mesh| {
                     self.select_engine.draw_mesh(ctx, &mut render_pass, mesh, mask);
                 });
@@ -182,26 +199,62 @@ impl SelectManager {
         );
 
         // Submit all commands and track the SubmissionIndex for completion
-        let submission_index = ctx.queue.submit(iter::once(encoder.finish()));
-        self.query_state = SelectManagerQueryState::InFlight { index: submission_index.clone() };
+        let index = ctx.queue.submit(iter::once(encoder.finish()));
+        self.query_state.replace(SelectManagerQueryState::InFlight { index: index.clone(), query });
 
         // Once the buffer has been written to on the GPU, map the relevant
         // portion back into CPU-land and run the callback using it.
+        let query_state = self.query_state.clone();
         self.select_buf.slice(..).map_async(wgpu::MapMode::Read, move |result| {
             result.expect("map_async failed");
-            callback(query);
+            query_state.replace(SelectManagerQueryState::UnhandledMapped { index, query });
         });
         ctx.device.poll(wgpu::MaintainBase::Poll);
 
-        Ok(submission_index)
+        Ok(())
     }
 
-    /// Must be called once the select buffer is successfully mapped to allow
-    /// the program to be resized again / perform another selection query.
-    pub fn query_recv(&mut self, ctx: &gpu::Context, query: SelectionQuery) {
-        if let SelectManagerQueryState::InFlight { index } = &self.query_state {
-            ctx.device.poll(wgpu::MaintainBase::WaitForSubmissionIndex(index.clone()));
-            self.query_state = SelectManagerQueryState::Mapped(query);
+    /// Checks if there is a mapped query waiting to be picked up from the buffer.
+    /// If there is, this function transitions it into the `Mapped` sink state
+    /// and performs any select action encoded within it.
+    pub fn query_sync(&mut self, ctx: &gpu::Context, state: &mut pp_core::State) {
+        let query_state = self.query_state.borrow();
+        let SelectManagerQueryState::UnhandledMapped { index, query } = query_state.deref().clone()
+        else {
+            return;
+        };
+        drop(query_state);
+        ctx.device.poll(wgpu::MaintainBase::WaitForSubmissionIndex(index.clone()));
+        self.query_state.replace(SelectManagerQueryState::Mapped(query));
+        if matches!(query.action, Some(SelectImmediateAction::Nearest)) {
+            state.selection.deselect_all();
+        }
+
+        match query.action {
+            Some(SelectImmediateAction::Nearest) | Some(SelectImmediateAction::NearestToggle) => {
+                let mut nearest: Option<(PixelData, f32)> = None;
+                let center_x = (2 * query.rect.x + query.rect.width) as f32 / 2.0;
+                let center_y = (2 * query.rect.y + query.rect.height) as f32 / 2.0;
+                self.query_use(&query, |(x, y, pixel_data)| {
+                    let distance = ((x - center_x).powi(2) + (y - center_y).powi(2)).sqrt();
+                    if let Some(nearest) = nearest {
+                        if distance >= nearest.1 {
+                            return;
+                        }
+                    }
+                    nearest = Some((*pixel_data, distance));
+                });
+                let Some((pixel_data, _)) = nearest else { return };
+                let mesh_id = MeshId::new(pixel_data.mesh_id - 1);
+                let vert_id = VertexId::new(pixel_data.el_id);
+                if query.action.is_some_and(|action| action == SelectImmediateAction::Nearest) {
+                    state.selection.select_verts(&state.meshes[&mesh_id], &[vert_id]);
+                } else {
+                    state.selection.toggle_verts(&state.meshes[&mesh_id], &[vert_id]);
+                }
+            }
+            Some(SelectImmediateAction::All) => {}
+            None => todo!(),
         }
     }
 
@@ -209,7 +262,8 @@ impl SelectManager {
     /// If the rect does not fit within the currently-mapped section of the buffer,
     /// or has a different selection mask applied, this function will panic.
     pub fn query_use<F: FnMut((f32, f32, &PixelData))>(&self, query: &SelectionQuery, cb: F) {
-        let SelectManagerQueryState::Mapped(curr_query) = &self.query_state else {
+        let query_state = self.query_state.borrow();
+        let SelectManagerQueryState::Mapped(curr_query) = query_state.deref() else {
             panic!("Attempted to read pixels in unmapped select buffer")
         };
         if !curr_query.contains(query) {
@@ -257,12 +311,14 @@ struct SelectManagerAttachmentTextures {
 }
 
 /// The format of the selection idx texture.
-pub const TEX_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rg32Uint;
+pub const TEX_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba32Uint;
 
 /// The actual data stored in each pixel
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct PixelData {
+    pub _a: u32,
+    pub _b: u32,
     pub mesh_id: u32,
     pub el_id: u32,
 }

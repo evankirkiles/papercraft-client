@@ -1,5 +1,5 @@
 import PaperApp from "@/controller";
-import init, { InitOutput } from "pp_control2";
+import init, { InitOutput, install_logging } from "pp_control2";
 import {
   createContext,
   PropsWithChildren,
@@ -27,6 +27,7 @@ export function EngineProvider({ children }: PropsWithChildren) {
     let mounted = true;
     init().then(async (output) => {
       if (!mounted) return;
+      install_logging();
       const app = new PaperApp();
       const canvas = document.getElementById("paperarium-engine");
       if (!canvas) throw new Error("missing canvas...");

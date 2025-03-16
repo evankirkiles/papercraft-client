@@ -9,22 +9,15 @@ mod event;
 
 use std::{cell::RefCell, ops::DerefMut, rc::Rc};
 
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
-enum AppViewport {
-    D1,
-    D2,
-    D3,
-}
-
 #[wasm_bindgen]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct App {
     /// The core model of the App.
     state: Rc<RefCell<pp_core::State>>,
     /// The GPU resources of the App. Only created once a canvas is `attach`ed.
     renderer: Rc<RefCell<Option<pp_draw::Renderer<'static>>>>,
     /// Which viewport has "focus" and should take events
-    active_viewport: Option<AppViewport>,
+    active_viewport: Option<AppViewportType>,
     /// A shareable event context used across all event handlers
     event_context: EventContext,
     // Controllers for each viewport
@@ -32,33 +25,24 @@ pub struct App {
     controller_2d: Controller2D,
 }
 
-#[derive(Debug, Clone)]
-enum AppError {
-    NoCanvasAttached,
-}
-
-impl std::error::Error for AppError {}
-impl core::fmt::Display for AppError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
+/// "App" holds the entirey of the Rust application state. You can think of it
+/// as the controller owning the Model (`pp_core`) and the View (`pp_draw`).
 #[wasm_bindgen]
 impl App {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        // Set up console logging / console error
-        #[cfg(feature = "console_error_panic_hook")]
-        console_error_panic_hook::set_once();
-        console_log::init_with_level(log::Level::Info).expect("Failed to initialize logger");
         let state = Rc::new(RefCell::new(pp_core::State::default()));
         let renderer = Rc::new(RefCell::<Option<pp_draw::Renderer<'static>>>::new(None));
-
-        let event_context = EventContext::default();
-        let controller_3d = Controller3D::new(state.clone(), renderer.clone());
-        let controller_2d = Controller2D::new(state.clone(), renderer.clone());
-        Self { state, renderer, event_context, controller_3d, controller_2d, active_viewport: None }
+        Self {
+            event_context: EventContext {
+                state: state.clone(),
+                renderer: renderer.clone(),
+                ..Default::default()
+            },
+            state,
+            renderer,
+            ..Default::default()
+        }
     }
 
     /// Attaches the Rust app to a canvas in the DOM. This allocates all the
@@ -82,11 +66,16 @@ impl App {
         self.renderer.replace(None);
     }
 
+    // ---- RENDER CYCLE -----
+    // Functions called in a loop or in a global listener, relevant to the renderer.
+
     /// Draws a single frame of the app to the canvas.
     pub fn draw(&mut self, _timestamp: u32) -> Result<(), JsError> {
+        let mut state = self.state.borrow_mut();
         let mut renderer = self.renderer.borrow_mut();
         let renderer = renderer.as_mut().ok_or(AppError::NoCanvasAttached)?;
-        renderer.sync(self.state.borrow_mut().deref_mut());
+        renderer.select_query_sync(state.deref_mut());
+        renderer.sync(state.deref_mut());
         renderer.draw();
         Ok(())
     }
@@ -101,6 +90,9 @@ impl App {
         Ok(())
     }
 
+    // ---- HOOKS ----
+    // Functions that can be invoked by JavaScript on user interaction with HTML.
+
     pub fn update_horizontal_split(&mut self, frac: f64) {
         self.state.borrow_mut().viewport_split_x = frac;
     }
@@ -109,8 +101,8 @@ impl App {
         self.state.borrow_mut().viewport_split_y = frac;
     }
 
-    /// Returns the viewport at the specified coordinates.
-    fn get_viewport_at(&self, x: f64, y: f64) -> Option<AppViewport> {
+    /// Returns the type viewport at the specified coordinates.
+    fn get_viewport_at(&self, x: f64, y: f64) -> Option<AppViewportType> {
         let state = self.state.borrow();
         let (split_x, split_y) = (state.viewport_split_x, state.viewport_split_y);
         let frac_x = x / self.event_context.surface_size.width;
@@ -118,11 +110,11 @@ impl App {
         if !(0.0..=1.0).contains(&frac_x) || !(0.0..=1.0).contains(&frac_y) {
             None
         } else if (split_y..=1.0).contains(&frac_y) {
-            Some(AppViewport::D1)
+            Some(AppViewportType::D1)
         } else if (split_x..=1.0).contains(&frac_x) {
-            Some(AppViewport::D2)
+            Some(AppViewportType::D2)
         } else {
-            Some(AppViewport::D3)
+            Some(AppViewportType::D3)
         }
     }
 
@@ -134,8 +126,8 @@ impl App {
     ) -> Result<event::EventHandleSuccess, event::EventHandleError> {
         let Some(viewport) = self.active_viewport else { return Ok(Default::default()) };
         match viewport {
-            AppViewport::D2 => self.controller_2d.handle_event(&self.event_context, ev),
-            AppViewport::D3 => self.controller_3d.handle_event(&self.event_context, ev),
+            AppViewportType::D2 => self.controller_2d.handle_event(&self.event_context, ev),
+            AppViewportType::D3 => self.controller_3d.handle_event(&self.event_context, ev),
             _ => Ok(Default::default()),
         }
     }
@@ -151,7 +143,7 @@ impl App {
         let curr_viewport = self.get_viewport_at(x, y);
         self.active_viewport = curr_viewport;
         self.event_context.last_mouse_pos = None;
-        self.send_event_to_active_viewport(&UserEvent::Mouse(event::MouseEvent::Enter))?;
+        self.send_event_to_active_viewport(&UserEvent::Pointer(event::PointerEvent::Enter))?;
         Ok(Default::default())
     }
 
@@ -166,7 +158,7 @@ impl App {
         // If the user left an active viewport, notify the old viewport
         if let Some(active) = active_viewport {
             if curr_viewport.is_none_or(|curr| curr != active) {
-                self.send_event_to_active_viewport(&UserEvent::Mouse(event::MouseEvent::Exit))?;
+                self.send_event_to_active_viewport(&UserEvent::Pointer(event::PointerEvent::Exit))?;
             }
         }
 
@@ -175,20 +167,23 @@ impl App {
             if active_viewport.is_none_or(|active| curr != active) {
                 self.active_viewport = Some(curr);
                 self.event_context.last_mouse_pos = None;
-                self.send_event_to_active_viewport(&UserEvent::Mouse(event::MouseEvent::Enter))?;
+                self.send_event_to_active_viewport(&UserEvent::Pointer(
+                    event::PointerEvent::Enter,
+                ))?;
             }
         }
 
         // Always emit the mouse move event to the most-recent viewport
-        self.event_context.last_mouse_pos = Some(event::PhysicalPosition { x, y });
-        self.send_event_to_active_viewport(&UserEvent::Mouse(event::MouseEvent::Move { x, y }))?;
+        let pos = event::PhysicalPosition { x, y };
+        self.event_context.last_mouse_pos = Some(pos);
+        self.send_event_to_active_viewport(&UserEvent::Pointer(event::PointerEvent::Move(pos)))?;
         Ok(Default::default())
     }
 
     pub fn handle_mouse_exit(
         &mut self,
     ) -> Result<event::EventHandleSuccess, event::EventHandleError> {
-        self.send_event_to_active_viewport(&UserEvent::Mouse(event::MouseEvent::Exit))?;
+        self.send_event_to_active_viewport(&UserEvent::Pointer(event::PointerEvent::Exit))?;
         self.active_viewport = None;
         Ok(Default::default())
     }
@@ -199,17 +194,61 @@ impl App {
         dy: f64,
     ) -> Result<event::EventHandleSuccess, event::EventHandleError> {
         let (dx, dy) = (-dx, -dy);
-        self.send_event_to_active_viewport(&UserEvent::Wheel { dx, dy })?;
+        self.send_event_to_active_viewport(&UserEvent::MouseWheel { dx, dy })?;
         Ok(Default::default())
     }
 
     pub fn handle_modifiers_changed(&mut self, modifiers: u32) {
         self.event_context.modifiers = EventModifierKeys::from_bits_truncate(modifiers);
     }
+
+    pub fn handle_mouse_down(
+        &mut self,
+        button: event::MouseButton,
+    ) -> Result<event::EventHandleSuccess, event::EventHandleError> {
+        self.send_event_to_active_viewport(&UserEvent::MouseInput(event::MouseInputEvent::Down(
+            button,
+        )))?;
+        Ok(Default::default())
+    }
+
+    pub fn handle_mouse_up(
+        &mut self,
+        button: event::MouseButton,
+    ) -> Result<event::EventHandleSuccess, event::EventHandleError> {
+        self.send_event_to_active_viewport(&UserEvent::MouseInput(event::MouseInputEvent::Up(
+            button,
+        )))?;
+        Ok(Default::default())
+    }
 }
 
-impl Default for App {
-    fn default() -> Self {
-        Self::new()
+/// An enum denoting which viewport is currently "active", e.g. being hovered
+/// over, in the app.
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
+enum AppViewportType {
+    D1,
+    D2,
+    D3,
+}
+
+#[derive(Debug, Clone)]
+enum AppError {
+    NoCanvasAttached,
+}
+
+impl std::error::Error for AppError {}
+impl core::fmt::Display for AppError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:?}", self)
     }
+}
+
+/// Instruments Rust's logger with `console.log` capabilities
+#[wasm_bindgen]
+pub fn install_logging() {
+    // Set up console logging / console error
+    #[cfg(feature = "console_error_panic_hook")]
+    console_error_panic_hook::set_once();
+    console_log::init_with_level(log::Level::Info).expect("Failed to initialize logger");
 }
