@@ -21,7 +21,7 @@ export default defineConfig({
         content,
       }),
     }),
-    // wasmPack(["./crates/pp_control2"]),
+    // wasmPack(["./crates/pp_control"]),
   ],
   build: {
     minify: false,

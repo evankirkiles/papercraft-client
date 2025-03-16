@@ -1,6 +1,6 @@
 [package]
-name = "pp_control2"
-description = "The 2nd controller for commands / events on the core state."
+name = "pp_control"
+description = "A controller that manages the model, view, and UI interaction."
 readme = "README.md"
 authors.workspace = true
 edition.workspace = true

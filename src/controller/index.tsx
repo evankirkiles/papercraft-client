@@ -1,4 +1,4 @@
-import { App, MouseButton } from "crates/pp_control2/pkg/pp_control2";
+import { App, MouseButton } from "crates/pp_control/pkg/pp_control";
 import { ModifierKeys } from "./modifiers";
 
 const DOCUMENT_EVENTS = [

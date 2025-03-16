@@ -1,5 +1,5 @@
 import PaperApp from "@/controller";
-import init, { InitOutput, install_logging } from "pp_control2";
+import init, { InitOutput, install_logging } from "pp_control";
 import {
   createContext,
   PropsWithChildren,
