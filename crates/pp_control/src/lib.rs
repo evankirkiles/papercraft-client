@@ -1,4 +1,3 @@
-use ascii::ToAsciiChar;
 use d2::Controller2D;
 use d3::Controller3D;
 use event::{EventContext, EventHandler, PressedState, UserEvent};

@@ -1,4 +1,3 @@
-use ascii::AsciiChar;
 use bitflags::bitflags;
 use compact_str::CompactString;
 use paste::paste;

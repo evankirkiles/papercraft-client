@@ -1,4 +1,3 @@
-use ascii::AsciiChar;
 
 use crate::{
     event::{self, EventHandler},
