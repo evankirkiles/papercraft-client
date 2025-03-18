@@ -33,11 +33,14 @@ impl EventHandler for Controller3D {
                     let mut state = ctx.state.borrow_mut();
                     state.viewport_3d.xray_mode = !state.viewport_3d.xray_mode;
                 }
-                keyboard::Key::Character(char) => match char {
-                    AsciiChar::a => {
-                        if (ctx.modifiers.alt_pressed()) {
+                keyboard::Key::Character(char) => match char.as_str() {
+                    "KeyA" => {
+                        if ctx.modifiers.alt_pressed() {
                             let mut state = ctx.state.borrow_mut();
-                            state.selection.deselect_all();
+                            state.deselect_all();
+                        } else {
+                            let mut state = ctx.state.borrow_mut();
+                            state.select_all();
                         }
                     }
                     _ => (),
@@ -48,7 +51,7 @@ impl EventHandler for Controller3D {
                 let mut state = ctx.state.borrow_mut();
                 if ctx.modifiers.shift_pressed() {
                     state.viewport_3d.camera.pan(*dx, *dy);
-                } else if ctx.modifiers.alt_pressed() {
+                } else if ctx.modifiers.super_pressed() {
                     state.viewport_3d.camera.dolly(*dy * 0.5);
                 } else {
                     state.viewport_3d.camera.orbit(*dx, *dy);

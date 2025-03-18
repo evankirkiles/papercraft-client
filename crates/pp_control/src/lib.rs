@@ -77,7 +77,7 @@ impl App {
         let mut state = self.state.borrow_mut();
         let mut renderer = self.renderer.borrow_mut();
         let renderer = renderer.as_mut().ok_or(AppError::NoCanvasAttached)?;
-        renderer.select_query_sync(state.deref_mut());
+        renderer.select_poll(state.deref_mut());
         renderer.sync(state.deref_mut());
         renderer.draw();
         Ok(())
@@ -217,13 +217,10 @@ impl App {
     /// and not have to do string transformations across the WASM boundary.
     pub fn handle_key(
         &mut self,
-        key: u8,
+        key: &str,
         pressed: PressedState,
     ) -> Result<event::EventHandleSuccess, event::EventHandleError> {
-        let Ok(char) = key.to_ascii_char() else {
-            return Ok(Default::default());
-        };
-        let key = keyboard::Key::Character(char);
+        let key = keyboard::Key::from_key_code(key);
         self.handle_event(&UserEvent::KeyboardInput(match pressed {
             PressedState::Pressed => event::KeyboardInputEvent::Down(key),
             PressedState::Unpressed => event::KeyboardInputEvent::Up(key),

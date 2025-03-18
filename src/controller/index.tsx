@@ -1,18 +1,12 @@
-import {
-  App,
-  EventHandleSuccess,
-  MouseButton,
-  NamedKey,
-  PressedState,
-} from "crates/pp_control/pkg/pp_control";
+import { App, EventHandleSuccess, NamedKey, PressedState } from "@paper/core";
 import { ModifierKeys } from "./modifiers";
 
+// TODO: Clean this up
 const DOCUMENT_EVENTS = [
   "keydown",
   "keyup",
 ] as const satisfies (keyof HTMLElementEventMap)[];
 
-// TODO: Clean this up
 const CANVAS_EVENTS = [
   "wheel",
   "pointermove",
@@ -40,12 +34,13 @@ export default class PaperApp
    * to the window for controlling the Rust app.
    */
   async attach(canvas: HTMLCanvasElement) {
+    if (this.abortController) return;
+    // Calling signal.abort() allows us to remove all listeners
+    this.abortController = new AbortController();
+    const { signal } = this.abortController;
+
     await super.attach(canvas);
     this._canvas = canvas;
-
-    // Calling signal.abort() allows us to remove all listeners
-    const controller = new AbortController();
-    const { signal } = controller;
 
     // Add event listeners to the canvas
     CANVAS_EVENTS.forEach((type) => {
@@ -68,7 +63,10 @@ export default class PaperApp
       this.resize(width, height, dpi);
     });
     resizer.observe(canvas, { box: "content-box" });
-    signal.addEventListener("abort", () => resizer.disconnect());
+    signal.addEventListener("abort", () => {
+      console.log("aborted!");
+      resizer.disconnect();
+    });
 
     // Start the animation loop
     const onAnimationFrame: FrameRequestCallback = (dt) => {
@@ -77,17 +75,15 @@ export default class PaperApp
       requestAnimationFrame(onAnimationFrame);
     };
     requestAnimationFrame(onAnimationFrame);
-
-    this.abortController = controller;
   }
 
   /**
    * Removes all event listeners, stops the render loop, and deallocates all the
    * GPU resources of the app, effectively "removing" the app from the canvas.
    */
-  public unattach() {
+  unattach() {
     if (!this.abortController) return;
-    this.abortController.abort();
+    this.abortController?.abort();
     super.unattach();
   }
 
@@ -102,7 +98,7 @@ export default class PaperApp
   }
 
   onkeydown(e: KeyboardEvent) {
-    if (this.dispatch_key_event(e.key, PressedState.Pressed)) {
+    if (this.dispatch_key_event(e.code, PressedState.Pressed)) {
       e.stopPropagation();
       e.preventDefault();
     }
@@ -113,8 +109,7 @@ export default class PaperApp
   }
 
   onkeyup(e: KeyboardEvent) {
-    console.log(e);
-    if (this.dispatch_key_event(e.key, PressedState.Unpressed)) {
+    if (this.dispatch_key_event(e.code, PressedState.Unpressed)) {
       e.stopPropagation();
       e.preventDefault();
     }
@@ -132,27 +127,7 @@ export default class PaperApp
     this.handle_mouse_button(e.button, PressedState.Unpressed);
   }
 
-  /** AN internal wrapper for sending key evnets to the proper Rust callback. */
   private dispatch_key_event(key: string, pressed: PressedState) {
-    if (key.length > 1) {
-      const val = NAMED_KEY_MAP[key];
-      if (val) return this.handle_named_key(val, pressed);
-    } else {
-      const val = key.charCodeAt(0);
-      return this.handle_key(val, pressed);
-    }
-    return EventHandleSuccess.ContinuePropagation;
+    return this.handle_key(key, pressed);
   }
 }
-
-const NAMED_KEY_MAP: Record<string, NamedKey> = {
-  Alt: NamedKey.Alt,
-  CapsLock: NamedKey.CapsLock,
-  Control: NamedKey.Control,
-  Enter: NamedKey.Enter,
-  Meta: NamedKey.Meta,
-  Redo: NamedKey.Redo,
-  Tab: NamedKey.Tab,
-  Undo: NamedKey.Undo,
-  Escape: NamedKey.Escape,
-};

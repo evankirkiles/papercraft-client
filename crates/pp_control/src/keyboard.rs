@@ -71,16 +71,70 @@ pub enum NamedKey {
 
 /// A key pressed by a user. Corresponds to `event.key`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum Key {
+pub enum Key<Str = CompactString> {
     Named(NamedKey),
     /// An ASCII character typed by the user. While it'd be nice to support
     /// locales, the performance overhead of passing strings to WASM is not nice.
-    Character(AsciiChar),
+    Character(Str),
 }
 
 impl From<NamedKey> for Key {
     #[inline]
     fn from(action: NamedKey) -> Self {
         Key::Named(action)
+    }
+}
+
+impl<Str> PartialEq<NamedKey> for Key<Str> {
+    #[inline]
+    fn eq(&self, rhs: &NamedKey) -> bool {
+        match self {
+            Key::Named(ref a) => a == rhs,
+            _ => false,
+        }
+    }
+}
+
+impl<Str: PartialEq<str>> PartialEq<str> for Key<Str> {
+    #[inline]
+    fn eq(&self, rhs: &str) -> bool {
+        match self {
+            Key::Character(ref s) => s == rhs,
+            _ => false,
+        }
+    }
+}
+
+impl<Str: PartialEq<str>> PartialEq<&str> for Key<Str> {
+    #[inline]
+    fn eq(&self, rhs: &&str) -> bool {
+        self == *rhs
+    }
+}
+impl Key<CompactString> {
+    /// Convert `Key::Character(SmolStr)` to `Key::Character(&str)` so you can more easily match on
+    /// `Key`. All other variants remain unchanged.
+    pub fn as_ref(&self) -> Key<&str> {
+        match self {
+            Key::Named(a) => Key::Named(*a),
+            Key::Character(ch) => Key::Character(ch.as_str()),
+        }
+    }
+}
+
+impl Key {
+    pub fn from_key_code(kav: &str) -> Self {
+        Key::Named(match kav {
+            "Alt" => NamedKey::Alt,
+            "CapsLock" => NamedKey::CapsLock,
+            "Control" => NamedKey::Control,
+            "Enter" => NamedKey::Enter,
+            "Meta" => NamedKey::Meta,
+            "Redo" => NamedKey::Redo,
+            "Tab" => NamedKey::Tab,
+            "Undo" => NamedKey::Undo,
+            "Escape" => NamedKey::Escape,
+            string => return Key::Character(CompactString::new(string)),
+        })
     }
 }

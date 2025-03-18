@@ -3,7 +3,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tsconfigPaths from "vite-tsconfig-paths";
 import dts from "vite-plugin-dts";
-import wasmPack from "vite-plugin-wasm-pack";
+import wasm from "vite-plugin-wasm";
+import topLevelAwait from "vite-plugin-top-level-await";
 
 export default defineConfig({
   resolve: {
@@ -12,7 +13,9 @@ export default defineConfig({
     },
   },
   plugins: [
+    wasm(),
     react(),
+    topLevelAwait(),
     tsconfigPaths(),
     dts({
       include: ["src/**/*.{ts,tsx}"],
@@ -21,8 +24,8 @@ export default defineConfig({
         content,
       }),
     }),
-    // wasmPack(["./crates/pp_control"]),
   ],
+  assetsInclude: ["**/*.wasm"],
   build: {
     minify: false,
     lib: {
@@ -36,6 +39,9 @@ export default defineConfig({
       output: {
         assetFileNames: "assets/[name][extname]",
         entryFileNames: "[name].js",
+      },
+      input: {
+        "index.html": "index.html",
       },
     },
   },

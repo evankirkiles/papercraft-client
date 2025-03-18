@@ -1,5 +1,3 @@
-use std::{cell::RefCell, rc::Rc};
-
 use crate::event::{self, EventHandler};
 
 #[derive(Debug, Default, Copy, Clone)]
@@ -23,7 +21,7 @@ impl EventHandler for Controller2D {
             // },
             event::UserEvent::MouseWheel { dx, dy } => {
                 let mut state = ctx.state.borrow_mut();
-                if ctx.modifiers.alt_pressed() {
+                if ctx.modifiers.super_pressed() {
                     state.viewport_2d.camera.dolly(*dy * 0.5);
                 } else {
                     state.viewport_2d.camera.pan(*dx, *dy);

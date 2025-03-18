@@ -34,22 +34,20 @@ impl EventHandler for SelectTool {
                 };
                 let select_radius = SELECT_RADIUS * ctx.surface_dpi;
                 let cursor_pos = ctx.last_mouse_pos.unwrap();
-                renderer
-                    .select_query_submit(select::SelectionQuery {
-                        action: Some(if ctx.modifiers.shift_pressed() {
-                            select::SelectImmediateAction::NearestToggle
-                        } else {
-                            select::SelectImmediateAction::Nearest
-                        }),
-                        mask: select::SelectionMask::POINTS,
-                        rect: select::SelectionRect {
-                            x: (cursor_pos.x * ctx.surface_dpi - select_radius).max(0.0) as u32,
-                            y: (cursor_pos.y * ctx.surface_dpi - select_radius).max(0.0) as u32,
-                            width: select_radius as u32 * 2,
-                            height: select_radius as u32 * 2,
-                        },
-                    })
-                    .unwrap();
+                renderer.select_query(select::SelectionQuery {
+                    action: Some(if ctx.modifiers.shift_pressed() {
+                        select::SelectImmediateAction::NearestToggle
+                    } else {
+                        select::SelectImmediateAction::Nearest
+                    }),
+                    mask: select::SelectionMask::POINTS,
+                    rect: select::SelectionRect {
+                        x: (cursor_pos.x * ctx.surface_dpi - select_radius).max(0.0) as u32,
+                        y: (cursor_pos.y * ctx.surface_dpi - select_radius).max(0.0) as u32,
+                        width: select_radius as u32 * 2,
+                        height: select_radius as u32 * 2,
+                    },
+                });
                 Ok(EventHandleSuccess::StopPropagation)
             }
             _ => Ok(Default::default()),

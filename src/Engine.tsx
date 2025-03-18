@@ -20,7 +20,7 @@ export function Engine() {
           <div className={styles.overlay}>
             <MainControls />
             <Stats />
-            <Toolbar />
+            {/* <Toolbar /> */}
             <SidePanel />
           </div>
         </main>

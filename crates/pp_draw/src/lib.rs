@@ -172,18 +172,18 @@ impl<'window> Renderer<'window> {
     }
 
     /// Queries the selection manager to prepare the supplied rect.
-    pub fn select_query_submit(
+    pub fn select_query(
         &mut self,
         query: select::SelectionQuery,
     ) -> Result<(), select::SelectionQueryError> {
-        self.select.query_submit(&self.ctx, &self.draw_cache, query)
+        self.select.query(&self.ctx, &self.draw_cache, query)
     }
 
     /// Polls the select engine to see if there are any fulfilled selection queries.
     /// If there are, this will register their completion and perform any
     /// selection actions they were queried with.
-    pub fn select_query_sync(&mut self, state: &mut pp_core::State) {
-        self.select.query_sync(&self.ctx, state);
+    pub fn select_poll(&mut self, state: &mut pp_core::State) {
+        self.select.poll(&self.ctx, state);
     }
 
     /// Updates the GPUContext for new dimensions
