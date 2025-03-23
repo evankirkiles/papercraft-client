@@ -1,9 +1,7 @@
 use std::collections::HashSet;
 
-use crate::{
-    id::{self, EdgeId, FaceId, Id, MeshId, VertexId},
-    State,
-};
+use crate::id::{self, Id};
+use crate::State;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SelectionActionType {
@@ -61,41 +59,46 @@ impl Default for SelectionState {
 
 impl State {
     /// Select all elements across all edeges
-    pub fn select_all(&mut self) {
-        self.meshes.values().for_each(|mesh| {
-            (mesh.verts.indices().for_each(|id| {
-                self.selection.verts.insert((mesh.id, VertexId::from_usize(id)));
-            }));
-            (mesh.edges.indices().for_each(|id| {
-                self.selection.edges.insert((mesh.id, EdgeId::from_usize(id)));
-            }));
-            (mesh.faces.indices().for_each(|id| {
-                self.selection.faces.insert((mesh.id, FaceId::from_usize(id)));
-            }));
-        });
-        self.selection.is_dirty = true
-    }
-
-    /// Deselect all elements across all meshes
-    pub fn deselect_all(&mut self) {
+    pub fn select_all(&mut self, action: SelectionActionType) {
+        match action {
+            SelectionActionType::Deselect => {
+                self.selection.verts.clear();
+                self.selection.faces.clear();
+                self.selection.edges.clear();
+            }
+            SelectionActionType::Select => {
+                self.meshes.values().for_each(|mesh| {
+                    (mesh.verts.indices().for_each(|id| {
+                        self.selection.verts.insert((mesh.id, id::VertexId::from_usize(id)));
+                    }));
+                    (mesh.edges.indices().for_each(|id| {
+                        self.selection.edges.insert((mesh.id, id::EdgeId::from_usize(id)));
+                    }));
+                    (mesh.faces.indices().for_each(|id| {
+                        self.selection.faces.insert((mesh.id, id::FaceId::from_usize(id)));
+                    }));
+                });
+            }
+            SelectionActionType::Invert => todo!(),
+        };
         self.selection.active_element = None;
-        self.selection.verts.clear();
-        self.selection.faces.clear();
-        self.selection.edges.clear();
         self.selection.is_dirty = true
     }
 
     /// Sets the selection state of multiple vertices at once
-    pub fn select_verts(&mut self, verts: &[(MeshId, id::VertexId)], action: SelectionActionType) {
+    pub fn select_verts(
+        &mut self,
+        verts: &[(id::MeshId, id::VertexId)],
+        action: SelectionActionType,
+    ) {
         verts.iter().for_each(|id| self.select_vert(id, action, false));
-        self.selection.is_dirty = true;
     }
 
     /// Sets the selection state of a single vertex, selecting any connected edges
     /// and faces who now have all of their elements selected.
     pub fn select_vert(
         &mut self,
-        id: &(MeshId, VertexId),
+        id: &(id::MeshId, id::VertexId),
         action: SelectionActionType,
         activate: bool,
     ) {
@@ -128,13 +131,18 @@ impl State {
                     || (v2 == v_id && self.selection.verts.contains(&(mesh.id, v1)))
             })
             .collect();
-        e_ids.iter().for_each(|e_id| self.select_edge(&(m_id, *e_id), selected.into()));
+        e_ids.iter().for_each(|e_id| self.select_edge(&(m_id, *e_id), selected.into(), false));
         self.selection.is_dirty = true
     }
 
     /// Sets the selection state of a single edge, selecting any connected faces
     /// who now have all edges selected.
-    pub fn select_edge(&mut self, id: &(MeshId, EdgeId), action: SelectionActionType) {
+    pub fn select_edge(
+        &mut self,
+        id: &(id::MeshId, id::EdgeId),
+        action: SelectionActionType,
+        activate: bool,
+    ) {
         let selected = match action {
             SelectionActionType::Deselect => false,
             SelectionActionType::Select => true,
@@ -144,6 +152,9 @@ impl State {
             self.selection.edges.insert(*id);
         } else {
             self.selection.edges.remove(id);
+        }
+        if activate {
+            self.selection.active_element = selected.then_some(SelectionActiveElement::Edge(*id))
         }
         let (m_id, e_id) = *id;
         let mesh = &self.meshes[&m_id];
@@ -165,6 +176,29 @@ impl State {
                 self.selection.faces.remove(&(mesh.id, f_id));
             }
         });
+        self.selection.is_dirty = true
+    }
+
+    /// Sets the selection state of a single face.
+    pub fn select_face(
+        &mut self,
+        id: &(id::MeshId, id::FaceId),
+        action: SelectionActionType,
+        activate: bool,
+    ) {
+        let selected = match action {
+            SelectionActionType::Deselect => false,
+            SelectionActionType::Select => true,
+            SelectionActionType::Invert => !self.selection.faces.contains(id),
+        };
+        if selected {
+            self.selection.faces.insert(*id);
+        } else {
+            self.selection.faces.remove(id);
+        }
+        if activate {
+            self.selection.active_element = selected.then_some(SelectionActiveElement::Face(*id))
+        }
         self.selection.is_dirty = true
     }
 }

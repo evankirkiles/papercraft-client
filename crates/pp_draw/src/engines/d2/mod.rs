@@ -1,7 +1,5 @@
 use crate::gpu;
 
-use super::program::Drawable;
-
 mod overlay_grid;
 
 #[derive(Debug)]

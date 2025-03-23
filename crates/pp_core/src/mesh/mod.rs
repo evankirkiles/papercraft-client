@@ -1,12 +1,11 @@
 use bitflags::bitflags;
-use iterators::{DiskCycleWalker, LoopCycleWalker, RadialCycleWalker};
+use stable_vec::StableVec;
 use std::ops;
+
+use crate::id::{self, EdgeId, FaceId, Id, LoopId, MeshId, VertexId};
 
 mod iterators;
 mod primitives;
-
-use crate::id::{self, EdgeId, FaceId, Id, LoopId, MeshId, VertexId};
-use stable_vec::StableVec;
 
 bitflags! {
     #[derive(Debug, Clone, Copy)]
@@ -67,6 +66,13 @@ pub struct Vertex {
     pub index: Option<usize>,
 }
 
+/// A disk link for quick iteration of edges around a vertex
+#[derive(Debug, Clone, Copy)]
+pub struct DiskLink {
+    pub prev: EdgeId,
+    pub next: EdgeId,
+}
+
 /// An edge, formed by two vertices.
 #[derive(Debug, Clone, Copy)]
 pub struct Edge {
@@ -79,30 +85,9 @@ pub struct Edge {
     pub l: Option<LoopId>,
     /// The "index" of this edge in any final IBO
     pub index: Option<usize>,
-}
 
-impl Edge {
-    /// Creates a new Edge with DiskLinks referencing just itself
-    pub fn new(e: EdgeId, v1: VertexId, v2: VertexId) -> Self {
-        Self { v: [v1, v2], dl: [DiskLink::new(e), DiskLink::new(e)], l: None, index: None }
-    }
-
-    /// Ensures that this edge contains vertex `v`
-    pub fn has_vert(&self, v: VertexId) -> bool {
-        self.v[0] == v || self.v[1] == v
-    }
-
-    /// Gets an immutable reference to the DiskLink for a specific vertex
-    pub fn disklink(&self, v: VertexId) -> &DiskLink {
-        assert!(self.has_vert(v));
-        &self.dl[if self.v[0] == v { 0 } else { 1 }]
-    }
-
-    /// Gets a mutable reference to the DiskLink for a specific vertex
-    pub fn disklink_mut(&mut self, v: VertexId) -> &mut DiskLink {
-        assert!(self.has_vert(v));
-        &mut self.dl[if self.v[0] == v { 0 } else { 1 }]
-    }
+    /// Is this edge cut or not?
+    pub is_cut: bool,
 }
 
 /// A face, formed by three vertices and three edges.
@@ -119,27 +104,6 @@ pub struct Face {
     pub l_first: LoopId,
     /// The "index" of this face in any final IBO
     pub index: Option<usize>,
-}
-
-impl Face {
-    /// Creates a new Face with a temporary Loop Id
-    fn new(len: usize) -> Self {
-        Self { no: [0.0, 0.0, 0.0], mat_nr: 0, len, l_first: LoopId::temp(), index: None }
-    }
-}
-
-/// A disk link for quick iteration of edges around a vertex
-#[derive(Debug, Clone, Copy)]
-pub struct DiskLink {
-    pub prev: EdgeId,
-    pub next: EdgeId,
-}
-
-impl DiskLink {
-    /// Creates a new DiskLink referencing just the single edge
-    pub fn new(e: EdgeId) -> Self {
-        Self { prev: e, next: e }
-    }
 }
 
 /// A loop, best thought of as a "corner" of a face. Corresponds to exactly
@@ -160,6 +124,50 @@ pub struct Loop {
 
     /// The "index" of this loop / corner in any final VBO
     pub index: Option<usize>,
+}
+
+impl DiskLink {
+    /// Creates a new DiskLink referencing just the single edge
+    pub fn new(e: EdgeId) -> Self {
+        Self { prev: e, next: e }
+    }
+}
+
+impl Edge {
+    /// Creates a new Edge with DiskLinks referencing just itself
+    pub fn new(e: EdgeId, v1: VertexId, v2: VertexId) -> Self {
+        Self {
+            v: [v1, v2],
+            dl: [DiskLink::new(e), DiskLink::new(e)],
+            l: None,
+            index: None,
+            is_cut: false,
+        }
+    }
+
+    /// Ensures that this edge contains vertex `v`
+    pub fn has_vert(&self, v: VertexId) -> bool {
+        self.v[0] == v || self.v[1] == v
+    }
+
+    /// Gets an immutable reference to the DiskLink for a specific vertex
+    pub fn disklink(&self, v: VertexId) -> &DiskLink {
+        assert!(self.has_vert(v));
+        &self.dl[if self.v[0] == v { 0 } else { 1 }]
+    }
+
+    /// Gets a mutable reference to the DiskLink for a specific vertex
+    pub fn disklink_mut(&mut self, v: VertexId) -> &mut DiskLink {
+        assert!(self.has_vert(v));
+        &mut self.dl[if self.v[0] == v { 0 } else { 1 }]
+    }
+}
+
+impl Face {
+    /// Creates a new Face with a temporary Loop Id
+    fn new(len: usize) -> Self {
+        Self { no: [0.0, 0.0, 0.0], mat_nr: 0, len, l_first: LoopId::temp(), index: None }
+    }
 }
 
 impl Loop {
@@ -421,8 +429,8 @@ impl Mesh {
     }
 
     /// Walks the edges around a vertex (faces)
-    pub fn disk_edge_walk(&self, e: EdgeId, v: VertexId) -> DiskCycleWalker {
-        DiskCycleWalker::new(self, e, v)
+    pub fn disk_edge_walk(&self, e: EdgeId, v: VertexId) -> iterators::DiskCycleWalker {
+        iterators::DiskCycleWalker::new(self, e, v)
     }
 
     // --- Section: "Radial" Cycle ---
@@ -448,15 +456,15 @@ impl Mesh {
     }
 
     /// Walks the loops including an edge (faces)
-    pub fn radial_loop_walk(&self, e: EdgeId) -> Option<RadialCycleWalker> {
-        Some(RadialCycleWalker::new(self, self[e].l?))
+    pub fn radial_loop_walk(&self, e: EdgeId) -> Option<iterators::RadialCycleWalker> {
+        Some(iterators::RadialCycleWalker::new(self, self[e].l?))
     }
 
     // --- Section: "Loop" Cycle ---
 
     /// Walks the loops in a face (vertices)
-    pub fn face_loop_walk(&self, f: FaceId) -> LoopCycleWalker {
-        LoopCycleWalker::new(self, self[f].l_first)
+    pub fn face_loop_walk(&self, f: FaceId) -> iterators::LoopCycleWalker {
+        iterators::LoopCycleWalker::new(self, self[f].l_first)
     }
 }
 

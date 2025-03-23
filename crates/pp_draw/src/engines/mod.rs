@@ -1,4 +1,4 @@
-pub mod ink2;
-pub mod ink3;
-pub mod program;
-pub mod select;
+pub(crate) mod d2;
+pub(crate) mod d3;
+pub(crate) mod program;
+pub(crate) mod select;

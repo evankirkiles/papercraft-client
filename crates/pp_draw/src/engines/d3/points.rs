@@ -1,26 +1,26 @@
 use crate::cache;
-use crate::engines::program::MeshDrawable;
+use crate::engines::program;
 use crate::gpu;
 
 #[derive(Debug)]
 pub struct Program {
-    surface_pipeline: wgpu::RenderPipeline,
-    surface_pipeline_xray: wgpu::RenderPipeline,
+    pipeline: wgpu::RenderPipeline,
+    pipeline_xray: wgpu::RenderPipeline,
 }
 
-impl MeshDrawable for Program {
+impl program::MeshDrawable for Program {
     fn new(ctx: &gpu::Context) -> Self {
-        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/tris.wgsl"));
+        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/points.wgsl"));
         let layout = Some(&ctx.shared_layouts.pipelines.pipeline_3d);
         let vertex = wgpu::VertexState {
             module: &shader,
             entry_point: Some("vs_main"),
-            buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_SURFACE,
+            buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_EDIT_POINTS_INSTANCED,
             compilation_options: wgpu::PipelineCompilationOptions::default(),
         };
         let targets = [Some(wgpu::ColorTargetState {
             format: ctx.config.format,
-            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+            blend: Some(wgpu::BlendState::REPLACE),
             write_mask: wgpu::ColorWrites::ALL,
         })];
         let fragment = Some(wgpu::FragmentState {
@@ -30,7 +30,7 @@ impl MeshDrawable for Program {
             compilation_options: wgpu::PipelineCompilationOptions::default(),
         });
         let primitive = wgpu::PrimitiveState {
-            topology: wgpu::PrimitiveTopology::TriangleList,
+            topology: wgpu::PrimitiveTopology::TriangleStrip,
             strip_index_format: None,
             front_face: wgpu::FrontFace::Ccw,
             cull_mode: None,
@@ -46,8 +46,8 @@ impl MeshDrawable for Program {
         let multiview = None;
         let cache = None;
 
-        let surface_pipeline = ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("ink3.surface"),
+        let pipeline = ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("ink3.points"),
             vertex: vertex.clone(),
             fragment: fragment.clone(),
             layout,
@@ -58,38 +58,31 @@ impl MeshDrawable for Program {
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: gpu::Texture::DEPTH_FORMAT,
                 depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
+                depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: wgpu::StencilState::default(),
-                // Apply a tiny depth bias to reduce flickering of lines at same depth
-                bias: wgpu::DepthBiasState { constant: 1, slope_scale: 0.05, ..Default::default() },
+                bias: wgpu::DepthBiasState::default(),
             }),
         });
 
-        let surface_pipeline_xray =
-            ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("ink3.surface"),
-                vertex: vertex.clone(),
-                fragment: fragment.clone(),
-                layout,
-                primitive,
-                multisample,
-                multiview,
-                cache,
-                depth_stencil: Some(wgpu::DepthStencilState {
-                    format: gpu::Texture::DEPTH_FORMAT,
-                    depth_write_enabled: true,
-                    depth_compare: wgpu::CompareFunction::Greater,
-                    stencil: wgpu::StencilState::default(),
-                    // Apply a tiny depth bias to reduce flickering of lines at same depth
-                    bias: wgpu::DepthBiasState {
-                        constant: 1,
-                        slope_scale: 0.05,
-                        ..Default::default()
-                    },
-                }),
-            });
+        let pipeline_xray = ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("ink3.points.xray"),
+            vertex,
+            fragment,
+            layout,
+            primitive,
+            multisample,
+            multiview,
+            cache,
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: gpu::Texture::DEPTH_FORMAT,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::GreaterEqual,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
+        });
 
-        Self { surface_pipeline, surface_pipeline_xray }
+        Self { pipeline, pipeline_xray }
     }
 
     /// Writes geometry draw commands for all the materials in a mesh
@@ -99,8 +92,8 @@ impl MeshDrawable for Program {
         render_pass: &mut wgpu::RenderPass,
         mesh: &cache::MeshGPU,
     ) {
-        render_pass.set_pipeline(&self.surface_pipeline);
-        mesh.draw_surface(render_pass);
+        render_pass.set_pipeline(&self.pipeline);
+        mesh.draw_edit_points_instanced(ctx, render_pass);
     }
 }
 
@@ -111,7 +104,7 @@ impl Program {
         render_pass: &mut wgpu::RenderPass,
         mesh: &cache::MeshGPU,
     ) {
-        render_pass.set_pipeline(&self.surface_pipeline_xray);
-        mesh.draw_surface(render_pass);
+        render_pass.set_pipeline(&self.pipeline_xray);
+        mesh.draw_edit_points_instanced(ctx, render_pass);
     }
 }

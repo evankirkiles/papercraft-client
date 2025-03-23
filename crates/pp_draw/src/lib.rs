@@ -1,27 +1,28 @@
+use cache::DrawCache;
 use std::iter;
 
-use cache::{DrawCache, ViewportGPU};
-
 mod cache;
-mod engines;
 mod gpu;
 
+pub mod engines;
 pub mod select;
 
 #[derive(Debug)]
 pub struct Renderer<'window> {
+    /// Common context shared for all GPU operations (device, surface)
     ctx: gpu::Context<'window>,
-    draw_cache: cache::DrawCache,
-
     // Textures used as attachments in pipelines
     textures: RendererAttachmentTextures,
 
-    // Rendering engines
-    engine_ink2: engines::ink2::InkEngine2D,
-    engine_ink3: engines::ink3::InkEngine3D,
-
     /// Manages querying the GPU for pixels containing element indices to select
-    pub select: select::SelectManager,
+    select: select::SelectManager,
+
+    /// A storage manager for all updatable GPU resources (mesh, materials)
+    draw_cache: cache::DrawCache,
+
+    // Rendering engines for each type of scene
+    engine_ink2: engines::d2::InkEngine2D,
+    engine_ink3: engines::d3::InkEngine3D,
 }
 
 impl<'window> Renderer<'window> {
@@ -90,8 +91,8 @@ impl<'window> Renderer<'window> {
         let ctx = gpu::Context::new(device, config, surface, queue);
 
         Self {
-            engine_ink2: engines::ink2::InkEngine2D::new(&ctx),
-            engine_ink3: engines::ink3::InkEngine3D::new(&ctx),
+            engine_ink2: engines::d2::InkEngine2D::new(&ctx),
+            engine_ink3: engines::d3::InkEngine3D::new(&ctx),
             textures: RendererAttachmentTextures::create(&ctx),
             draw_cache: DrawCache::new(&ctx),
             select: select::SelectManager::new(&ctx),
@@ -144,7 +145,7 @@ impl<'window> Renderer<'window> {
             });
 
             // Render 3D if viewport has area
-            if self.draw_cache.viewport_3d.bind(&mut render_pass).is_ok() {
+            if self.draw_cache.viewport_3d.bind(&mut render_pass) {
                 // draw from each engine in the presentation render pass.
                 self.draw_cache.meshes.values().for_each(|mesh| {
                     self.engine_ink3.draw_mesh(
@@ -158,7 +159,7 @@ impl<'window> Renderer<'window> {
             }
 
             // Render 2D if viewport has area
-            if self.draw_cache.viewport_2d.bind(&mut render_pass).is_ok() {
+            if self.draw_cache.viewport_2d.bind(&mut render_pass) {
                 // draw from each engine in the presentation render pass.
                 // self.draw_cache.meshes.values().for_each(|mesh| {
                 //     self.engine_ink3.draw_mesh(&mut render_pass, mesh);

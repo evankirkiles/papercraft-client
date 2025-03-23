@@ -1,17 +1,17 @@
-use crate::{engines::program::Drawable, gpu};
+use crate::gpu;
 
 #[derive(Debug)]
 pub struct Program {
     pipeline: wgpu::RenderPipeline,
 }
 
-impl Drawable for Program {
-    fn new(ctx: &gpu::Context) -> Self {
+impl Program {
+    pub fn new(ctx: &gpu::Context) -> Self {
         let shader =
             ctx.device.create_shader_module(wgpu::include_wgsl!("shaders/overlay_grid.wgsl"));
         let render_pipeline = ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("ink3.overlay_grid"),
-            layout: Some(&ctx.shared_layouts.pipelines.pipeline_3d),
+            layout: Some(&ctx.shared_layouts.pipelines.pipeline_2d),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
@@ -65,7 +65,7 @@ impl Drawable for Program {
     }
 
     /// Draws the grid (only done once)
-    fn draw(&self, ctx: &gpu::Context, render_pass: &mut wgpu::RenderPass) {
+    pub fn draw(&self, ctx: &gpu::Context, render_pass: &mut wgpu::RenderPass) {
         render_pass.set_pipeline(&self.pipeline);
         render_pass.set_vertex_buffer(0, ctx.buf_rect.slice(..));
         render_pass.draw(0..4, 0..1);

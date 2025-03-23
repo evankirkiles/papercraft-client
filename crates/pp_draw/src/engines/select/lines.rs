@@ -1,6 +1,7 @@
+use crate::cache;
 use crate::engines::program::MeshDrawable;
 use crate::gpu;
-use crate::{cache, select};
+use crate::select;
 
 #[derive(Debug)]
 pub struct Program {
@@ -23,7 +24,7 @@ impl MeshDrawable for Program {
                 module: &shader,
                 entry_point: Some("fs_select"),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: select::TEX_FORMAT,
+                    format: select::SELECT_TEX_FORMAT,
                     blend: None,
                     write_mask: wgpu::ColorWrites::ALL,
                 })],

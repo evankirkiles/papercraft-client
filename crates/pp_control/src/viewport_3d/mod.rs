@@ -1,8 +1,7 @@
+use pp_core::id::Id;
 
-use crate::{
-    event::{self, EventHandler},
-    keyboard,
-};
+use crate::event;
+use crate::keyboard;
 
 mod tool_select;
 
@@ -13,7 +12,7 @@ pub struct Controller3D {
     tool: Controller3DTool,
 }
 
-impl EventHandler for Controller3D {
+impl event::EventHandler for Controller3D {
     fn handle_event(
         &mut self,
         ctx: &event::EventContext,
@@ -24,8 +23,8 @@ impl EventHandler for Controller3D {
             return Ok(event::EventHandleSuccess::StopPropagation);
         }
 
-        // If no tool took the event, pass it to the camera.
-        #[allow(clippy::single_match)]
+        // If no tool took the event, pass it to the viewport handler itself,
+        // as it can influence the camera still.
         match ev {
             event::UserEvent::KeyboardInput(event::KeyboardInputEvent::Down(key)) => match key {
                 keyboard::Key::Named(keyboard::NamedKey::Tab) => {
@@ -34,13 +33,23 @@ impl EventHandler for Controller3D {
                 }
                 keyboard::Key::Character(char) => match char.as_str() {
                     "KeyA" => {
-                        if ctx.modifiers.alt_pressed() {
-                            let mut state = ctx.state.borrow_mut();
-                            state.deselect_all();
-                        } else {
-                            let mut state = ctx.state.borrow_mut();
-                            state.select_all();
-                        }
+                        let mut state = ctx.state.borrow_mut();
+                        state.select_all(match ctx.modifiers.alt_pressed() {
+                            true => pp_core::select::SelectionActionType::Deselect,
+                            false => pp_core::select::SelectionActionType::Select,
+                        });
+                    }
+                    "KeyS" => {
+                        let mut state = ctx.state.borrow_mut();
+                        let edges: Vec<_> = state.selection.edges.iter().copied().collect();
+                        state.cut_edges(
+                            &edges[..],
+                            match ctx.modifiers.alt_pressed() {
+                                true => pp_core::cut::CutActionType::Uncut,
+                                false => pp_core::cut::CutActionType::Cut,
+                            },
+                            pp_core::cut::CutMaskType::SelectionBorder,
+                        );
                     }
                     _ => (),
                 },
@@ -67,13 +76,7 @@ pub enum Controller3DTool {
     Select(tool_select::SelectTool),
 }
 
-impl Default for Controller3DTool {
-    fn default() -> Self {
-        Self::Select(tool_select::SelectTool::default())
-    }
-}
-
-impl EventHandler for Controller3DTool {
+impl event::EventHandler for Controller3DTool {
     fn handle_event(
         &mut self,
         ctx: &event::EventContext,
@@ -82,5 +85,11 @@ impl EventHandler for Controller3DTool {
         match *self {
             Controller3DTool::Select(ref mut tool) => tool.handle_event(ctx, ev),
         }
+    }
+}
+
+impl Default for Controller3DTool {
+    fn default() -> Self {
+        Self::Select(tool_select::SelectTool::default())
     }
 }

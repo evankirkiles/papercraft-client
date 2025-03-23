@@ -1,13 +1,13 @@
-use d2::Controller2D;
-use d3::Controller3D;
 use event::{EventContext, EventHandler, PressedState, UserEvent};
 use keyboard::ModifierKeys;
+use viewport_2d::Controller2D;
+use viewport_3d::Controller3D;
 use wasm_bindgen::prelude::*;
 
-mod d2;
-mod d3;
 mod event;
 mod keyboard;
+mod viewport_2d;
+mod viewport_3d;
 
 use std::{cell::RefCell, ops::DerefMut, rc::Rc};
 
@@ -18,10 +18,13 @@ pub struct App {
     state: Rc<RefCell<pp_core::State>>,
     /// The GPU resources of the App. Only created once a canvas is `attach`ed.
     renderer: Rc<RefCell<Option<pp_draw::Renderer<'static>>>>,
+
+    /// A common event context used across all event handlers
+    event_context: EventContext,
+
     /// Which viewport has "focus" and should take events
     active_viewport: Option<AppViewportType>,
-    /// A shareable event context used across all event handlers
-    event_context: EventContext,
+
     // Controllers for each viewport
     controller_3d: Controller3D,
     controller_2d: Controller2D,
@@ -260,7 +263,8 @@ impl core::fmt::Display for AppError {
     }
 }
 
-/// Instruments Rust's logger with `console.log` capabilities
+/// Instruments Rust's logger with `console.log` capabilities on the web.
+/// Call this once and only once at the start of the application.
 #[wasm_bindgen]
 pub fn install_logging() {
     // Set up console logging / console error

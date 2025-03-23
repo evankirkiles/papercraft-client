@@ -23,7 +23,7 @@ impl MeshDrawable for Program {
                 module: &shader,
                 entry_point: Some("fs_select"),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: select::TEX_FORMAT,
+                    format: select::SELECT_TEX_FORMAT,
                     blend: None,
                     write_mask: wgpu::ColorWrites::ALL,
                 })],

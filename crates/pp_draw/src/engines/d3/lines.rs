@@ -3,7 +3,7 @@ use crate::engines::program::MeshDrawable;
 use crate::gpu;
 
 #[derive(Debug)]
-pub struct Program {
+pub(super) struct Program {
     pipeline: wgpu::RenderPipeline,
     pipeline_xray: wgpu::RenderPipeline,
 }

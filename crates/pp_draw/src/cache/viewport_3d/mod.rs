@@ -2,9 +2,7 @@ use crate::gpu;
 
 mod camera;
 use camera::Camera3DGPU;
-use pp_core::viewport::Viewport3D;
-
-use super::{ViewportGPU, ViewportNotVisible};
+use pp_core::viewport_3d::Viewport3D;
 
 /// GPU representation of a viewport, used to set viewport in render passes
 /// and supply the camera uniform for vertex shaders.
@@ -29,20 +27,18 @@ impl Viewport3DGPU {
             xray_mode: false,
         }
     }
-}
 
-impl ViewportGPU<Viewport3D> for Viewport3DGPU {
     /// Sets the render viewport and binds the camera bind group
-    fn bind(&self, render_pass: &mut wgpu::RenderPass) -> Result<(), ViewportNotVisible> {
+    pub fn bind(&self, render_pass: &mut wgpu::RenderPass) -> bool {
         if self.width == 0.0 || self.height == 0.0 {
-            return Err(ViewportNotVisible);
+            return false;
         }
         render_pass.set_viewport(self.x, self.y, self.width, self.height, 0.0, 1.0);
         self.camera.bind(render_pass);
-        Ok(())
+        true
     }
 
-    fn sync(
+    pub fn sync(
         &mut self,
         ctx: &gpu::Context,
         viewport: &Viewport3D,

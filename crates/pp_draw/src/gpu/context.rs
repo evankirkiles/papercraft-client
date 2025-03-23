@@ -8,7 +8,7 @@ const BUF_RECT_CONTENTS: [[f32; 2]; 4] = [[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1
 /// created when the Renderer is created and used to pass around shared
 /// fields for allocating / communicating with the GPU.
 #[derive(Debug)]
-pub struct Context<'window> {
+pub(crate) struct Context<'window> {
     pub surface: wgpu::Surface<'window>,
     pub device: wgpu::Device,
     pub config: wgpu::SurfaceConfiguration,

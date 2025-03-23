@@ -45,6 +45,16 @@ pub mod vbo {
         vbo.update(ctx, data.as_slice())
     }
 
+    pub fn cut_edge_pos(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
+        let data: Vec<_> = mesh
+            .edges
+            .values()
+            .filter(|e| e.is_cut)
+            .map(|e| [mesh[e.v[0]].po, mesh[e.v[1]].po])
+            .collect();
+        vbo.update(ctx, data.as_slice())
+    }
+
     /// Reloads the vertex normals VBO from the mesh's data
     pub fn vnor(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
         let data: Vec<_> = mesh.iter_loops().map(|l| mesh[mesh[l].v].no).collect();
@@ -135,21 +145,6 @@ pub mod ibo {
     /// Reloads the IBO for tris from the mesh's data
     pub fn tris(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, ibo: &mut gpu::IndexBuf) {
         let data: Vec<_> = mesh.iter_loops().map(|l| mesh[l].index.unwrap() as u32).collect();
-        ibo.update(ctx, data.as_slice());
-    }
-
-    /// Reloads the IBO for lines from the mesh's data
-    pub fn lines(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, ibo: &mut gpu::IndexBuf) {
-        let data: Vec<_> = mesh
-            .edges
-            .values()
-            .filter_map(|e| e.l)
-            .flat_map(|l| {
-                let l = mesh[l];
-                let l_next = mesh[l.next];
-                [l.index.unwrap() as u32, l_next.index.unwrap() as u32]
-            })
-            .collect();
         ibo.update(ctx, data.as_slice());
     }
 }

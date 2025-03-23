@@ -1,15 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
-
 use wasm_bindgen::prelude::*;
 
 use crate::keyboard;
-
-#[derive(Debug, Clone, Copy)]
-pub enum PointerEvent {
-    Enter,
-    Exit,
-    Move(PhysicalPosition<f64>),
-}
 
 /// Whether or not a button is pressed.
 #[wasm_bindgen]
@@ -30,22 +22,29 @@ pub enum MouseButton {
     Forward,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum PointerEvent {
+    Enter,
+    Exit,
+    Move(PhysicalPosition<f64>),
+}
+
 /// An mouse button press has been received.
 #[derive(Debug, Clone, Copy)]
-pub enum MouseInputEvent {
+pub(crate) enum MouseInputEvent {
     Down(MouseButton),
     Up(MouseButton),
 }
 
 /// An keyboard button press has been received.
 #[derive(Debug, Clone)]
-pub enum KeyboardInputEvent {
+pub(crate) enum KeyboardInputEvent {
     Down(keyboard::Key),
     Up(keyboard::Key),
 }
 
 #[derive(Debug, Clone)]
-pub enum UserEvent {
+pub(crate) enum UserEvent {
     Pointer(PointerEvent),
     MouseInput(MouseInputEvent),
     KeyboardInput(KeyboardInputEvent),
@@ -77,7 +76,7 @@ impl core::fmt::Display for EventHandleError {
 }
 
 /// A trait any event handler can conform to.
-pub trait EventHandler {
+pub(crate) trait EventHandler {
     /// A basic event handling function. Returns `true` if the event should
     /// not be propagated further, else returns `false`.
     fn handle_event(
@@ -88,24 +87,24 @@ pub trait EventHandler {
 }
 
 #[derive(Debug, Default, Clone, Copy)]
-pub struct PhysicalSize<T> {
-    pub width: T,
-    pub height: T,
+pub(crate) struct PhysicalSize<T> {
+    pub(crate) width: T,
+    pub(crate) height: T,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
-pub struct PhysicalPosition<T> {
-    pub x: T,
-    pub y: T,
+pub(crate) struct PhysicalPosition<T> {
+    pub(crate) x: T,
+    pub(crate) y: T,
 }
 
 /// A common "event" context, including the state of any modifiers.
 #[derive(Debug, Default, Clone)]
-pub struct EventContext {
-    pub state: Rc<RefCell<pp_core::State>>,
-    pub renderer: Rc<RefCell<Option<pp_draw::Renderer<'static>>>>,
-    pub modifiers: keyboard::ModifierKeys,
-    pub surface_dpi: f64,
-    pub surface_size: PhysicalSize<f64>,
-    pub last_mouse_pos: Option<PhysicalPosition<f64>>,
+pub(crate) struct EventContext {
+    pub(crate) state: Rc<RefCell<pp_core::State>>,
+    pub(crate) renderer: Rc<RefCell<Option<pp_draw::Renderer<'static>>>>,
+    pub(crate) modifiers: keyboard::ModifierKeys,
+    pub(crate) surface_dpi: f64,
+    pub(crate) surface_size: PhysicalSize<f64>,
+    pub(crate) last_mouse_pos: Option<PhysicalPosition<f64>>,
 }

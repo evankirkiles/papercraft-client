@@ -1,9 +1,9 @@
-use crate::event::{self, EventHandler};
+use crate::event;
 
 #[derive(Debug, Default, Copy, Clone)]
-pub struct Controller2D {}
+pub(crate) struct Controller2D {}
 
-impl EventHandler for Controller2D {
+impl event::EventHandler for Controller2D {
     fn handle_event(
         &mut self,
         ctx: &event::EventContext,
@@ -13,13 +13,14 @@ impl EventHandler for Controller2D {
         // then do not process the event.
 
         // If no tool took the event, pass it to the camera.
+        use event::UserEvent;
         match ev {
             // event::UserEvent::Mouse(ev) => match ev {
             //     event::MouseEvent::Enter => todo!(),
             //     event::MouseEvent::Exit => todo!(),
             //     event::MouseEvent::Move { x, y } => todo!(),
             // },
-            event::UserEvent::MouseWheel { dx, dy } => {
+            UserEvent::MouseWheel { dx, dy } => {
                 let mut state = ctx.state.borrow_mut();
                 if ctx.modifiers.super_pressed() {
                     state.viewport_2d.camera.dolly(*dy * 0.5);

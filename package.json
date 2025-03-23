@@ -20,7 +20,7 @@
   "scripts": {
     "wasm": "wasm-pack build ./crates/pp_control --target bundler --out-name index --out-dir ../../src/rs",
     "wasm:postprocess": "sh ./scripts/postprocess-wasm-js.sh",
-    "dev": "pnpm wasm --dev && vite",
+    "dev": "pnpm wasm --release && vite",
     "build": "pnpm wasm && pnpm wasm:postprocess && vite build",
     "preview": "vite preview"
   },

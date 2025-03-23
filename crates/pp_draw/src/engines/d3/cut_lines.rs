@@ -3,19 +3,20 @@ use crate::engines::program::MeshDrawable;
 use crate::gpu;
 
 #[derive(Debug)]
-pub struct Program {
+pub(super) struct Program {
     pipeline: wgpu::RenderPipeline,
     pipeline_xray: wgpu::RenderPipeline,
 }
 
 impl MeshDrawable for Program {
     fn new(ctx: &gpu::Context) -> Self {
-        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/points.wgsl"));
+        let shader =
+            ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/cut_lines.wgsl"));
         let layout = Some(&ctx.shared_layouts.pipelines.pipeline_3d);
         let vertex = wgpu::VertexState {
             module: &shader,
             entry_point: Some("vs_main"),
-            buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_EDIT_POINTS_INSTANCED,
+            buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_EDIT_CUT_LINES_INSTANCED,
             compilation_options: wgpu::PipelineCompilationOptions::default(),
         };
         let targets = [Some(wgpu::ColorTargetState {
@@ -47,7 +48,7 @@ impl MeshDrawable for Program {
         let cache = None;
 
         let pipeline = ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("ink3.points"),
+            label: Some("ink3.cut_lines"),
             vertex: vertex.clone(),
             fragment: fragment.clone(),
             layout,
@@ -60,15 +61,17 @@ impl MeshDrawable for Program {
                 depth_write_enabled: true,
                 depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState::default(),
+                bias: wgpu::DepthBiasState { constant: 1, ..Default::default() },
             }),
         });
 
+        // "XRay" depth tests for all the *occluded* lines in the scene. This allows
+        // us to still render but slightly fade occluded lines while in xray mode.
         let pipeline_xray = ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("ink3.points.xray"),
+            label: Some("ink3.cut_lines.xray"),
+            layout,
             vertex,
             fragment,
-            layout,
             primitive,
             multisample,
             multiview,
@@ -78,7 +81,7 @@ impl MeshDrawable for Program {
                 depth_write_enabled: true,
                 depth_compare: wgpu::CompareFunction::GreaterEqual,
                 stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState::default(),
+                bias: wgpu::DepthBiasState { constant: 1, ..Default::default() },
             }),
         });
 
@@ -93,7 +96,7 @@ impl MeshDrawable for Program {
         mesh: &cache::MeshGPU,
     ) {
         render_pass.set_pipeline(&self.pipeline);
-        mesh.draw_edit_points_instanced(ctx, render_pass);
+        mesh.draw_edit_cut_lines_instanced(ctx, render_pass);
     }
 }
 
@@ -105,6 +108,6 @@ impl Program {
         mesh: &cache::MeshGPU,
     ) {
         render_pass.set_pipeline(&self.pipeline_xray);
-        mesh.draw_edit_points_instanced(ctx, render_pass);
+        mesh.draw_edit_cut_lines_instanced(ctx, render_pass);
     }
 }

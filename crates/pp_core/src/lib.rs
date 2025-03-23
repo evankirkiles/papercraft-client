@@ -1,23 +1,23 @@
 use std::collections::HashMap;
 
-use mesh::Mesh;
-
+pub mod cut;
 pub mod id;
 pub mod material;
 pub mod mesh;
 pub mod select;
-pub mod viewport;
+pub mod viewport_2d;
+pub mod viewport_3d;
 
 /// Represents the entire state of the "core" editor.
 #[derive(Debug)]
 pub struct State {
     pub meshes: HashMap<id::MeshId, mesh::Mesh>,
     pub materials: HashMap<id::MaterialId, material::Material>,
-    pub viewport_3d: viewport::Viewport3D,
-    pub viewport_2d: viewport::Viewport2D,
+    pub selection: select::SelectionState,
+    pub viewport_3d: viewport_3d::Viewport3D,
+    pub viewport_2d: viewport_2d::Viewport2D,
     pub viewport_split_x: f64,
     pub viewport_split_y: f64,
-    pub selection: select::SelectionState,
 }
 
 impl Default for State {
@@ -33,7 +33,7 @@ impl Default for State {
         };
 
         // Set up basic initial scene
-        let cube = Mesh::new_cube(0);
+        let cube = mesh::Mesh::new_cube(0);
         state.meshes.insert(cube.id, cube);
 
         // Now return the populated state

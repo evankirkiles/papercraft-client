@@ -1,5 +1,5 @@
 use crate::cache;
-use crate::engines::program::MeshDrawable;
+use crate::engines::program;
 use crate::gpu;
 
 #[derive(Debug)]
@@ -7,7 +7,7 @@ pub struct Program {
     surface_pipeline: wgpu::RenderPipeline,
 }
 
-impl MeshDrawable for Program {
+impl program::MeshDrawable for Program {
     fn new(ctx: &gpu::Context) -> Self {
         let shader =
             ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/surface.wgsl"));

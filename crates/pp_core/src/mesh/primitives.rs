@@ -1,6 +1,5 @@
-use crate::id::{self, Id};
-
 use super::Mesh;
+use crate::id::{self, Id};
 
 impl Mesh {
     pub fn new_tri(id: u32) -> Self {

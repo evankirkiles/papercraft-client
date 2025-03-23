@@ -1,34 +1,28 @@
-use std::mem;
-
 use crate::gpu;
+use pp_core::viewport_3d::camera;
+use std::mem;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct Camera2DUniform {
+struct Camera3DUniform {
     view_proj: [[f32; 4]; 4],
     dimensions: [f32; 2],
     // Extra padding bits to bring up to "144" size
     padding: [f32; 2],
 }
 
-impl Camera2DUniform {
-    fn new(camera: &pp_core::viewport::d2::camera::Camera2D, width: f32, height: f32) -> Self {
+impl Camera3DUniform {
+    fn new(camera: &camera::Camera3D, width: f32, height: f32) -> Self {
         let aspect = width.max(1.0) / height.max(1.0);
-        let half_width = aspect / camera.zoom;
-        let half_height = 1.0 / camera.zoom;
-        let view = cgmath::Matrix4::from_translation(cgmath::Vector3::new(
-            -1.0 * camera.eye.x,
-            -1.0 * camera.eye.y,
-            0.0,
-        ));
-        let proj = cgmath::ortho(-half_width, half_width, -half_height, half_height, -1.0, 1.0);
+        let view = cgmath::Matrix4::look_at_rh(camera.eye, camera.target, camera.up);
+        let proj = cgmath::perspective(cgmath::Deg(camera.fovy), aspect, camera.znear, camera.zfar);
         let view_proj = proj * view;
         Self { dimensions: [width, height], view_proj: view_proj.into(), padding: [0.0, 0.0] }
     }
 }
 
 #[derive(Debug)]
-pub struct Camera2DGPU {
+pub struct Camera3DGPU {
     buf: gpu::UniformBuf,
     bind_group: wgpu::BindGroup,
 
@@ -37,30 +31,24 @@ pub struct Camera2DGPU {
     height: f32,
 }
 
-impl Camera2DGPU {
+impl Camera3DGPU {
     pub fn new(ctx: &gpu::Context) -> Self {
         let buf = gpu::UniformBuf::new(
             ctx,
-            "viewport_2d.camera".to_string(),
-            mem::size_of::<Camera2DUniform>(),
+            "viewport.camera".to_string(),
+            mem::size_of::<Camera3DUniform>(),
         );
         let bind_group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("viewport_2d.camera"),
+            label: Some("viewport.camera"),
             layout: &ctx.shared_layouts.bind_groups.camera,
             entries: &[wgpu::BindGroupEntry { binding: 0, resource: buf.binding_resource() }],
         });
         Self { buf, bind_group, width: 1.0, height: 1.0 }
     }
 
-    pub fn sync(
-        &mut self,
-        ctx: &gpu::Context,
-        camera: &pp_core::viewport::d2::camera::Camera2D,
-        width: f32,
-        height: f32,
-    ) {
+    pub fn sync(&mut self, ctx: &gpu::Context, camera: &camera::Camera3D, width: f32, height: f32) {
         if self.width != width || self.height != height || camera.is_dirty {
-            self.buf.update(ctx, &[Camera2DUniform::new(camera, width, height)]);
+            self.buf.update(ctx, &[Camera3DUniform::new(camera, width, height)]);
         }
         self.width = width;
         self.height = height;

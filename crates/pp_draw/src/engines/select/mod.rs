@@ -1,24 +1,11 @@
-use crate::{cache, gpu};
-
 use super::program::MeshDrawable;
-
-use bitflags::bitflags;
+use crate::{cache, gpu, select};
 
 mod lines;
 mod points;
 
-bitflags! {
-    /// A mask of items to render for selection in the buffer
-    #[derive(Debug, Clone, Copy)]
-    pub struct SelectionMask: u8 {
-        const POINTS = 1 << 0;
-        const LINES = 1 << 1;
-        const FACES = 1 << 2;
-    }
-}
-
 #[derive(Debug)]
-pub struct SelectEngine {
+pub(crate) struct SelectEngine {
     program_points: points::Program,
     program_lines: lines::Program,
 }
@@ -33,16 +20,16 @@ impl SelectEngine {
         ctx: &gpu::Context,
         render_pass: &mut wgpu::RenderPass,
         mesh: &cache::MeshGPU,
-        mask: SelectionMask,
+        mask: select::SelectionMask,
     ) {
-        if mask.intersects(SelectionMask::POINTS) {
+        if mask.intersects(select::SelectionMask::POINTS) {
             self.program_points.draw_mesh(ctx, render_pass, mesh);
         }
-        if mask.intersects(SelectionMask::LINES) {
+        if mask.intersects(select::SelectionMask::LINES) {
             self.program_lines.draw_mesh(ctx, render_pass, mesh);
         }
-        // if mask.intersects(SelectionMask::POINTS) {
-        //     self.program_points.draw_mesh(render_pass, mesh);
+        // if mask.intersects(select::SelectionMask::FACES) {
+        //     self.program_points.draw_mesh(ctx, render_pass, mesh);
         // }
     }
 }

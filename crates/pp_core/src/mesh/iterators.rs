@@ -1,25 +1,25 @@
 use super::Mesh;
-use crate::id::{EdgeId, LoopId, VertexId};
+use crate::id;
 
 // --- Section: Disk Cycle ---
 
 /// Enables walking over the edges around a vertex
 pub struct DiskCycleWalker<'mesh> {
     mesh: &'mesh Mesh,
-    v: VertexId,
-    e_start: EdgeId,
-    e_curr: EdgeId,
+    v: id::VertexId,
+    e_start: id::EdgeId,
+    e_curr: id::EdgeId,
     done: bool,
 }
 
 impl<'mesh> DiskCycleWalker<'mesh> {
-    pub fn new(mesh: &'mesh Mesh, e_start: EdgeId, v: VertexId) -> Self {
+    pub fn new(mesh: &'mesh Mesh, e_start: id::EdgeId, v: id::VertexId) -> Self {
         Self { mesh, v, e_start, e_curr: e_start, done: false }
     }
 }
 
 impl Iterator for DiskCycleWalker<'_> {
-    type Item = EdgeId;
+    type Item = id::EdgeId;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
@@ -49,19 +49,19 @@ impl DoubleEndedIterator for DiskCycleWalker<'_> {
 /// Enables walking over the loops within a face
 pub struct RadialCycleWalker<'mesh> {
     mesh: &'mesh Mesh,
-    l_start: LoopId,
-    l_curr: LoopId,
+    l_start: id::LoopId,
+    l_curr: id::LoopId,
     done: bool,
 }
 
 impl<'mesh> RadialCycleWalker<'mesh> {
-    pub fn new(mesh: &'mesh Mesh, l_start: LoopId) -> Self {
+    pub fn new(mesh: &'mesh Mesh, l_start: id::LoopId) -> Self {
         Self { mesh, l_start, l_curr: l_start, done: false }
     }
 }
 
 impl Iterator for RadialCycleWalker<'_> {
-    type Item = LoopId;
+    type Item = id::LoopId;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
@@ -91,19 +91,19 @@ impl DoubleEndedIterator for RadialCycleWalker<'_> {
 /// LoopCycle: Enables walking over the loops within a face
 pub struct LoopCycleWalker<'mesh> {
     mesh: &'mesh Mesh,
-    l_start: LoopId,
-    l_curr: LoopId,
+    l_start: id::LoopId,
+    l_curr: id::LoopId,
     done: bool,
 }
 
 impl<'mesh> LoopCycleWalker<'mesh> {
-    pub fn new(mesh: &'mesh Mesh, l_start: LoopId) -> Self {
+    pub fn new(mesh: &'mesh Mesh, l_start: id::LoopId) -> Self {
         Self { mesh, l_start, l_curr: l_start, done: false }
     }
 }
 
 impl Iterator for LoopCycleWalker<'_> {
-    type Item = LoopId;
+    type Item = id::LoopId;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {

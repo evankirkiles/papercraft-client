@@ -1,13 +1,12 @@
 use std::ops::DerefMut;
 
-use pp_draw::select;
-
 use crate::event::{self, EventHandleSuccess, EventHandler};
+use pp_draw::select;
 
 const SELECT_RADIUS: f64 = 50.0;
 
 #[derive(Debug, Default, Clone, Copy)]
-pub struct SelectTool {}
+pub(crate) struct SelectTool {}
 
 impl EventHandler for SelectTool {
     fn handle_event(
@@ -34,13 +33,14 @@ impl EventHandler for SelectTool {
                 };
                 let select_radius = SELECT_RADIUS * ctx.surface_dpi;
                 let cursor_pos = ctx.last_mouse_pos.unwrap();
+                #[allow(unused_must_use)]
                 renderer.select_query(select::SelectionQuery {
                     action: Some(if ctx.modifiers.shift_pressed() {
                         select::SelectImmediateAction::NearestToggle
                     } else {
                         select::SelectImmediateAction::Nearest
                     }),
-                    mask: select::SelectionMask::POINTS,
+                    mask: pp_draw::select::SelectionMask::all(),
                     rect: select::SelectionRect {
                         x: (cursor_pos.x * ctx.surface_dpi - select_radius).max(0.0) as u32,
                         y: (cursor_pos.y * ctx.surface_dpi - select_radius).max(0.0) as u32,
