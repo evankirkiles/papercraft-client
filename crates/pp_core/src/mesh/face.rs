@@ -1,0 +1,185 @@
+use crate::id::{self, Id};
+
+use super::loop_::*;
+use super::MeshElementType;
+
+/// A face, formed by three vertices and three edges.
+#[derive(Debug, Clone, Copy)]
+pub struct Face {
+    /// Face normal
+    pub no: [f32; 3],
+    /// Material index for this face
+    pub mat_nr: u16,
+    /// The number of vertices of this face. This will always be 3
+    pub len: usize,
+
+    /// LoopCycle: Any loop in this face
+    pub l_first: id::LoopId,
+    /// The "index" of this face in any final IBO
+    pub index: Option<usize>,
+}
+
+impl Face {
+    /// Creates a new Face with a temporary Loop Id
+    fn new(len: usize) -> Self {
+        Self { no: [0.0, 0.0, 0.0], mat_nr: 0, len, l_first: id::LoopId::temp(), index: None }
+    }
+}
+
+impl super::Mesh {
+    /// Adds an ngon / face between any number of vertices. If a face already
+    /// existed between the verts, returns that face instead.
+    pub(crate) fn add_face(&mut self, verts: &[id::VertexId]) -> id::FaceId {
+        // If face already exists, return it
+        if let Some(f_id) = self.query_face(verts) {
+            return f_id;
+        }
+
+        // Otherwise, begin creating the face
+        let len = verts.len();
+        let f = id::FaceId::from_usize(self.faces.push(Face::new(len)));
+
+        // Create or use existing edges between all adjacent vertices
+        let edges: Vec<id::EdgeId> =
+            (0..len).map(|i| self.add_edge(verts[i], verts[(i + 1) % len])).collect();
+
+        // Create the loops for the face, adding loop + radial data
+        let l_start = id::LoopId::from_usize(self.loops.push(Loop::new(f, verts[0], edges[0])));
+        self.connect_loop_to_edge(l_start, edges[0]);
+        self[f].l_first = l_start;
+        let mut l_last = l_start;
+        for i in 1..len {
+            let l = id::LoopId::from_usize(self.loops.push(Loop::new(f, verts[i], edges[i])));
+            self.connect_loop_to_edge(l, edges[i]);
+            self[l].prev = l_last;
+            self[l_last].next = l;
+            l_last = l;
+        }
+        self[l_start].prev = l_last;
+        self[l_last].next = l_start;
+
+        // Face and loop resources need to be recreated
+        self.elem_dirty |= MeshElementType::LOOPS | MeshElementType::FACES;
+        self.index_dirty |= MeshElementType::LOOPS | MeshElementType::FACES;
+        f
+    }
+
+    /// Returns the face between the supplied vertices, or None.
+    ///
+    /// TODO: How do we ensure a consistent vertex order?
+    fn query_face(&self, verts: &[id::VertexId]) -> Option<id::FaceId> {
+        let len = verts.len();
+        let v0 = verts[0];
+        let e0 = self[v0].e?;
+        let (mut e_iter, e_first) = (e0, e0);
+        loop {
+            // Cycle 1: Disk on v0, aka edges around v0
+            if let Some(l) = self[e_iter].l {
+                let (mut l_iter_radial, l_first_radial) = (l, l);
+                loop {
+                    // Cycle 2: Loops (radial) for each edge, aka faces containing e_iter
+                    let l_curr = self[l_iter_radial];
+                    if l_curr.v == v0 && self[l_curr.f].len == len {
+                        // First two verts match, so iterate through for remaining verts
+                        // Note that loop winding direction is undefined, so we
+                        // need to iterate in both directions (next's and prev's).
+                        let mut i_walk = 2;
+                        // Cycle 3a: Loops in face, forwards
+                        if self[l_curr.next].v == verts[1] {
+                            let mut l_walk = self[l_curr.next].next;
+                            loop {
+                                if self[l_walk].v != verts[i_walk] {
+                                    break;
+                                }
+                                l_walk = self[l_walk].next;
+                                i_walk += 1;
+                                if i_walk == len {
+                                    break;
+                                }
+                            }
+                        // Cycle 3b: Loops in face, backwards
+                        } else if self[l_curr.prev].v == verts[1] {
+                            let mut l_walk = self[l_curr.prev].prev;
+                            loop {
+                                if self[l_walk].v != verts[i_walk] {
+                                    break;
+                                }
+                                l_walk = self[l_walk].prev;
+                                i_walk += 1;
+                                if i_walk == len {
+                                    break;
+                                }
+                            }
+                        }
+
+                        // If there's a loop for every vertex, face matches
+                        if i_walk == len {
+                            return Some(l_curr.f);
+                        }
+                    }
+
+                    // LoopCycle: Go to next loop around e_iter
+                    l_iter_radial = self[l_iter_radial].radial_next;
+                    if l_iter_radial == l_first_radial {
+                        break;
+                    }
+                }
+            }
+            // DiskCycle: Go to next disk edge around v0
+            e_iter = self[e_iter].disklink(v0).next;
+            if e_iter == e_first {
+                break;
+            };
+        }
+        None
+    }
+}
+
+// --- Section: Loop Cycle ---
+
+/// LoopCycle: Enables walking over the loops within a face
+pub struct LoopCycleWalker<'mesh> {
+    mesh: &'mesh super::Mesh,
+    l_start: id::LoopId,
+    l_curr: id::LoopId,
+    done: bool,
+}
+
+impl<'mesh> LoopCycleWalker<'mesh> {
+    fn new(mesh: &'mesh super::Mesh, l_start: id::LoopId) -> Self {
+        Self { mesh, l_start, l_curr: l_start, done: false }
+    }
+}
+
+impl Iterator for LoopCycleWalker<'_> {
+    type Item = id::LoopId;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.done {
+            return None;
+        }
+        let l = self.l_curr;
+        self.l_curr = self.mesh[l].next;
+        self.done = self.l_curr == self.l_start;
+        Some(l)
+    }
+}
+
+impl DoubleEndedIterator for LoopCycleWalker<'_> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.done {
+            return None;
+        }
+        let l = self.l_curr;
+        self.l_curr = self.mesh[l].prev;
+        self.done = self.l_curr == self.l_start;
+        Some(l)
+    }
+}
+
+impl super::Mesh {
+    /// Walks the loops in a face (vertices)
+    pub(crate) fn iter_face_loops(&self, f: id::FaceId) -> LoopCycleWalker {
+        LoopCycleWalker::new(self, self[f].l_first)
+    }
+}

@@ -85,15 +85,6 @@ impl State {
         self.selection.is_dirty = true
     }
 
-    /// Sets the selection state of multiple vertices at once
-    pub fn select_verts(
-        &mut self,
-        verts: &[(id::MeshId, id::VertexId)],
-        action: SelectionActionType,
-    ) {
-        verts.iter().for_each(|id| self.select_vert(id, action, false));
-    }
-
     /// Sets the selection state of a single vertex, selecting any connected edges
     /// and faces who now have all of their elements selected.
     pub fn select_vert(
@@ -120,7 +111,7 @@ impl State {
         let mesh = &self.meshes[&m_id];
         let Some(e) = mesh[v_id].e else { return };
         let e_ids: Vec<_> = mesh
-            .disk_edge_walk(e, v_id)
+            .iter_vert_edges(e, v_id)
             .filter(|e_id| {
                 if selected == self.selection.edges.contains(&(mesh.id, *e_id)) {
                     return false;
@@ -156,27 +147,28 @@ impl State {
         if activate {
             self.selection.active_element = selected.then_some(SelectionActiveElement::Edge(*id))
         }
+        self.selection.is_dirty = true;
         let (m_id, e_id) = *id;
         let mesh = &self.meshes[&m_id];
-        let Some(walker) = mesh.radial_loop_walk(e_id) else { return };
-        walker.for_each(|l| {
-            let f_id = mesh[l].f;
-            let face_selected = self.selection.faces.contains(&(mesh.id, f_id));
-            if selected == face_selected {
-                return;
-            };
-            if mesh
-                .face_loop_walk(f_id)
-                .all(|l| self.selection.edges.contains(&(mesh.id, mesh[l].e)))
-            {
-                if !face_selected {
-                    self.selection.faces.insert((mesh.id, f_id));
+        if let Some(walker) = mesh.iter_edge_loops(e_id) {
+            walker.for_each(|l| {
+                let f_id = mesh[l].f;
+                let face_selected = self.selection.faces.contains(&(mesh.id, f_id));
+                if selected == face_selected {
+                    return;
+                };
+                if mesh
+                    .iter_face_loops(f_id)
+                    .all(|l| self.selection.edges.contains(&(mesh.id, mesh[l].e)))
+                {
+                    if !face_selected {
+                        self.selection.faces.insert((mesh.id, f_id));
+                    }
+                } else if face_selected {
+                    self.selection.faces.remove(&(mesh.id, f_id));
                 }
-            } else if face_selected {
-                self.selection.faces.remove(&(mesh.id, f_id));
-            }
-        });
-        self.selection.is_dirty = true
+            })
+        }
     }
 
     /// Sets the selection state of a single face.

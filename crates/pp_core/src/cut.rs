@@ -32,7 +32,7 @@ impl State {
                     CutMaskType::None => true,
                     CutMaskType::SelectionBorder => {
                         let mesh = &self.meshes[&m_id];
-                        !mesh.radial_loop_walk(e_id).is_some_and(|mut walker| {
+                        !mesh.iter_edge_loops(e_id).is_some_and(|mut walker| {
                             walker.all(|l| self.selection.faces.contains(&(m_id, mesh[l].f)))
                         })
                     }
