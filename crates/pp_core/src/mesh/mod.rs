@@ -2,17 +2,19 @@ use bitflags::bitflags;
 use stable_vec::StableVec;
 use std::ops;
 
-use crate::id::{EdgeId, FaceId, Id, LoopId, MeshId, VertexId};
+use crate::id::{EdgeId, FaceId, Id, LoopId, MeshId, PieceId, VertexId};
 
 mod edge;
 mod face;
 mod loop_;
+mod piece;
 mod primitives;
 mod vertex;
 
 use edge::*;
 use face::*;
 use loop_::*;
+use piece::*;
 use vertex::*;
 
 bitflags! {
@@ -22,6 +24,7 @@ bitflags! {
         const EDGES = 1 << 1;
         const FACES = 1 << 2;
         const LOOPS = 1 << 3;
+        const PIECES = 1 << 4;
     }
 }
 
@@ -54,6 +57,7 @@ pub struct Mesh {
     pub edges: StableVec<Edge>,
     pub faces: StableVec<Face>,
     pub loops: StableVec<Loop>,
+    pub pieces: StableVec<Piece>,
 
     /// Indicates which type of element has changed in this mesh
     pub elem_dirty: MeshElementType,
@@ -69,6 +73,7 @@ impl Mesh {
             edges: StableVec::new(),
             faces: StableVec::new(),
             loops: StableVec::new(),
+            pieces: StableVec::new(),
             elem_dirty: MeshElementType::empty(),
             index_dirty: MeshElementType::empty(),
         }
@@ -136,6 +141,7 @@ impl_index!(VertexId, verts, Vertex);
 impl_index!(FaceId, faces, Face);
 impl_index!(EdgeId, edges, Edge);
 impl_index!(LoopId, loops, Loop);
+impl_index!(PieceId, pieces, Piece);
 
 #[cfg(test)]
 mod test {

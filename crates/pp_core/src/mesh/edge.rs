@@ -139,7 +139,7 @@ pub struct RadialCycleWalker<'mesh> {
 }
 
 impl<'mesh> RadialCycleWalker<'mesh> {
-    pub fn new(mesh: &'mesh super::Mesh, l_start: id::LoopId) -> Self {
+    fn new(mesh: &'mesh super::Mesh, l_start: id::LoopId) -> Self {
         Self { mesh, l_start, l_curr: l_start, done: false }
     }
 }

@@ -45,7 +45,7 @@ impl event::EventHandler for Controller3D {
                         state.cut_edges(
                             &edges[..],
                             match ctx.modifiers.alt_pressed() {
-                                true => pp_core::cut::CutActionType::Uncut,
+                                true => pp_core::cut::CutActionType::Join,
                                 false => pp_core::cut::CutActionType::Cut,
                             },
                             pp_core::cut::CutMaskType::SelectionBorder,

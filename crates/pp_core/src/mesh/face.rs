@@ -1,3 +1,6 @@
+use std::collections::HashSet;
+use std::collections::VecDeque;
+
 use crate::id::{self, Id};
 
 use super::loop_::*;
@@ -17,12 +20,21 @@ pub struct Face {
     pub l_first: id::LoopId,
     /// The "index" of this face in any final IBO
     pub index: Option<usize>,
+    /// The "piece" this face is a part of, if any
+    pub p: Option<id::PieceId>,
 }
 
 impl Face {
     /// Creates a new Face with a temporary Loop Id
     fn new(len: usize) -> Self {
-        Self { no: [0.0, 0.0, 0.0], mat_nr: 0, len, l_first: id::LoopId::temp(), index: None }
+        Self {
+            no: [0.0, 0.0, 0.0],
+            mat_nr: 0,
+            len,
+            l_first: id::LoopId::temp(),
+            index: None,
+            p: None,
+        }
     }
 }
 
@@ -181,5 +193,60 @@ impl super::Mesh {
     /// Walks the loops in a face (vertices)
     pub(crate) fn iter_face_loops(&self, f: id::FaceId) -> LoopCycleWalker {
         LoopCycleWalker::new(self, self[f].l_first)
+    }
+}
+
+// --- Section: Connected Face Iterator ---
+
+/// ConnectedFaceWalker: Enables walking over connected faces -- faces not
+/// separated by a cut line. Note that cycles may exist here, so if using to
+/// find faces for creating a piece, make sure to check its cyclic-ness first.
+pub struct ConnectedFaceWalker<'mesh> {
+    mesh: &'mesh super::Mesh,
+    /// The faces waiting to be explored
+    frontier: VecDeque<id::FaceId>,
+    /// Faces already explored
+    pub visited: HashSet<id::FaceId>,
+}
+
+impl<'mesh> ConnectedFaceWalker<'mesh> {
+    fn new(mesh: &'mesh super::Mesh, f_start: id::FaceId) -> Self {
+        Self { mesh, visited: HashSet::from([f_start]), frontier: VecDeque::from([f_start]) }
+    }
+}
+
+impl Iterator for ConnectedFaceWalker<'_> {
+    type Item = id::FaceId;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let f_id = self.frontier.pop_front()?;
+        // Expand the frontier to include unvisited faces adjacent to this face
+        self.frontier.extend(
+            self.mesh
+                .iter_face_loops(f_id)
+                .filter_map(|l| {
+                    // Do not traverse across cut edges
+                    let e_id = self.mesh[l].e;
+                    if !self.mesh[e_id].is_cut {
+                        self.mesh.iter_edge_loops(e_id)
+                    } else {
+                        None
+                    }
+                })
+                .flatten()
+                .filter_map(|l_id| {
+                    // Only visit unvisited faces (faces not already in visited)
+                    let f_id = self.mesh[l_id].f;
+                    self.visited.insert(f_id).then_some(f_id)
+                }),
+        );
+        Some(f_id)
+    }
+}
+
+impl super::Mesh {
+    /// Walks all faces connected to the given face, respecting cut boundaries.
+    pub(crate) fn iter_connected_faces(&self, f: id::FaceId) -> ConnectedFaceWalker {
+        ConnectedFaceWalker::new(self, f)
     }
 }
