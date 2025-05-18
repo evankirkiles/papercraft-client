@@ -1,10 +1,12 @@
 use crate::gpu;
+use piece::PieceGPU;
 use pp_core::id;
 use pp_core::mesh::{Mesh, MeshElementType};
 use pp_core::select::SelectionState;
 use std::collections::HashMap;
 
 mod extract;
+mod piece;
 
 /// All the possible VBOs a mesh might need to use.
 #[derive(Debug)]
@@ -45,6 +47,10 @@ pub struct MeshGPU {
     vbo: MeshGPUVBOs,
     ibo: MeshGPUIBOs,
 
+    // Pieces own their own uniform buffers and the ranges of their vertices
+    // in the piece VBOs.
+    pieces: HashMap<id::PieceId, PieceGPU>,
+
     /// Forces updating of all GPU-side resources
     is_dirty: bool,
 }
@@ -55,6 +61,7 @@ impl MeshGPU {
         let mesh_lbl = mesh.label.as_str();
         Self {
             is_dirty: true,
+            pieces: HashMap::new(),
             vbo: MeshGPUVBOs {
                 pos: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.pos")),
                 nor: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.nor")),
@@ -100,6 +107,10 @@ impl MeshGPU {
         if index_dirty.intersects(MeshElementType::LOOPS) {
             extract::ibo::tris(ctx, mesh, &mut self.ibo.tris);
         }
+        // if index_dirty.intersects(MeshElementType::PIECES) {
+        //     extract::vbo
+        // }
+
         if self.is_dirty || selection.is_dirty {
             extract::vbo::vert_flags(ctx, mesh, selection, &mut self.vbo.vert_flags);
             extract::vbo::edge_flags(ctx, mesh, selection, &mut self.vbo.edge_flags);

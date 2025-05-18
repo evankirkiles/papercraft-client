@@ -45,7 +45,7 @@ impl super::Mesh {
         self.faces.indices().flat_map(|f_id| self.iter_face_loops(id::FaceId::from_usize(f_id)))
     }
 
-    /// Adds a loop into the radial loop cycle around an edge
+    /// Adds a loop into the radial loop cycle around an edge.
     pub(super) fn connect_loop_to_edge(&mut self, l: id::LoopId, e: id::EdgeId) {
         // If the edge already has a loop, update that loop's Radial links
         if let Some(l_first) = self[e].l {

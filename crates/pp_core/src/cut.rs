@@ -91,14 +91,14 @@ impl State {
                 // prior piece, which would cause issues.
                 (Some(p_a), Some(_)) => {
                     let new_root_f_id = if mesh[p_a].f == f_a { f_b } else { f_a };
-                    mesh.add_piece(new_root_f_id).unwrap();
+                    mesh.create_piece(new_root_f_id).unwrap();
                 }
                 // If neither face was in a piece, check if we can *make* new pieces
                 // starting from either piece. This most commonly returns an error,
                 // which is to be expected.
                 (None, None) => {
-                    _ = mesh.add_piece_if_not_exists(f_a);
-                    _ = mesh.add_piece_if_not_exists(f_b);
+                    _ = mesh.create_piece_if_not_exists(f_a);
+                    _ = mesh.create_piece_if_not_exists(f_b);
                 }
                 // "Cut" between different pieces isn't possible, that edge is always cut
                 _ => {}

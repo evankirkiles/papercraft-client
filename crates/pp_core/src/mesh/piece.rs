@@ -7,11 +7,20 @@ use crate::id::{self, Id};
 pub struct Piece {
     /// Any face in the piece, used as the "root"
     pub f: id::FaceId,
+
+    /// In progressive unwrapping editors, this indicates the "unwrappedness"
+    /// of the piece. t=0 means fully 3d, whereas t=1 means fully 2d
+    pub t: f64,
+
+    /// Indicates if this piece's internal faces have changed
+    pub elem_dirty: bool,
+    /// Indicates if this piece's uniform data has changed, e.g. transform / hover state
+    pub is_dirty: bool,
 }
 
 impl Piece {
     fn new(f: id::FaceId) -> Self {
-        Self { f }
+        Self { f, t: 0.0, elem_dirty: false, is_dirty: false }
     }
 }
 
@@ -24,7 +33,7 @@ pub(crate) enum PieceCreationError {
 impl super::Mesh {
     /// Tries to create a new piece from all the faces connected to a given face.
     /// Returns an error if
-    pub(crate) fn add_piece(
+    pub(crate) fn create_piece(
         &mut self,
         f_id: id::FaceId,
     ) -> Result<id::PieceId, PieceCreationError> {
@@ -37,14 +46,14 @@ impl super::Mesh {
         Ok(p_id)
     }
 
-    pub(crate) fn add_piece_if_not_exists(
+    pub(crate) fn create_piece_if_not_exists(
         &mut self,
         f_id: id::FaceId,
     ) -> Result<id::PieceId, PieceCreationError> {
         if self[f_id].p.is_some() {
             return Err(PieceCreationError::PieceExists);
         }
-        self.add_piece(f_id)
+        self.create_piece(f_id)
     }
 
     /// "Clears" a piece, returning all of its contained faces back to a no-piece state
