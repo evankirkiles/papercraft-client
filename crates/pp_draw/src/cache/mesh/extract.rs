@@ -61,11 +61,11 @@ pub mod vbo {
         vbo.update(ctx, data.as_slice());
     }
 
-    /// Reloads the vertex normals VBO from the mesh's data
-    pub fn uv(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
-        let data: Vec<_> = mesh.iter_loops().map(|l| mesh[mesh[l].v].no).collect();
-        vbo.update(ctx, data.as_slice());
-    }
+    // /// Reloads the vertex normals VBO from the mesh's data
+    // pub fn uv(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
+    //     let data: Vec<_> = mesh.iter_loops().map(|l| mesh[mesh[l].v].no).collect();
+    //     vbo.update(ctx, data.as_slice());
+    // }
 
     /// Reloads flags indicating the state of the vertex (select, active)
     pub fn vert_flags(
@@ -135,16 +135,5 @@ pub mod vbo {
     pub fn edge_idx(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
         let data: Vec<_> = mesh.edges.indices().map(|e| [mesh.id.idx(), e as u32]).collect();
         vbo.update(ctx, data.as_slice())
-    }
-}
-
-/// Helper functions for extracting IBOs from a Mesh
-pub mod ibo {
-    use crate::gpu;
-
-    /// Reloads the IBO for tris from the mesh's data
-    pub fn tris(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, ibo: &mut gpu::IndexBuf) {
-        let data: Vec<_> = mesh.iter_loops().map(|l| mesh[l].index.unwrap() as u32).collect();
-        ibo.update(ctx, data.as_slice());
     }
 }

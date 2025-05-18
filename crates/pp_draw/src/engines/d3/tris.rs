@@ -15,7 +15,7 @@ impl program::MeshDrawable for Program {
         let vertex = wgpu::VertexState {
             module: &shader,
             entry_point: Some("vs_main"),
-            buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_SURFACE,
+            buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_TRIS,
             compilation_options: wgpu::PipelineCompilationOptions::default(),
         };
         let targets = [Some(wgpu::ColorTargetState {
@@ -100,7 +100,7 @@ impl program::MeshDrawable for Program {
         mesh: &cache::MeshGPU,
     ) {
         render_pass.set_pipeline(&self.surface_pipeline);
-        mesh.draw_surface(render_pass);
+        mesh.draw_tris(ctx, render_pass);
     }
 }
 
@@ -112,6 +112,6 @@ impl Program {
         mesh: &cache::MeshGPU,
     ) {
         render_pass.set_pipeline(&self.surface_pipeline_xray);
-        mesh.draw_surface(render_pass);
+        mesh.draw_tris(ctx, render_pass);
     }
 }
