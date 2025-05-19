@@ -1,4 +1,5 @@
 use pp_core::id::Id;
+use pp_core::mesh::MeshElementType;
 
 use crate::event;
 use crate::keyboard;
@@ -50,6 +51,19 @@ impl event::EventHandler for Controller3D {
                             },
                             pp_core::cut::CutMaskType::SelectionBorder,
                         );
+                    }
+                    "Digit0" | "Digit1" | "Digit2" | "Digit3" | "Digit4" | "Digit5" | "Digit6"
+                    | "Digit7" | "Digit8" | "Digit9" => {
+                        if let Some(dig) = char.as_str().chars().last() {
+                            let digit = dig.to_digit(10).unwrap() as f32 / 10.0;
+                            let mut state = ctx.state.borrow_mut();
+                            state.meshes.iter_mut().for_each(|(_, mesh)| {
+                                mesh.elem_dirty |= MeshElementType::all();
+                                mesh.pieces.iter_mut().for_each(|(_, piece)| {
+                                    piece.t = digit;
+                                });
+                            });
+                        };
                     }
                     _ => (),
                 },

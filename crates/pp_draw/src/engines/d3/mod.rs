@@ -44,20 +44,30 @@ impl InkEngine3D {
         mesh: &cache::MeshGPU,
         xray: bool,
     ) {
-        self.program_surface.draw_mesh(ctx, render_pass, mesh);
+        // self.program_surface.draw_mesh(ctx, render_pass, mesh);
 
         if xray {
             // occluded wireframe elements go over the surface in xray mode
-            self.program_tris.draw_mesh_xrayed(ctx, render_pass, mesh);
+            // self.program_tris.draw_mesh_xrayed(ctx, render_pass, mesh);
             self.program_lines.draw_mesh_xrayed(ctx, render_pass, mesh);
             self.program_cut_lines.draw_mesh_xrayed(ctx, render_pass, mesh);
             self.program_points.draw_mesh_xrayed(ctx, render_pass, mesh);
         };
 
         // always draw non-occluded elements
-        self.program_tris.draw_mesh(ctx, render_pass, mesh);
+        // self.program_tris.draw_mesh(ctx, render_pass, mesh);
         self.program_lines.draw_mesh(ctx, render_pass, mesh);
         self.program_cut_lines.draw_mesh(ctx, render_pass, mesh);
         self.program_points.draw_mesh(ctx, render_pass, mesh);
+    }
+
+    pub fn draw_piece_mesh(
+        &self,
+        ctx: &gpu::Context,
+        render_pass: &mut wgpu::RenderPass,
+        mesh: &cache::MeshGPU,
+        xray: bool,
+    ) {
+        self.program_surface.draw_piece_mesh(ctx, render_pass, mesh);
     }
 }

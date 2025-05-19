@@ -11,7 +11,7 @@ pub(super) struct Program {
 impl MeshDrawable for Program {
     fn new(ctx: &gpu::Context) -> Self {
         let shader =
-            ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/cut_lines.wgsl"));
+            ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/lines_cut.wgsl"));
         let layout = Some(&ctx.shared_layouts.pipelines.pipeline_3d);
         let vertex = wgpu::VertexState {
             module: &shader,

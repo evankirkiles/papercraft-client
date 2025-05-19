@@ -31,16 +31,43 @@ pub struct MeshGPUVBOs {
     pub cut_edge_pos: gpu::VertBuf,
 }
 
+impl MeshGPUVBOs {
+    fn new(label: &str) -> Self {
+        Self {
+            pos: gpu::VertBuf::new(format!("{label}.pos")),
+            nor: gpu::VertBuf::new(format!("{label}.nor")),
+            uv: gpu::VertBuf::new(format!("{label}.uv")),
+            vert_flags: gpu::VertBuf::new(format!("{label}.vert_flags")),
+            vert_idx: gpu::VertBuf::new(format!("{label}.vert_idx")),
+            edge_pos: gpu::VertBuf::new(format!("{label}.edge_pos")),
+            edge_idx: gpu::VertBuf::new(format!("{label}.edge_idx")),
+            edge_flags: gpu::VertBuf::new(format!("{label}.edge_flags")),
+            face_idx: gpu::VertBuf::new(format!("{label}.face_idx")),
+            face_flags: gpu::VertBuf::new(format!("{label}.face_flags")),
+            cut_edge_pos: gpu::VertBuf::new(format!("{label}.cut_edge_pos")),
+        }
+    }
+}
+
 /// A manager for VBOs / IBOs derived from a mesh.
 #[derive(Debug)]
 pub struct MeshGPU {
+    /// VBOs with vertices laid out in loop order. Used for the "reference" mesh
+    /// before pieces have been cut out, as we don't need to worry about binding
+    /// uniform buffers for piece transforms.
     vbo: MeshGPUVBOs,
+
+    /// VBOs with vertices laid out in piece -> loop order. These VBOs have the
+    /// same capacity as the loop-only VBO, but have contents that are progressively
+    /// filled as valid pieces are created. Drawing a piece and all of its edit
+    /// components then becomes drawing the proper range of vertices in these VBOs.
+    vbo_pieces: MeshGPUVBOs,
 
     // Pieces own their own uniform buffers and the ranges of their vertices
     // in the piece VBOs.
     pieces: HashMap<id::PieceId, PieceGPU>,
 
-    /// Forces updating of all GPU-side resources
+    /// Forces updating of *all* GPU-side resources
     is_dirty: bool,
 }
 
@@ -51,19 +78,8 @@ impl MeshGPU {
         Self {
             is_dirty: true,
             pieces: HashMap::new(),
-            vbo: MeshGPUVBOs {
-                pos: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.pos")),
-                nor: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.nor")),
-                uv: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.uv")),
-                vert_flags: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.vert_flags")),
-                vert_idx: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.vert_idx")),
-                edge_pos: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.edge_pos")),
-                edge_idx: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.edge_idx")),
-                edge_flags: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.edge_flags")),
-                face_idx: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.face_idx")),
-                face_flags: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.face_flags")),
-                cut_edge_pos: gpu::VertBuf::new(format!("{mesh_lbl}.vbo.cut_edge_pos")),
-            },
+            vbo: MeshGPUVBOs::new(&format!("{mesh_lbl}.vbo)")),
+            vbo_pieces: MeshGPUVBOs::new(&format!("{mesh_lbl}.vbo_pieces)")),
         }
     }
 
@@ -79,6 +95,9 @@ impl MeshGPU {
         }
         if elem_dirty.intersects(MeshElementType::EDGES) {
             extract::vbo::cut_edge_pos(ctx, mesh, &mut self.vbo.cut_edge_pos);
+            extract::vbo::piece_pos(ctx, mesh, &mut self.vbo_pieces.pos);
+            extract::vbo::piece_vnor(ctx, mesh, &mut self.vbo_pieces.nor);
+            extract::vbo::piece_vert_flags(ctx, mesh, selection, &mut self.vbo_pieces.vert_flags);
         }
         if index_dirty.intersects(MeshElementType::VERTS) {
             extract::vbo::vert_idx(ctx, mesh, &mut self.vbo.vert_idx);
@@ -86,9 +105,6 @@ impl MeshGPU {
         if index_dirty.intersects(MeshElementType::EDGES) {
             extract::vbo::edge_idx(ctx, mesh, &mut self.vbo.edge_idx);
         }
-        // if index_dirty.intersects(MeshElementType::PIECES) {
-        //     extract::vbo
-        // }
 
         if self.is_dirty || selection.is_dirty {
             extract::vbo::vert_flags(ctx, mesh, selection, &mut self.vbo.vert_flags);
@@ -165,6 +181,16 @@ impl MeshGPU {
         render_pass.set_vertex_buffer(1, self.vbo.nor.slice());
         render_pass.set_vertex_buffer(2, self.vbo.vert_flags.slice());
         render_pass.draw(0..self.vbo.vert_idx.len, 0..1);
+    }
+
+    pub fn draw_piece_tris(&self, _: &gpu::Context, render_pass: &mut wgpu::RenderPass) {
+        if self.vbo_pieces.pos.len == 0 {
+            return;
+        }
+        render_pass.set_vertex_buffer(0, self.vbo_pieces.pos.slice());
+        render_pass.set_vertex_buffer(1, self.vbo_pieces.nor.slice());
+        render_pass.set_vertex_buffer(2, self.vbo_pieces.vert_flags.slice());
+        render_pass.draw(0..self.vbo_pieces.pos.len, 0..1);
     }
 
     pub const BATCH_BUFFER_LAYOUT_EDIT_POINTS_INSTANCED: &[wgpu::VertexBufferLayout<'static>] = &[

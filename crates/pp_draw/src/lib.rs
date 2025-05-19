@@ -154,6 +154,13 @@ impl<'window> Renderer<'window> {
                         mesh,
                         self.draw_cache.viewport_3d.xray_mode,
                     );
+                    // TEMPORARY:
+                    self.engine_ink3.draw_piece_mesh(
+                        &self.ctx,
+                        &mut render_pass,
+                        mesh,
+                        self.draw_cache.viewport_3d.xray_mode,
+                    );
                 });
                 self.engine_ink3.draw_overlays(&self.ctx, &mut render_pass);
             }

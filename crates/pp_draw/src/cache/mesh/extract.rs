@@ -23,6 +23,7 @@ bitflags! {
 
 /// Helper functions for extracting VBOs from a Mesh
 pub mod vbo {
+    use cgmath::Transform;
     use pp_core::{
         id::{self, Id},
         select::SelectionActiveElement,
@@ -35,6 +36,24 @@ pub mod vbo {
     /// Reloads the pos VBO from the mesh's data
     pub fn pos(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
         let data: Vec<_> = mesh.iter_loops().map(|l| mesh[mesh[l].v].po).collect();
+        vbo.update(ctx, data.as_slice());
+    }
+
+    /// Reloads the piece pos VBOs, using their "unfolded" positions as determined
+    /// by each piece's `t` value.
+    pub fn piece_pos(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
+        let data: Vec<_> = mesh
+            .pieces
+            .indices()
+            .flat_map(|p_id| mesh.iter_piece_faces_unfolded(id::PieceId::from_usize(p_id)))
+            .flat_map(|item| {
+                mesh.iter_face_loops(item.f).map(move |l| {
+                    Into::<[f32; 3]>::into(
+                        item.affine.transform_point(cgmath::Point3::from(mesh[mesh[l].v].po)),
+                    )
+                })
+            })
+            .collect();
         vbo.update(ctx, data.as_slice());
     }
 
@@ -58,6 +77,17 @@ pub mod vbo {
     /// Reloads the vertex normals VBO from the mesh's data
     pub fn vnor(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
         let data: Vec<_> = mesh.iter_loops().map(|l| mesh[mesh[l].v].no).collect();
+        vbo.update(ctx, data.as_slice());
+    }
+
+    /// Reloads the vertex normals VBO from the mesh's data
+    pub fn piece_vnor(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
+        let data: Vec<_> = mesh
+            .pieces
+            .indices()
+            .flat_map(|p_id| mesh.iter_connected_faces(mesh[id::PieceId::from_usize(p_id)].f))
+            .flat_map(|f_id| mesh.iter_face_loops(f_id).map(|l| [0.0, 0.0, 0.0]))
+            .collect();
         vbo.update(ctx, data.as_slice());
     }
 
@@ -96,6 +126,41 @@ pub mod vbo {
             })
             .collect();
         vbo.update(ctx, data.as_slice())
+    }
+    ///
+    /// Reloads the vertex normals VBO from the mesh's data
+    pub fn piece_vert_flags(
+        ctx: &gpu::Context,
+        mesh: &pp_core::mesh::Mesh,
+        selection: &pp_core::select::SelectionState,
+        vbo: &mut gpu::VertBuf,
+    ) {
+        let data: Vec<_> = mesh
+            .pieces
+            .indices()
+            .flat_map(|p_id| mesh.iter_connected_faces(mesh[id::PieceId::from_usize(p_id)].f))
+            .flat_map(|f_id| {
+                mesh.iter_face_loops(f_id).map(|l| {
+                    let mut flags = VertFlags::empty();
+                    if selection.faces.contains(&(mesh.id, mesh[l].f)) {
+                        flags |= VertFlags::FACE_SELECTED;
+                    }
+                    if selection.verts.contains(&(mesh.id, mesh[l].v)) {
+                        flags |= VertFlags::SELECTED;
+                    }
+                    if selection.active_element.as_ref().is_some_and(|el| match el {
+                        SelectionActiveElement::Vert((m_id, v_id)) => {
+                            *m_id == mesh.id && *v_id == mesh[l].v
+                        }
+                        _ => false,
+                    }) {
+                        flags |= VertFlags::ACTIVE;
+                    }
+                    flags.bits()
+                })
+            })
+            .collect();
+        vbo.update(ctx, data.as_slice());
     }
 
     /// Reloads flags indicating the state of the vertex (select, active)

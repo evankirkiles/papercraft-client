@@ -1,6 +1,8 @@
 use std::collections::HashSet;
 use std::collections::VecDeque;
 
+use cgmath::InnerSpace;
+
 use crate::id::{self, Id};
 
 use super::loop_::*;
@@ -13,7 +15,7 @@ pub struct Face {
     pub no: [f32; 3],
     /// Material index for this face
     pub mat_nr: u16,
-    /// The number of vertices of this face. This will always be 3
+    /// The number of vertices of this face. This will always be 3, for now
     pub len: usize,
 
     /// LoopCycle: Any loop in this face
@@ -50,6 +52,15 @@ impl super::Mesh {
         // Otherwise, begin creating the face
         let len = verts.len();
         let f = id::FaceId::from_usize(self.faces.push(Face::new(len)));
+
+        // Calculate face normal
+        if verts.len() >= 3 {
+            let v0 = cgmath::Vector3::from(self[verts[0]].po);
+            let v1 = cgmath::Vector3::from(self[verts[1]].po);
+            let v2 = cgmath::Vector3::from(self[verts[2]].po);
+            let normal = (v1 - v0).cross(v2 - v0).normalize();
+            self[f].no = normal.into();
+        }
 
         // Create or use existing edges between all adjacent vertices
         let edges: Vec<id::EdgeId> =
@@ -191,7 +202,7 @@ impl DoubleEndedIterator for LoopCycleWalker<'_> {
 
 impl super::Mesh {
     /// Walks the loops in a face (vertices)
-    pub(crate) fn iter_face_loops(&self, f: id::FaceId) -> LoopCycleWalker {
+    pub fn iter_face_loops(&self, f: id::FaceId) -> LoopCycleWalker {
         LoopCycleWalker::new(self, self[f].l_first)
     }
 }
@@ -246,7 +257,7 @@ impl Iterator for ConnectedFaceWalker<'_> {
 
 impl super::Mesh {
     /// Walks all faces connected to the given face, respecting cut boundaries.
-    pub(crate) fn iter_connected_faces(&self, f: id::FaceId) -> ConnectedFaceWalker {
+    pub fn iter_connected_faces(&self, f: id::FaceId) -> ConnectedFaceWalker {
         ConnectedFaceWalker::new(self, f)
     }
 }
