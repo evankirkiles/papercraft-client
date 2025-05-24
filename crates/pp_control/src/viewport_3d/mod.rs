@@ -1,4 +1,3 @@
-use pp_core::id::Id;
 use pp_core::mesh::MeshElementType;
 
 use crate::event;
@@ -52,19 +51,6 @@ impl event::EventHandler for Controller3D {
                             pp_core::cut::CutMaskType::SelectionBorder,
                         );
                     }
-                    "Digit0" | "Digit1" | "Digit2" | "Digit3" | "Digit4" | "Digit5" | "Digit6"
-                    | "Digit7" | "Digit8" | "Digit9" => {
-                        if let Some(dig) = char.as_str().chars().last() {
-                            let digit = dig.to_digit(10).unwrap() as f32 / 10.0;
-                            let mut state = ctx.state.borrow_mut();
-                            state.meshes.iter_mut().for_each(|(_, mesh)| {
-                                mesh.elem_dirty |= MeshElementType::all();
-                                mesh.pieces.iter_mut().for_each(|(_, piece)| {
-                                    piece.t = digit;
-                                });
-                            });
-                        };
-                    }
                     _ => (),
                 },
                 _ => (),
@@ -75,6 +61,16 @@ impl event::EventHandler for Controller3D {
                     state.viewport_3d.camera.pan(*dx, *dy);
                 } else if ctx.modifiers.super_pressed() {
                     state.viewport_3d.camera.dolly(*dy * 0.5);
+                } else if ctx.modifiers.ctrl_pressed() {
+                    let new_t = (state.t + ((*dy) as f32 * 0.01)).clamp(0.0, 1.0);
+                    state.t = new_t;
+                    state.meshes.iter_mut().for_each(|(_, mesh)| {
+                        mesh.elem_dirty |= MeshElementType::all();
+                        mesh.pieces.iter_mut().for_each(|(_, piece)| {
+                            piece.t = new_t;
+                        });
+                    });
+                    return Ok(event::EventHandleSuccess::StopPropagation);
                 } else {
                     state.viewport_3d.camera.orbit(*dx, *dy);
                 }

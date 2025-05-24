@@ -1,36 +1,40 @@
+use crate::cache;
 use crate::gpu;
-use crate::{cache, select};
 
+use super::DepthBiasLayer;
+
+/// `SurfaceProgram` renders possibly textured faces.
 #[derive(Debug)]
-pub struct PointsProgram {
+pub struct SurfaceProgram {
     pipeline: wgpu::RenderPipeline,
 }
 
-impl PointsProgram {
+impl SurfaceProgram {
     pub(super) fn new(ctx: &gpu::Context) -> Self {
-        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/points.wgsl"));
+        let shader =
+            ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/surface.wgsl"));
         Self {
             pipeline: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("select.points"),
+                label: Some("ink3.surface"),
                 layout: Some(&ctx.shared_layouts.pipelines.pipeline_3d),
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: Some("vs_main"),
-                    buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_EDIT_POINTS_INSTANCED,
+                    buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_TRIS,
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
-                    entry_point: Some("fs_select"),
+                    entry_point: Some("fs_main"),
                     targets: &[Some(wgpu::ColorTargetState {
-                        format: select::SELECT_TEX_FORMAT,
-                        blend: None,
+                        format: ctx.config.format,
+                        blend: Some(wgpu::BlendState::REPLACE),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 }),
                 primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleStrip,
+                    topology: wgpu::PrimitiveTopology::TriangleList,
                     strip_index_format: None,
                     front_face: wgpu::FrontFace::Ccw,
                     cull_mode: None,
@@ -41,12 +45,16 @@ impl PointsProgram {
                 depth_stencil: Some(wgpu::DepthStencilState {
                     format: gpu::Texture::DEPTH_FORMAT,
                     depth_write_enabled: true,
-                    depth_compare: wgpu::CompareFunction::LessEqual,
+                    depth_compare: wgpu::CompareFunction::Less,
                     stencil: wgpu::StencilState::default(),
-                    bias: wgpu::DepthBiasState::default(),
+                    bias: wgpu::DepthBiasState {
+                        constant: DepthBiasLayer::BackgroundTop as i32,
+                        slope_scale: 0.05,
+                        ..Default::default()
+                    },
                 }),
                 multisample: wgpu::MultisampleState {
-                    count: 1,
+                    count: (&ctx.settings.msaa_level).into(),
                     mask: !0,
                     alpha_to_coverage_enabled: false,
                 },
@@ -64,6 +72,17 @@ impl PointsProgram {
         mesh: &cache::MeshGPU,
     ) {
         render_pass.set_pipeline(&self.pipeline);
-        mesh.draw_edit_points_instanced(ctx, render_pass);
+        mesh.draw_tris(ctx, render_pass);
+    }
+
+    /// Writes geometry draw commands for all the materials in a mesh
+    pub fn draw_piece_mesh(
+        &self,
+        ctx: &gpu::Context,
+        render_pass: &mut wgpu::RenderPass,
+        mesh: &cache::MeshGPU,
+    ) {
+        render_pass.set_pipeline(&self.pipeline);
+        mesh.draw_piece_tris(ctx, render_pass);
     }
 }

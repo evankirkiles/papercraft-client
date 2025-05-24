@@ -18,6 +18,8 @@ pub struct State {
     pub viewport_2d: viewport_2d::Viewport2D,
     pub viewport_split_x: f64,
     pub viewport_split_y: f64,
+    // TEMPORARY: The "unfold" factor
+    pub t: f32,
 }
 
 impl Default for State {
@@ -30,6 +32,7 @@ impl Default for State {
             viewport_split_x: 0.5,
             viewport_split_y: 1.0,
             selection: Default::default(),
+            t: 0.0,
         };
 
         // Set up basic initial scene

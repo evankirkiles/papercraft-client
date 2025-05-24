@@ -19,10 +19,8 @@ pub struct Renderer<'window> {
 
     /// A storage manager for all updatable GPU resources (mesh, materials)
     draw_cache: cache::DrawCache,
-
-    // Rendering engines for each type of scene
-    engine_ink2: engines::d2::InkEngine2D,
-    engine_ink3: engines::d3::InkEngine3D,
+    /// The core renderer for viewport content (2D and 3D)
+    draw_engine: engines::ink::InkEngine,
 }
 
 impl<'window> Renderer<'window> {
@@ -91,11 +89,10 @@ impl<'window> Renderer<'window> {
         let ctx = gpu::Context::new(device, config, surface, queue);
 
         Self {
-            engine_ink2: engines::d2::InkEngine2D::new(&ctx),
-            engine_ink3: engines::d3::InkEngine3D::new(&ctx),
+            select: select::SelectManager::new(&ctx),
             textures: RendererAttachmentTextures::create(&ctx),
             draw_cache: DrawCache::new(&ctx),
-            select: select::SelectManager::new(&ctx),
+            draw_engine: engines::ink::InkEngine::new(&ctx),
             ctx,
         }
     }
@@ -148,30 +145,34 @@ impl<'window> Renderer<'window> {
             if self.draw_cache.viewport_3d.bind(&mut render_pass) {
                 // draw from each engine in the presentation render pass.
                 self.draw_cache.meshes.values().for_each(|mesh| {
-                    self.engine_ink3.draw_mesh(
+                    self.draw_engine.draw_mesh(
                         &self.ctx,
                         &mut render_pass,
                         mesh,
                         self.draw_cache.viewport_3d.xray_mode,
                     );
-                    // TEMPORARY:
-                    self.engine_ink3.draw_piece_mesh(
+                    // self.draw_engine.draw_piece_mesh(
+                    //     &self.ctx,
+                    //     &mut render_pass,
+                    //     mesh,
+                    //     self.draw_cache.viewport_3d.xray_mode,
+                    // );
+                });
+                self.draw_engine.draw_3d_overlays(&self.ctx, &mut render_pass);
+            }
+
+            // Render 2D if viewport has area
+            if self.draw_cache.viewport_2d.bind(&mut render_pass) {
+                // draw from each engine in the presentation render pass.
+                self.draw_cache.meshes.values().for_each(|mesh| {
+                    self.draw_engine.draw_piece_mesh(
                         &self.ctx,
                         &mut render_pass,
                         mesh,
                         self.draw_cache.viewport_3d.xray_mode,
                     );
                 });
-                self.engine_ink3.draw_overlays(&self.ctx, &mut render_pass);
-            }
-
-            // Render 2D if viewport has area
-            if self.draw_cache.viewport_2d.bind(&mut render_pass) {
-                // draw from each engine in the presentation render pass.
-                // self.draw_cache.meshes.values().for_each(|mesh| {
-                //     self.engine_ink3.draw_mesh(&mut render_pass, mesh);
-                // });
-                self.engine_ink2.draw_overlays(&self.ctx, &mut render_pass);
+                self.draw_engine.draw_2d_overlays(&self.ctx, &mut render_pass);
             }
         }
 

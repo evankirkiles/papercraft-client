@@ -1,15 +1,14 @@
 use crate::cache;
-use crate::engines::program::MeshDrawable;
 use crate::gpu;
 
 #[derive(Debug)]
-pub(super) struct Program {
+pub(super) struct LinesCutProgram {
     pipeline: wgpu::RenderPipeline,
     pipeline_xray: wgpu::RenderPipeline,
 }
 
-impl MeshDrawable for Program {
-    fn new(ctx: &gpu::Context) -> Self {
+impl LinesCutProgram {
+    pub(super) fn new(ctx: &gpu::Context) -> Self {
         let shader =
             ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/lines_cut.wgsl"));
         let layout = Some(&ctx.shared_layouts.pipelines.pipeline_3d);
@@ -44,52 +43,55 @@ impl MeshDrawable for Program {
             mask: !0,
             alpha_to_coverage_enabled: false,
         };
+        let bias = wgpu::DepthBiasState {
+            constant: super::DepthBiasLayer::ForegroundMiddle as i32,
+            ..Default::default()
+        };
         let multiview = None;
         let cache = None;
 
-        let pipeline = ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("ink3.cut_lines"),
-            vertex: vertex.clone(),
-            fragment: fragment.clone(),
-            layout,
-            primitive,
-            multisample,
-            multiview,
-            cache,
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: gpu::Texture::DEPTH_FORMAT,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::LessEqual,
-                stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState { constant: 1, ..Default::default() },
+        Self {
+            pipeline: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("ink3.cut_lines"),
+                vertex: vertex.clone(),
+                fragment: fragment.clone(),
+                layout,
+                primitive,
+                multisample,
+                multiview,
+                cache,
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: gpu::Texture::DEPTH_FORMAT,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::LessEqual,
+                    stencil: wgpu::StencilState::default(),
+                    bias,
+                }),
             }),
-        });
-
-        // "XRay" depth tests for all the *occluded* lines in the scene. This allows
-        // us to still render but slightly fade occluded lines while in xray mode.
-        let pipeline_xray = ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("ink3.cut_lines.xray"),
-            layout,
-            vertex,
-            fragment,
-            primitive,
-            multisample,
-            multiview,
-            cache,
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: gpu::Texture::DEPTH_FORMAT,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::GreaterEqual,
-                stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState { constant: 1, ..Default::default() },
+            // "XRay" depth tests for all the *occluded* lines in the scene. This allows
+            // us to still render but slightly fade occluded lines while in xray mode.
+            pipeline_xray: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("ink3.cut_lines.xray"),
+                layout,
+                vertex,
+                fragment,
+                primitive,
+                multisample,
+                multiview,
+                cache,
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: gpu::Texture::DEPTH_FORMAT,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::GreaterEqual,
+                    stencil: wgpu::StencilState::default(),
+                    bias,
+                }),
             }),
-        });
-
-        Self { pipeline, pipeline_xray }
+        }
     }
 
     /// Writes geometry draw commands for all the materials in a mesh
-    fn draw_mesh(
+    pub(super) fn draw_mesh(
         &self,
         ctx: &gpu::Context,
         render_pass: &mut wgpu::RenderPass,
@@ -98,10 +100,8 @@ impl MeshDrawable for Program {
         render_pass.set_pipeline(&self.pipeline);
         mesh.draw_edit_cut_lines_instanced(ctx, render_pass);
     }
-}
 
-impl Program {
-    pub fn draw_mesh_xrayed(
+    pub(super) fn draw_mesh_xrayed(
         &self,
         ctx: &gpu::Context,
         render_pass: &mut wgpu::RenderPass,

@@ -88,27 +88,41 @@ impl MeshGPU {
         let elem_dirty = if self.is_dirty { &MeshElementType::all() } else { &mesh.elem_dirty };
         let index_dirty = if self.is_dirty { &MeshElementType::all() } else { &mesh.index_dirty };
         if elem_dirty.intersects(MeshElementType::VERTS) {
+            // Meshwise VBOs
             extract::vbo::pos(ctx, mesh, &mut self.vbo.pos);
             extract::vbo::vnor(ctx, mesh, &mut self.vbo.nor);
             extract::vbo::edge_pos(ctx, mesh, &mut self.vbo.edge_pos);
             extract::vbo::cut_edge_pos(ctx, mesh, &mut self.vbo.cut_edge_pos);
+            // Piecewise VBOs
+            extract::vbo::piece_pos(ctx, mesh, &mut self.vbo_pieces.pos);
+            extract::vbo::piece_vnor(ctx, mesh, &mut self.vbo_pieces.nor);
+            extract::vbo::piece_edge_pos(ctx, mesh, &mut self.vbo_pieces.edge_pos);
         }
         if elem_dirty.intersects(MeshElementType::EDGES) {
             extract::vbo::cut_edge_pos(ctx, mesh, &mut self.vbo.cut_edge_pos);
-            extract::vbo::piece_pos(ctx, mesh, &mut self.vbo_pieces.pos);
-            extract::vbo::piece_vnor(ctx, mesh, &mut self.vbo_pieces.nor);
-            extract::vbo::piece_vert_flags(ctx, mesh, selection, &mut self.vbo_pieces.vert_flags);
         }
         if index_dirty.intersects(MeshElementType::VERTS) {
             extract::vbo::vert_idx(ctx, mesh, &mut self.vbo.vert_idx);
         }
         if index_dirty.intersects(MeshElementType::EDGES) {
             extract::vbo::edge_idx(ctx, mesh, &mut self.vbo.edge_idx);
+            extract::vbo::piece_edge_idx(ctx, mesh, &mut self.vbo_pieces.edge_idx);
+        }
+        // TODO: Clean this up
+        if index_dirty.intersects(MeshElementType::PIECES) {
+            extract::vbo::piece_pos(ctx, mesh, &mut self.vbo_pieces.pos);
+            extract::vbo::piece_vnor(ctx, mesh, &mut self.vbo_pieces.nor);
+            extract::vbo::piece_edge_pos(ctx, mesh, &mut self.vbo_pieces.edge_pos);
+            extract::vbo::piece_edge_idx(ctx, mesh, &mut self.vbo_pieces.edge_idx);
+            extract::vbo::piece_edge_flags(ctx, mesh, selection, &mut self.vbo_pieces.edge_flags);
+            extract::vbo::piece_vert_flags(ctx, mesh, selection, &mut self.vbo_pieces.vert_flags);
         }
 
         if self.is_dirty || selection.is_dirty {
             extract::vbo::vert_flags(ctx, mesh, selection, &mut self.vbo.vert_flags);
             extract::vbo::edge_flags(ctx, mesh, selection, &mut self.vbo.edge_flags);
+            extract::vbo::piece_edge_flags(ctx, mesh, selection, &mut self.vbo_pieces.edge_flags);
+            extract::vbo::piece_vert_flags(ctx, mesh, selection, &mut self.vbo_pieces.vert_flags);
         }
         mesh.elem_dirty = MeshElementType::empty();
         mesh.index_dirty = MeshElementType::empty();
@@ -300,6 +314,21 @@ impl MeshGPU {
         render_pass.set_vertex_buffer(2, self.vbo.edge_flags.slice());
         render_pass.set_vertex_buffer(3, self.vbo.edge_idx.slice());
         render_pass.draw(0..4, 0..self.vbo.edge_idx.len);
+    }
+
+    pub fn draw_piece_edit_lines_instanced(
+        &self,
+        ctx: &gpu::Context,
+        render_pass: &mut wgpu::RenderPass,
+    ) {
+        if self.vbo_pieces.edge_idx.len == 0 {
+            return;
+        };
+        render_pass.set_vertex_buffer(0, ctx.buf_rect.slice(..));
+        render_pass.set_vertex_buffer(1, self.vbo_pieces.edge_pos.slice());
+        render_pass.set_vertex_buffer(2, self.vbo_pieces.edge_flags.slice());
+        render_pass.set_vertex_buffer(3, self.vbo_pieces.edge_idx.slice());
+        render_pass.draw(0..4, 0..self.vbo_pieces.edge_idx.len);
     }
 
     pub const BATCH_BUFFER_LAYOUT_EDIT_CUT_LINES_INSTANCED: &[wgpu::VertexBufferLayout<'static>] =

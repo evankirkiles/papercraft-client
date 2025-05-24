@@ -33,3 +33,8 @@ fn vs_main(
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     return in.color;
 }
+
+@fragment
+fn fs_select(in: VertexOutput) -> @location(0) vec4<f32> {
+    return in.color;
+}

@@ -2,7 +2,10 @@ use std::collections::{HashSet, VecDeque};
 
 use cgmath::*;
 
-use crate::id::{self, Id};
+use crate::{
+    id::{self, Id},
+    mesh::MeshElementType,
+};
 
 /// A face, formed by three vertices and three edges.
 #[derive(Debug, Clone, Copy)]
@@ -24,7 +27,7 @@ pub struct Piece {
 
 impl Piece {
     fn new(f: id::FaceId) -> Self {
-        Self { f, t: 0.0, elem_dirty: false, is_dirty: false }
+        Self { f, t: 1.0, elem_dirty: false, is_dirty: false }
     }
 }
 
@@ -47,6 +50,9 @@ impl super::Mesh {
         let f_ids: Vec<_> = self.iter_connected_faces(f_id).collect();
         f_ids.iter().for_each(|f_id| self[*f_id].p = Some(p_id));
         log::info!("Made piece {p_id:?} at {f_id:?}");
+        // Face and loop resources need to be recreated
+        self.elem_dirty |= MeshElementType::PIECES;
+        self.index_dirty |= MeshElementType::PIECES;
         Ok(p_id)
     }
 
@@ -67,6 +73,8 @@ impl super::Mesh {
         f_ids.iter().for_each(|f_id| self[*f_id].p = new_p_id);
         log::info!("Removed piece {p_id:?} for {new_p_id:?}");
         self.pieces.remove(p_id.to_usize());
+        self.elem_dirty |= MeshElementType::PIECES;
+        self.index_dirty |= MeshElementType::PIECES;
     }
 
     /// Ensures that there are no cycles in faces connected to this mesh
@@ -133,15 +141,47 @@ pub struct UnfoldedPieceFaceWalker<'mesh> {
     /// all of their vertices must go through to be "unfolded"
     frontier: VecDeque<UnfoldedFace>,
     /// Faces already explored
-    pub visited: HashSet<id::FaceId>,
+    visited: HashSet<id::FaceId>,
+    /// The final affine transformation to move vertices onto the XY plane
+    pub affine_final: Matrix4<f32>,
 }
 
 impl<'mesh> UnfoldedPieceFaceWalker<'mesh> {
     fn new(mesh: &'mesh super::Mesh, p_id: id::PieceId, t: f32) -> Self {
-        let f = mesh[p_id].f;
+        let Piece { f, t, .. } = mesh[p_id];
+        let up = Vector3::unit_z();
+        let n = Vector3::from(mesh[f].no);
+
+        // Get affine transform for entire piece onto XY plane at Z=0
+        let axis = n.cross(up);
+        let axis_len = axis.magnitude();
+        let rotation = if axis_len < 1e-5 {
+            // Normals are already aligned or opposite
+            if n.dot(up) > 0.0 {
+                Matrix4::identity()
+            } else {
+                // 180 degree rotation around any axis perpendicular to normal
+                let arbitrary_axis = if n.x.abs() < 0.99 {
+                    n.cross(Vector3::unit_x()).normalize()
+                } else {
+                    n.cross(Vector3::unit_y()).normalize()
+                };
+                Matrix4::from_axis_angle(arbitrary_axis, Rad(std::f32::consts::PI))
+            }
+        } else {
+            let angle = n.angle(up);
+            Matrix4::from_axis_angle(axis.normalize(), angle * t)
+        };
+        // 2. Translate point to lie on Z = 0
+        let rotated_point =
+            rotation.transform_vector(Vector3::from(mesh[mesh[mesh[f].l_first].v].po));
+        let translation = Matrix4::from_translation(Vector3::new(0.0, 0.0, -rotated_point.z * t));
+        let affine_final = translation * rotation;
+
         Self {
             mesh,
             t,
+            affine_final,
             visited: HashSet::from([f]),
             frontier: VecDeque::from([UnfoldedFace { f, affine: Matrix4::identity() }]),
         }
@@ -152,7 +192,7 @@ impl Iterator for UnfoldedPieceFaceWalker<'_> {
     type Item = UnfoldedFace;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let curr = self.frontier.pop_front()?;
+        let mut curr = self.frontier.pop_front()?;
         // Expand the frontier to include unvisited faces adjacent to this face
         self.frontier.extend(
             self.mesh
@@ -202,6 +242,7 @@ impl Iterator for UnfoldedPieceFaceWalker<'_> {
                     Some(UnfoldedFace { f: l.f, affine: curr.affine * local_rotation })
                 }),
         );
+        curr.affine = self.affine_final * curr.affine;
         Some(curr)
     }
 }

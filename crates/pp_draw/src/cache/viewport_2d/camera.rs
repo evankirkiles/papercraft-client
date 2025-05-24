@@ -18,9 +18,9 @@ impl Camera2DUniform {
         let view = cgmath::Matrix4::from_translation(cgmath::Vector3::new(
             -1.0 * camera.eye.x,
             -1.0 * camera.eye.y,
-            0.0,
+            -1.0,
         ));
-        let proj = cgmath::ortho(-half_width, half_width, -half_height, half_height, -1.0, 1.0);
+        let proj = cgmath::ortho(-half_width, half_width, -half_height, half_height, -1.1, 1.1);
         let view_proj = proj * view;
         Self { dimensions: [width, height], view_proj: view_proj.into(), padding: [0.0, 0.0] }
     }
