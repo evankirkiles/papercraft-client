@@ -24,6 +24,10 @@
   border: 1px solid theme.color("bg2");
   border-radius: 0.5em;
   box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2);
+
+  & > select {
+    color: inherit;
+  }
 }
 
 .icon {

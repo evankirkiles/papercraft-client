@@ -33,8 +33,26 @@ impl SelectEngine {
         if mask.intersects(select::SelectionMask::EDGES) {
             self.lines.draw_mesh(ctx, render_pass, mesh);
         }
-        if mask.intersects(select::SelectionMask::FACES) {
+        if mask.intersects(select::SelectionMask::FACES | select::SelectionMask::PIECES) {
             self.tris.draw_mesh(ctx, render_pass, mesh);
+        }
+    }
+
+    pub fn draw_piece_mesh(
+        &self,
+        ctx: &gpu::Context,
+        render_pass: &mut wgpu::RenderPass,
+        mesh: &cache::MeshGPU,
+        mask: select::SelectionMask,
+    ) {
+        if mask.intersects(select::SelectionMask::VERTS) {
+            self.points.draw_mesh(ctx, render_pass, mesh);
+        }
+        if mask.intersects(select::SelectionMask::EDGES) {
+            self.lines.draw_piece_mesh(ctx, render_pass, mesh);
+        }
+        if mask.intersects(select::SelectionMask::FACES | select::SelectionMask::PIECES) {
+            self.tris.draw_piece_mesh(ctx, render_pass, mesh);
         }
     }
 }

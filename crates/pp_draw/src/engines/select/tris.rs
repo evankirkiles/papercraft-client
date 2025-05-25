@@ -67,4 +67,15 @@ impl TrisProgram {
         render_pass.set_pipeline(&self.pipeline);
         mesh.draw_tris(ctx, render_pass);
     }
+
+    /// Writes geometry draw commands for all the materials in a mesh
+    pub(super) fn draw_piece_mesh(
+        &self,
+        ctx: &gpu::Context,
+        render_pass: &mut wgpu::RenderPass,
+        mesh: &cache::MeshGPU,
+    ) {
+        render_pass.set_pipeline(&self.pipeline);
+        mesh.draw_piece_tris(ctx, render_pass);
+    }
 }

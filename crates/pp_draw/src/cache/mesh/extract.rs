@@ -259,7 +259,7 @@ pub mod vbo {
             .iter_loops()
             .map(|l| -> [u32; 4] {
                 [
-                    mesh[mesh[l].f].p.map(|p| p.idx()).unwrap_or_default(),
+                    mesh[mesh[l].f].p.map(|p| p.idx() + 1).unwrap_or_default(), // `0` indicates no piece
                     mesh[l].f.idx(),
                     mesh[l].v.idx(),
                     mesh.id.idx(),
@@ -278,7 +278,7 @@ pub mod vbo {
             .flat_map(|f_id| {
                 mesh.iter_face_loops(f_id).map(|l| -> [u32; 4] {
                     [
-                        mesh[mesh[l].f].p.map(|p| p.idx()).unwrap_or_default(),
+                        mesh[mesh[l].f].p.map(|p| p.idx() + 1).unwrap_or_default(), // `0` indicates no piece
                         mesh[l].f.idx(),
                         mesh[l].v.idx(),
                         mesh.id.idx(),
@@ -302,7 +302,7 @@ pub mod vbo {
             .indices()
             .flat_map(|p_id| mesh.iter_connected_faces(mesh[id::PieceId::from_usize(p_id)].f))
             .flat_map(|f_id| {
-                mesh.iter_face_loops(f_id).map(|l| [mesh.id.idx(), mesh[l].e.to_usize() as u32])
+                mesh.iter_face_loops(f_id).map(|l| [mesh[l].e.to_usize() as u32, mesh.id.idx()])
             })
             .collect();
         vbo.update(ctx, data.as_slice())

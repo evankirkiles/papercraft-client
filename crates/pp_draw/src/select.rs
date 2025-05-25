@@ -202,9 +202,9 @@ impl SelectManager {
             // Render 2D if viewport has area
             if draw_cache.viewport_2d.bind(&mut render_pass) {
                 // draw from each engine in the presentation render pass.
-                // self.draw_cache.meshes.values().for_each(|mesh| {
-                //     self.engine_ink3.draw_mesh(&mut render_pass, mesh);
-                // });
+                draw_cache.meshes.values().for_each(|mesh| {
+                    self.select_engine.draw_piece_mesh(ctx, &mut render_pass, mesh, mask);
+                });
             }
         }
 
@@ -306,8 +306,10 @@ impl SelectManager {
                                 state.select_face(&(mesh_id, face_id), action, true, true);
                             }
                             SelectionMask::PIECES => {
-                                let piece_id = id::PieceId::new(pixel_data.p_id);
-                                state.select_piece(&(mesh_id, piece_id), action, true);
+                                if pixel_data.p_id != 0 {
+                                    let piece_id = id::PieceId::new(pixel_data.p_id - 1);
+                                    state.select_piece(&(mesh_id, piece_id), action, true, true);
+                                }
                             }
                             _ => {}
                         }

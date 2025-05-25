@@ -124,6 +124,12 @@ impl App {
         }
     }
 
+    /// Sets the select mode of the application
+    pub fn set_select_mode(&mut self, select_mode: pp_core::settings::SelectionMode) {
+        let mut state = self.state.borrow_mut();
+        state.settings.selection_mode = select_mode;
+    }
+
     /// Internal function used to route an event to the viewport a user is currently
     /// interacting with, e.g. where their mouse is hovered. If the event still
     /// propagated, then the controller can maybe do some last-minute processing.

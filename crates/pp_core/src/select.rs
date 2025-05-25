@@ -230,6 +230,7 @@ impl State {
         id: &(id::MeshId, id::PieceId),
         action: SelectionActionType,
         activate: bool,
+        include_faces: bool,
     ) {
         let selected = match action {
             SelectionActionType::Deselect => false,
@@ -244,6 +245,27 @@ impl State {
         if activate {
             self.selection.active_element = selected.then_some(SelectionActiveElement::Piece(*id))
         }
+
+        // Propagate selection to faces
+        if include_faces {
+            let (m_id, p_id) = *id;
+            let mesh = &self.meshes[&m_id];
+            let select_mode =
+                if selected { SelectionActionType::Select } else { SelectionActionType::Deselect };
+            let updated_faces: Vec<_> = mesh
+                .iter_connected_faces(mesh[p_id].f)
+                .filter_map(|f_id| {
+                    let face_selected = self.selection.faces.contains(&(mesh.id, f_id));
+                    if selected != face_selected {
+                        Some((m_id, f_id))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            updated_faces.iter().for_each(|id| self.select_face(id, select_mode, false, true));
+        }
+
         self.selection.is_dirty = true
     }
 }

@@ -830,6 +830,7 @@ dependencies = [
  "log",
  "stable-vec",
  "tobj",
+ "wasm-bindgen",
 ]
 
 [[package]]

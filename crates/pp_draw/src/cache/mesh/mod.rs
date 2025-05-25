@@ -104,6 +104,7 @@ impl MeshGPU {
         }
         // TODO: Clean this up
         if index_dirty.intersects(MeshElementType::PIECES) {
+            extract::vbo::vert_idx(ctx, mesh, &mut self.vbo.vert_idx);
             extract::vbo::piece_pos(ctx, mesh, &mut self.vbo_pieces.pos);
             extract::vbo::piece_vnor(ctx, mesh, &mut self.vbo_pieces.nor);
             extract::vbo::piece_vert_idx(ctx, mesh, &mut self.vbo_pieces.vert_idx);

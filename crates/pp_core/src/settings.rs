@@ -1,8 +1,11 @@
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
 #[derive(Default, Debug, Clone, PartialEq, PartialOrd)]
 pub enum SelectionMode {
+    #[default]
     Vert,
     Edge,
-    #[default]
     Face,
     Piece,
 }
