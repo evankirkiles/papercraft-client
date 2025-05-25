@@ -1,9 +1,8 @@
 use std::ops::DerefMut;
 
 use crate::event::{self, EventHandleSuccess, EventHandler};
+use pp_core::settings::SelectionMode;
 use pp_draw::select;
-
-const SELECT_RADIUS: f64 = 50.0;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct SelectTool {}
@@ -27,27 +26,38 @@ impl EventHandler for SelectTool {
             // view (e.g. in selection painting).
             event::UserEvent::MouseInput(event::MouseInputEvent::Up(button)) => {
                 let event::MouseButton::Left = button else { return Ok(Default::default()) };
+                let state = ctx.state.borrow();
                 let mut renderer = ctx.renderer.borrow_mut();
                 let Some(renderer) = renderer.deref_mut() else {
                     return Ok(EventHandleSuccess::StopPropagation);
                 };
-                let select_radius = SELECT_RADIUS * ctx.surface_dpi;
+                // Face / piece selection is exact, not fuzzy
+                let select_radius = match state.settings.selection_mode {
+                    SelectionMode::Face | SelectionMode::Piece => 2.0,
+                    _ => 50.0,
+                } * ctx.surface_dpi;
                 let cursor_pos = ctx.last_mouse_pos.unwrap();
-                #[allow(unused_must_use)]
-                renderer.select_query(select::SelectionQuery {
-                    action: Some(if ctx.modifiers.shift_pressed() {
-                        select::SelectImmediateAction::NearestToggle
-                    } else {
-                        select::SelectImmediateAction::Nearest
-                    }),
-                    mask: pp_draw::select::SelectionMask::all(),
-                    rect: select::SelectionRect {
-                        x: (cursor_pos.x * ctx.surface_dpi - select_radius).max(0.0) as u32,
-                        y: (cursor_pos.y * ctx.surface_dpi - select_radius).max(0.0) as u32,
-                        width: select_radius as u32 * 2,
-                        height: select_radius as u32 * 2,
-                    },
-                });
+                renderer
+                    .select_query(select::SelectionQuery {
+                        action: Some(if ctx.modifiers.shift_pressed() {
+                            select::SelectImmediateAction::NearestToggle
+                        } else {
+                            select::SelectImmediateAction::Nearest
+                        }),
+                        mask: match state.settings.selection_mode {
+                            SelectionMode::Vert => pp_draw::select::SelectionMask::VERTS,
+                            SelectionMode::Edge => pp_draw::select::SelectionMask::EDGES,
+                            SelectionMode::Face => pp_draw::select::SelectionMask::FACES,
+                            SelectionMode::Piece => pp_draw::select::SelectionMask::PIECES,
+                        },
+                        rect: select::SelectionRect {
+                            x: (cursor_pos.x * ctx.surface_dpi - select_radius).max(0.0) as u32,
+                            y: (cursor_pos.y * ctx.surface_dpi - select_radius).max(0.0) as u32,
+                            width: select_radius as u32 * 2,
+                            height: select_radius as u32 * 2,
+                        },
+                    })
+                    .unwrap();
                 Ok(EventHandleSuccess::StopPropagation)
             }
             _ => Ok(Default::default()),

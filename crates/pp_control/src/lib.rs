@@ -36,7 +36,7 @@ pub struct App {
 impl App {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        let state = Rc::new(RefCell::new(pp_core::State::default()));
+        let state = Rc::new(RefCell::new(pp_core::State::with_cube()));
         let renderer = Rc::new(RefCell::<Option<pp_draw::Renderer<'static>>>::new(None));
         Self {
             event_context: EventContext {
@@ -77,11 +77,12 @@ impl App {
     /// Draws a single frame of the app to the canvas.
     pub fn draw(&mut self, _timestamp: u32) -> Result<(), JsError> {
         let mut state = self.state.borrow_mut();
+        let state = state.deref_mut();
         let mut renderer = self.renderer.borrow_mut();
         let renderer = renderer.as_mut().ok_or(AppError::NoCanvasAttached)?;
-        renderer.select_poll(state.deref_mut());
-        renderer.sync(state.deref_mut());
-        renderer.draw();
+        renderer.select_poll(state);
+        renderer.sync(state);
+        renderer.draw(state);
         Ok(())
     }
 
@@ -99,17 +100,17 @@ impl App {
     // Functions that can be invoked by JavaScript on user interaction with HTML.
 
     pub fn update_horizontal_split(&mut self, frac: f64) {
-        self.state.borrow_mut().viewport_split_x = frac;
+        self.state.borrow_mut().settings.viewport_split_x = frac;
     }
 
     pub fn update_vertical_split(&mut self, frac: f64) {
-        self.state.borrow_mut().viewport_split_y = frac;
+        self.state.borrow_mut().settings.viewport_split_y = frac;
     }
 
     /// Returns the type viewport at the specified coordinates.
     fn get_viewport_at(&self, x: f64, y: f64) -> Option<AppViewportType> {
         let state = self.state.borrow();
-        let (split_x, split_y) = (state.viewport_split_x, state.viewport_split_y);
+        let (split_x, split_y) = (state.settings.viewport_split_x, state.settings.viewport_split_y);
         let frac_x = x / self.event_context.surface_size.width;
         let frac_y = y / self.event_context.surface_size.height;
         if !(0.0..=1.0).contains(&frac_x) || !(0.0..=1.0).contains(&frac_y) {
@@ -268,7 +269,7 @@ impl core::fmt::Display for AppError {
 #[wasm_bindgen]
 pub fn install_logging() {
     // Set up console logging / console error
-    #[cfg(feature = "console_error_panic_hook")]
+    // #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
     console_log::init_with_level(log::Level::Info).expect("Failed to initialize logger");
 }

@@ -1,3 +1,5 @@
+use pp_core::settings::SelectionMode;
+
 use crate::{cache, gpu};
 
 mod lines;
@@ -60,6 +62,7 @@ impl InkEngine {
     pub fn draw_mesh(
         &self,
         ctx: &gpu::Context,
+        settings: &pp_core::settings::Settings,
         render_pass: &mut wgpu::RenderPass,
         mesh: &cache::MeshGPU,
         xray: bool,
@@ -71,22 +74,26 @@ impl InkEngine {
             self.tris.draw_mesh_xrayed(ctx, render_pass, mesh);
             self.lines.draw_mesh_xrayed(ctx, render_pass, mesh);
             self.lines_cut.draw_mesh_xrayed(ctx, render_pass, mesh);
-            self.points.draw_mesh_xrayed(ctx, render_pass, mesh);
+            if settings.selection_mode == SelectionMode::Vert {
+                self.points.draw_mesh_xrayed(ctx, render_pass, mesh);
+            }
         };
 
         // always draw non-occluded elements
         self.tris.draw_mesh(ctx, render_pass, mesh);
         self.lines.draw_mesh(ctx, render_pass, mesh);
         self.lines_cut.draw_mesh(ctx, render_pass, mesh);
-        self.points.draw_mesh(ctx, render_pass, mesh);
+        if settings.selection_mode == SelectionMode::Vert {
+            self.points.draw_mesh(ctx, render_pass, mesh);
+        }
     }
 
     pub fn draw_piece_mesh(
         &self,
         ctx: &gpu::Context,
+        settings: &pp_core::settings::Settings,
         render_pass: &mut wgpu::RenderPass,
         mesh: &cache::MeshGPU,
-        xray: bool,
     ) {
         self.surface.draw_piece_mesh(ctx, render_pass, mesh);
         self.tris.draw_piece_mesh(ctx, render_pass, mesh);

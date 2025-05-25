@@ -12,12 +12,10 @@ struct VertexOutput {
 };
 
 @vertex
-fn vs_main(
-    vert: VertexInput,
-) -> VertexOutput {
+fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
 
-    var p = (vert.offset * 2 - 1) * 8.0;
+    var p = (in.offset * 2 - 1) * 8.0;
     out.world_position = vec3<f32>(p, 0.0);
     out.clip_position = camera.view_proj * vec4<f32>(out.world_position, 1.0);
     return out;

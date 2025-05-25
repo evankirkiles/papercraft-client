@@ -7,18 +7,17 @@ struct VertexInput {
   @location(1) v0_pos: vec3<f32>,
   @location(2) v1_pos: vec3<f32>,
   @location(3) flags: u32,
-//   @location(4) select_idx: vec2<u32>
+  @location(4) select_idx: vec2<u32>
 };
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(1) color: vec4<f32>,
+    @location(2) select_idx: vec2<u32>
 };
 
 @vertex
-fn vs_main(
-    in: VertexInput,
-) -> VertexOutput {
+fn vs_main( in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
 
     // Width of the line in pixels
@@ -39,11 +38,20 @@ fn vs_main(
     out.color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
 
     // Color each vertex based on its select status
+    let SELECTED: u32 = u32(1) << 0;
+    let ACTIVE: u32 = u32(1) << 1;
     let V0_SELECTED: u32 = u32(1) << 2;
     let V1_SELECTED: u32 = u32(1) << 3;
     if (in.offset.x == 0 && bool(in.flags & V0_SELECTED)) || (in.offset.x == 1 && bool(in.flags & V1_SELECTED)) {
         out.color = vec4<f32>(1.0, 0.5, 0.0, 1.0);
     }
+
+    // Override the color with edge-specific coloring
+    if (bool(in.flags & SELECTED)) { out.color = vec4<f32>(1.0, 0.5, 0.0, 1.0); }
+    if (bool(in.flags & ACTIVE)) { out.color = vec4<f32>(1.0, 1.0, 1.0, 1.0); }
+    
+    // Add the edge index for the selection engine
+    out.select_idx = in.select_idx;
     return out;
 }
 
@@ -56,5 +64,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
 @fragment
 fn fs_select(in: VertexOutput) -> @location(0) vec4<u32> {
-    return vec4<u32>(0, 0, 0, 0);
+    return vec4<u32>(0, 0, in.select_idx + vec2<u32>(0, 1));
 }

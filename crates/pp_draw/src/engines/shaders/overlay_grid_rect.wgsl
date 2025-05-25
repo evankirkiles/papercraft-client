@@ -12,16 +12,14 @@ struct VertexOutput {
 };
 
 @vertex
-fn vs_main(
-    vert: VertexInput,
-) -> VertexOutput {
+fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
 
     // Constants defining dimensions of the rectangle (will change)
     let PAD = 2.0;
     let DIMS = vec2<f32>(8.0, 8.0);
 
-    var p = ((vert.offset * (DIMS + PAD * 2)) - PAD) * vec2<f32>(1.0, -1.0);
+    var p = ((in.offset * (DIMS + PAD * 2)) - PAD) * vec2<f32>(1.0, -1.0);
     out.world_position = vec3<f32>(p, 0.0);
     out.clip_position = camera.view_proj * vec4<f32>(out.world_position, 1.0);
     return out;

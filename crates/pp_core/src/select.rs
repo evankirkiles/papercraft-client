@@ -15,13 +15,16 @@ pub enum SelectionActiveElement {
     Vert((id::MeshId, id::VertexId)),
     Edge((id::MeshId, id::EdgeId)),
     Face((id::MeshId, id::FaceId)),
+    Piece((id::MeshId, id::PieceId)),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub enum SelectionMode {
+    #[default]
     Vert,
     Edge,
     Face,
+    Piece,
 }
 
 impl From<bool> for SelectionActionType {
@@ -34,31 +37,18 @@ impl From<bool> for SelectionActionType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct SelectionState {
-    pub mode: SelectionMode,
     pub active_element: Option<SelectionActiveElement>,
     pub verts: HashSet<(id::MeshId, id::VertexId)>,
     pub edges: HashSet<(id::MeshId, id::EdgeId)>,
     pub faces: HashSet<(id::MeshId, id::FaceId)>,
+    pub pieces: HashSet<(id::MeshId, id::PieceId)>,
     pub is_dirty: bool,
 }
 
-impl Default for SelectionState {
-    fn default() -> Self {
-        Self {
-            mode: SelectionMode::Vert,
-            active_element: None,
-            verts: Default::default(),
-            edges: Default::default(),
-            faces: Default::default(),
-            is_dirty: true,
-        }
-    }
-}
-
 impl State {
-    /// Select all elements across all edeges
+    /// Select all elements
     pub fn select_all(&mut self, action: SelectionActionType) {
         match action {
             SelectionActionType::Deselect => {
@@ -76,6 +66,9 @@ impl State {
                     }));
                     (mesh.faces.indices().for_each(|id| {
                         self.selection.faces.insert((mesh.id, id::FaceId::from_usize(id)));
+                    }));
+                    (mesh.pieces.indices().for_each(|id| {
+                        self.selection.pieces.insert((mesh.id, id::PieceId::from_usize(id)));
                     }));
                 });
             }
@@ -122,7 +115,9 @@ impl State {
                     || (v2 == v_id && self.selection.verts.contains(&(mesh.id, v1)))
             })
             .collect();
-        e_ids.iter().for_each(|e_id| self.select_edge(&(m_id, *e_id), selected.into(), false));
+        e_ids
+            .iter()
+            .for_each(|e_id| self.select_edge(&(m_id, *e_id), selected.into(), false, true));
         self.selection.is_dirty = true
     }
 
@@ -133,6 +128,7 @@ impl State {
         id: &(id::MeshId, id::EdgeId),
         action: SelectionActionType,
         activate: bool,
+        include_faces: bool,
     ) {
         let selected = match action {
             SelectionActionType::Deselect => false,
@@ -148,26 +144,38 @@ impl State {
             self.selection.active_element = selected.then_some(SelectionActiveElement::Edge(*id))
         }
         self.selection.is_dirty = true;
-        let (m_id, e_id) = *id;
-        let mesh = &self.meshes[&m_id];
-        if let Some(walker) = mesh.iter_edge_loops(e_id) {
-            walker.for_each(|l| {
-                let f_id = mesh[l].f;
-                let face_selected = self.selection.faces.contains(&(mesh.id, f_id));
-                if selected == face_selected {
-                    return;
-                };
-                if mesh
-                    .iter_face_loops(f_id)
-                    .all(|l| self.selection.edges.contains(&(mesh.id, mesh[l].e)))
-                {
-                    if !face_selected {
-                        self.selection.faces.insert((mesh.id, f_id));
-                    }
-                } else if face_selected {
-                    self.selection.faces.remove(&(mesh.id, f_id));
-                }
-            })
+
+        // Propagate selection to faces
+        if include_faces {
+            let (m_id, e_id) = *id;
+            let mesh = &self.meshes[&m_id];
+            let select_mode =
+                if selected { SelectionActionType::Select } else { SelectionActionType::Deselect };
+            let updated_faces: Option<Vec<_>> = mesh.iter_edge_loops(e_id).map(|walker| {
+                walker
+                    .filter_map(|l| {
+                        let f_id = mesh[l].f;
+                        let face_selected = self.selection.faces.contains(&(mesh.id, f_id));
+                        if selected == face_selected {
+                            return None;
+                        };
+                        if mesh
+                            .iter_face_loops(f_id)
+                            .all(|l| self.selection.edges.contains(&(mesh.id, mesh[l].e)))
+                        {
+                            if !face_selected {
+                                return Some((mesh.id, f_id));
+                            }
+                        } else if face_selected {
+                            return Some((mesh.id, f_id));
+                        };
+                        None
+                    })
+                    .collect()
+            });
+            if let Some(updated_faces) = updated_faces {
+                updated_faces.iter().for_each(|id| self.select_face(id, select_mode, false, false));
+            }
         }
     }
 
@@ -177,6 +185,7 @@ impl State {
         id: &(id::MeshId, id::FaceId),
         action: SelectionActionType,
         activate: bool,
+        include_edges: bool,
     ) {
         let selected = match action {
             SelectionActionType::Deselect => false,
@@ -190,6 +199,50 @@ impl State {
         }
         if activate {
             self.selection.active_element = selected.then_some(SelectionActiveElement::Face(*id))
+        }
+
+        // Propagate selection to edges
+        if include_edges {
+            let (m_id, f_id) = *id;
+            let mesh = &self.meshes[&m_id];
+            let select_mode =
+                if selected { SelectionActionType::Select } else { SelectionActionType::Deselect };
+            let updated_edges: Vec<_> = mesh
+                .iter_face_loops(f_id)
+                .filter_map(|l| {
+                    let e_id = mesh[l].e;
+                    let edge_selected = self.selection.edges.contains(&(mesh.id, e_id));
+                    if selected != edge_selected {
+                        Some((m_id, e_id))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            updated_edges.iter().for_each(|id| self.select_edge(id, select_mode, false, false));
+        }
+        self.selection.is_dirty = true
+    }
+
+    /// Sets the selection state of an entire piece.
+    pub fn select_piece(
+        &mut self,
+        id: &(id::MeshId, id::PieceId),
+        action: SelectionActionType,
+        activate: bool,
+    ) {
+        let selected = match action {
+            SelectionActionType::Deselect => false,
+            SelectionActionType::Select => true,
+            SelectionActionType::Invert => !self.selection.pieces.contains(id),
+        };
+        if selected {
+            self.selection.pieces.insert(*id);
+        } else {
+            self.selection.pieces.remove(id);
+        }
+        if activate {
+            self.selection.active_element = selected.then_some(SelectionActiveElement::Piece(*id))
         }
         self.selection.is_dirty = true
     }

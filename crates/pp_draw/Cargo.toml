@@ -17,6 +17,7 @@ cgmath.workspace = true
 log.workspace = true
 paste.workspace = true
 wgpu.workspace = true
+image.workspace = true
 
 [build-dependencies]
 anyhow.workspace = true

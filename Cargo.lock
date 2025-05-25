@@ -843,6 +843,7 @@ dependencies = [
  "cgmath",
  "fs_extra",
  "glob",
+ "image",
  "log",
  "paste",
  "pp_core",

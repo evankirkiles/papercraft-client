@@ -8,6 +8,7 @@ bitflags! {
         const SELECTED = 1 << 0;
         const ACTIVE = 1 << 1;
         const FACE_SELECTED = 1 << 2;
+        const FACE_ACTIVE = 1 << 3;
     }
 
     /// A mask of items to render for selection in the buffer
@@ -113,12 +114,6 @@ pub mod vbo {
         vbo.update(ctx, data.as_slice());
     }
 
-    // /// Reloads the vertex normals VBO from the mesh's data
-    // pub fn uv(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
-    //     let data: Vec<_> = mesh.iter_loops().map(|l| mesh[mesh[l].v].no).collect();
-    //     vbo.update(ctx, data.as_slice());
-    // }
-
     /// Reloads flags indicating the state of the vertex (select, active)
     pub fn vert_flags(
         ctx: &gpu::Context,
@@ -136,20 +131,27 @@ pub mod vbo {
                 if selection.verts.contains(&(mesh.id, mesh[l].v)) {
                     flags |= VertFlags::SELECTED;
                 }
-                if selection.active_element.as_ref().is_some_and(|el| match el {
-                    SelectionActiveElement::Vert((m_id, v_id)) => {
-                        *m_id == mesh.id && *v_id == mesh[l].v
+                if let Some(el) = selection.active_element.as_ref() {
+                    match el {
+                        SelectionActiveElement::Vert((m_id, v_id)) => {
+                            if *m_id == mesh.id && *v_id == mesh[l].v {
+                                flags |= VertFlags::ACTIVE;
+                            }
+                        }
+                        SelectionActiveElement::Face((m_id, f_id)) => {
+                            if *m_id == mesh.id && *f_id == mesh[l].f {
+                                flags |= VertFlags::FACE_ACTIVE;
+                            }
+                        }
+                        _ => {}
                     }
-                    _ => false,
-                }) {
-                    flags |= VertFlags::ACTIVE;
                 }
                 flags.bits()
             })
             .collect();
         vbo.update(ctx, data.as_slice())
     }
-    ///
+
     /// Reloads the vertex normals VBO from the mesh's data
     pub fn piece_vert_flags(
         ctx: &gpu::Context,
@@ -170,13 +172,20 @@ pub mod vbo {
                     if selection.verts.contains(&(mesh.id, mesh[l].v)) {
                         flags |= VertFlags::SELECTED;
                     }
-                    if selection.active_element.as_ref().is_some_and(|el| match el {
-                        SelectionActiveElement::Vert((m_id, v_id)) => {
-                            *m_id == mesh.id && *v_id == mesh[l].v
+                    if let Some(el) = selection.active_element.as_ref() {
+                        match el {
+                            SelectionActiveElement::Vert((m_id, v_id)) => {
+                                if *m_id == mesh.id && *v_id == mesh[l].v {
+                                    flags |= VertFlags::ACTIVE;
+                                }
+                            }
+                            SelectionActiveElement::Face((m_id, f_id)) => {
+                                if *m_id == mesh.id && *f_id == mesh[l].f {
+                                    flags |= VertFlags::FACE_ACTIVE;
+                                }
+                            }
+                            _ => {}
                         }
-                        _ => false,
-                    }) {
-                        flags |= VertFlags::ACTIVE;
                     }
                     flags.bits()
                 })
@@ -246,13 +255,43 @@ pub mod vbo {
 
     /// Reloads the vertex selection idx from the mesh
     pub fn vert_idx(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
-        let data: Vec<_> = mesh.iter_loops().map(|l| [mesh.id.idx(), mesh[l].v.idx()]).collect();
+        let data: Vec<_> = mesh
+            .iter_loops()
+            .map(|l| -> [u32; 4] {
+                [
+                    mesh[mesh[l].f].p.map(|p| p.idx()).unwrap_or_default(),
+                    mesh[l].f.idx(),
+                    mesh[l].v.idx(),
+                    mesh.id.idx(),
+                ]
+            })
+            .collect();
         vbo.update(ctx, data.as_slice())
     }
 
-    /// Reloads the vertex selection idx from the mesh
+    /// Reloads the vertex normals VBO from the mesh's data
+    pub fn piece_vert_idx(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
+        let data: Vec<_> = mesh
+            .pieces
+            .indices()
+            .flat_map(|p_id| mesh.iter_connected_faces(mesh[id::PieceId::from_usize(p_id)].f))
+            .flat_map(|f_id| {
+                mesh.iter_face_loops(f_id).map(|l| -> [u32; 4] {
+                    [
+                        mesh[mesh[l].f].p.map(|p| p.idx()).unwrap_or_default(),
+                        mesh[l].f.idx(),
+                        mesh[l].v.idx(),
+                        mesh.id.idx(),
+                    ]
+                })
+            })
+            .collect();
+        vbo.update(ctx, data.as_slice());
+    }
+
+    /// Reloads the edge selection idx from the mesh
     pub fn edge_idx(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
-        let data: Vec<_> = mesh.edges.indices().map(|e| [mesh.id.idx(), e as u32]).collect();
+        let data: Vec<_> = mesh.edges.indices().map(|e| [e as u32, mesh.id.idx()]).collect();
         vbo.update(ctx, data.as_slice())
     }
 

@@ -62,8 +62,8 @@ impl event::EventHandler for Controller3D {
                 } else if ctx.modifiers.super_pressed() {
                     state.viewport_3d.camera.dolly(*dy * 0.5);
                 } else if ctx.modifiers.ctrl_pressed() {
-                    let new_t = (state.t + ((*dy) as f32 * 0.01)).clamp(0.0, 1.0);
-                    state.t = new_t;
+                    let new_t = (state.settings.t + ((*dy) as f32 * 0.01)).clamp(0.0, 1.0);
+                    state.settings.t = new_t;
                     state.meshes.iter_mut().for_each(|(_, mesh)| {
                         mesh.elem_dirty |= MeshElementType::all();
                         mesh.pieces.iter_mut().for_each(|(_, piece)| {

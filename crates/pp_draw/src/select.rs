@@ -10,11 +10,12 @@ use crate::gpu;
 
 bitflags! {
     /// A mask of items to render for selection in the buffer
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
     pub struct SelectionMask: u8 {
-        const POINTS = 1 << 0;
-        const LINES = 1 << 1;
+        const VERTS = 1 << 0;
+        const EDGES = 1 << 1;
         const FACES = 1 << 2;
+        const PIECES = 1 << 3;
     }
 }
 
@@ -172,7 +173,7 @@ impl SelectManager {
                     view: &self.textures.idx.view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
@@ -275,7 +276,7 @@ impl SelectManager {
                         let center_x = (2 * query.rect.x + query.rect.width) as f32 / 2.0;
                         let center_y = (2 * query.rect.y + query.rect.height) as f32 / 2.0;
                         self.query_use(&query, |(x, y, pixel_data)| {
-                            let distance = ((x - center_x).powi(2) + (y - center_y).powi(2)).sqrt();
+                            let distance = (x - center_x).powi(2) + (y - center_y).powi(2);
                             if let Some(nearest) = nearest {
                                 if distance >= nearest.1 {
                                     return;
@@ -285,17 +286,31 @@ impl SelectManager {
                         });
                         let Some((pixel_data, _)) = nearest else { return };
                         let mesh_id = id::MeshId::new(pixel_data.mesh_id - 1);
-                        let vert_id = id::VertexId::new(pixel_data.el_id);
-                        state.select_vert(
-                            &(mesh_id, vert_id),
-                            match query.action {
-                                Some(SelectImmediateAction::NearestToggle) => {
-                                    pp_core::select::SelectionActionType::Invert
-                                }
-                                _ => pp_core::select::SelectionActionType::Select,
-                            },
-                            true,
-                        );
+                        let action = match query.action {
+                            Some(SelectImmediateAction::NearestToggle) => {
+                                pp_core::select::SelectionActionType::Invert
+                            }
+                            _ => pp_core::select::SelectionActionType::Select,
+                        };
+                        match query.mask {
+                            SelectionMask::VERTS => {
+                                let vert_id = id::VertexId::new(pixel_data.el_id);
+                                state.select_vert(&(mesh_id, vert_id), action, true);
+                            }
+                            SelectionMask::EDGES => {
+                                let edge_id = id::EdgeId::new(pixel_data.el_id);
+                                state.select_edge(&(mesh_id, edge_id), action, true, true);
+                            }
+                            SelectionMask::FACES => {
+                                let face_id = id::FaceId::new(pixel_data.f_id);
+                                state.select_face(&(mesh_id, face_id), action, true, true);
+                            }
+                            SelectionMask::PIECES => {
+                                let piece_id = id::PieceId::new(pixel_data.p_id);
+                                state.select_piece(&(mesh_id, piece_id), action, true);
+                            }
+                            _ => {}
+                        }
                     }
                     Some(SelectImmediateAction::All) => {}
                     None => todo!(),
@@ -367,10 +382,10 @@ pub(crate) const SELECT_TEX_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::R
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct PixelData {
-    pub _a: u32,
-    pub _b: u32,
-    pub mesh_id: u32,
-    pub el_id: u32,
+    pub p_id: u32,    // (R) Piece ID
+    pub f_id: u32,    // (G) Face Id
+    pub el_id: u32,   // (B) Edge / Vertex ID
+    pub mesh_id: u32, // (A) Mesh ID
 }
 
 /// Rounds a number up to the nearest multiple of `align`

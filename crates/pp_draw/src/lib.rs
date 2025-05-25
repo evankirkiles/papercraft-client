@@ -105,7 +105,7 @@ impl<'window> Renderer<'window> {
     }
 
     /// Draws all of the renderables to the screen in each viewport
-    pub fn draw(&self) {
+    pub fn draw(&self, state: &pp_core::State) {
         let output = self.ctx.surface.get_current_texture().unwrap();
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
         let mut encoder = self
@@ -117,8 +117,14 @@ impl<'window> Renderer<'window> {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("draw"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &self.textures.color.view,
-                    resolve_target: Some(&view),
+                    view: if self.ctx.settings.msaa_level != gpu::settings::MSAALevel::None {
+                        &self.textures.color.view
+                    } else {
+                        &view
+                    },
+                    resolve_target: (self.ctx.settings.msaa_level
+                        != gpu::settings::MSAALevel::None)
+                        .then_some(&view),
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
                             r: 0.000,
@@ -147,16 +153,11 @@ impl<'window> Renderer<'window> {
                 self.draw_cache.meshes.values().for_each(|mesh| {
                     self.draw_engine.draw_mesh(
                         &self.ctx,
+                        &state.settings,
                         &mut render_pass,
                         mesh,
                         self.draw_cache.viewport_3d.xray_mode,
                     );
-                    // self.draw_engine.draw_piece_mesh(
-                    //     &self.ctx,
-                    //     &mut render_pass,
-                    //     mesh,
-                    //     self.draw_cache.viewport_3d.xray_mode,
-                    // );
                 });
                 self.draw_engine.draw_3d_overlays(&self.ctx, &mut render_pass);
             }
@@ -167,9 +168,9 @@ impl<'window> Renderer<'window> {
                 self.draw_cache.meshes.values().for_each(|mesh| {
                     self.draw_engine.draw_piece_mesh(
                         &self.ctx,
+                        &state.settings,
                         &mut render_pass,
                         mesh,
-                        self.draw_cache.viewport_3d.xray_mode,
                     );
                 });
                 self.draw_engine.draw_2d_overlays(&self.ctx, &mut render_pass);

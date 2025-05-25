@@ -23,10 +23,6 @@ pub struct MeshGPUVBOs {
     pub edge_idx: gpu::VertBuf,
     pub edge_flags: gpu::VertBuf,
 
-    // For faces
-    pub face_idx: gpu::VertBuf,
-    pub face_flags: gpu::VertBuf,
-
     // For cut edges
     pub cut_edge_pos: gpu::VertBuf,
 }
@@ -42,8 +38,6 @@ impl MeshGPUVBOs {
             edge_pos: gpu::VertBuf::new(format!("{label}.edge_pos")),
             edge_idx: gpu::VertBuf::new(format!("{label}.edge_idx")),
             edge_flags: gpu::VertBuf::new(format!("{label}.edge_flags")),
-            face_idx: gpu::VertBuf::new(format!("{label}.face_idx")),
-            face_flags: gpu::VertBuf::new(format!("{label}.face_flags")),
             cut_edge_pos: gpu::VertBuf::new(format!("{label}.cut_edge_pos")),
         }
     }
@@ -112,6 +106,7 @@ impl MeshGPU {
         if index_dirty.intersects(MeshElementType::PIECES) {
             extract::vbo::piece_pos(ctx, mesh, &mut self.vbo_pieces.pos);
             extract::vbo::piece_vnor(ctx, mesh, &mut self.vbo_pieces.nor);
+            extract::vbo::piece_vert_idx(ctx, mesh, &mut self.vbo_pieces.vert_idx);
             extract::vbo::piece_edge_pos(ctx, mesh, &mut self.vbo_pieces.edge_pos);
             extract::vbo::piece_edge_idx(ctx, mesh, &mut self.vbo_pieces.edge_idx);
             extract::vbo::piece_edge_flags(ctx, mesh, selection, &mut self.vbo_pieces.edge_flags);
@@ -148,15 +143,12 @@ impl MeshGPUVBOs {
     vertex_format!(nor Float32x3);
     // vertex_format!(uv Float32x2);
     vertex_format!(vert_flags Uint32);
-    vertex_format!(vert_idx Uint32x2);
+    vertex_format!(vert_idx Uint32x4); // This contains piece / face / vert / mesh idx
 
     // For edges
     vertex_format!(edge_pos Float32x3);
     vertex_format!(edge_flags Uint32);
-    vertex_format!(edge_idx Float32);
-
-    // For faces
-    // vertex_format!(face_idx Float32);
+    vertex_format!(edge_idx Uint32x2); // Just the edge idx
 }
 
 impl MeshGPU {
@@ -188,12 +180,22 @@ impl MeshGPU {
                 shader_location: 2,
             }],
         },
+        wgpu::VertexBufferLayout {
+            array_stride: 0,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[wgpu::VertexAttribute {
+                format: MeshGPUVBOs::VERTEX_FORMAT_VERT_IDX,
+                offset: 0,
+                shader_location: 3,
+            }],
+        },
     ];
 
     pub fn draw_tris(&self, _: &gpu::Context, render_pass: &mut wgpu::RenderPass) {
         render_pass.set_vertex_buffer(0, self.vbo.pos.slice());
         render_pass.set_vertex_buffer(1, self.vbo.nor.slice());
         render_pass.set_vertex_buffer(2, self.vbo.vert_flags.slice());
+        render_pass.set_vertex_buffer(3, self.vbo.vert_idx.slice());
         render_pass.draw(0..self.vbo.vert_idx.len, 0..1);
     }
 
@@ -204,6 +206,7 @@ impl MeshGPU {
         render_pass.set_vertex_buffer(0, self.vbo_pieces.pos.slice());
         render_pass.set_vertex_buffer(1, self.vbo_pieces.nor.slice());
         render_pass.set_vertex_buffer(2, self.vbo_pieces.vert_flags.slice());
+        render_pass.set_vertex_buffer(3, self.vbo_pieces.vert_idx.slice());
         render_pass.draw(0..self.vbo_pieces.pos.len, 0..1);
     }
 

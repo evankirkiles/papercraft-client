@@ -3,21 +3,21 @@ use crate::gpu;
 use crate::select;
 
 #[derive(Debug)]
-pub struct LinesProgram {
+pub struct TrisProgram {
     pipeline: wgpu::RenderPipeline,
 }
 
-impl LinesProgram {
+impl TrisProgram {
     pub(super) fn new(ctx: &gpu::Context) -> Self {
-        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/lines.wgsl"));
+        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/tris.wgsl"));
         Self {
             pipeline: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("select.lines"),
+                label: Some("select.tris"),
                 layout: Some(&ctx.shared_layouts.pipelines.pipeline_3d),
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: Some("vs_main"),
-                    buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_EDIT_LINES_INSTANCED,
+                    buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_TRIS,
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 },
                 fragment: Some(wgpu::FragmentState {
@@ -31,7 +31,7 @@ impl LinesProgram {
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 }),
                 primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleStrip,
+                    topology: wgpu::PrimitiveTopology::TriangleList,
                     strip_index_format: None,
                     front_face: wgpu::FrontFace::Ccw,
                     cull_mode: None,
@@ -65,6 +65,6 @@ impl LinesProgram {
         mesh: &cache::MeshGPU,
     ) {
         render_pass.set_pipeline(&self.pipeline);
-        mesh.draw_edit_lines_instanced(ctx, render_pass);
+        mesh.draw_tris(ctx, render_pass);
     }
 }
