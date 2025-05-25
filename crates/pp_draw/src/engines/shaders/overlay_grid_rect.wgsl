@@ -26,8 +26,6 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 }
 
 // Fragment shader
-@group(1) @binding(0) var depth_texture: texture_depth_multisampled_2d;
-
 fn grid(pos: vec3<f32>, scale: f32) -> vec4<f32> {
     let width = 8.0;
     let height = 8.0;

@@ -47,5 +47,5 @@ web-sys = { version = "0.3", features = [
   "Location",
   "console",
 ] }
-wgpu = { version = "24.0", features = ["wgsl", "webgl"] }
+wgpu = { version = "25.0", features = ["wgsl", "webgl"] }
 winit = { version = "0.30", features = ["rwh_05"] }

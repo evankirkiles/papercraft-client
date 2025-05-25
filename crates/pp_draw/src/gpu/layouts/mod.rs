@@ -1,4 +1,4 @@
-mod bind_groups;
+pub mod bind_groups;
 mod pipelines;
 
 #[derive(Debug)]

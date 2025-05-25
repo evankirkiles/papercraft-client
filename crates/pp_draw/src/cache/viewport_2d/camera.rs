@@ -1,4 +1,4 @@
-use crate::gpu;
+use crate::gpu::{self, layouts::bind_groups::UniformBindGroup};
 use std::mem;
 
 #[repr(C)]
@@ -43,12 +43,16 @@ impl Camera2DGPU {
             "viewport_2d.camera".to_string(),
             mem::size_of::<Camera2DUniform>(),
         );
-        let bind_group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("viewport_2d.camera"),
-            layout: &ctx.shared_layouts.bind_groups.camera,
-            entries: &[wgpu::BindGroupEntry { binding: 0, resource: buf.binding_resource() }],
-        });
-        Self { buf, bind_group, width: 1.0, height: 1.0 }
+        Self {
+            width: 1.0,
+            height: 1.0,
+            bind_group: ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("viewport_2d.camera"),
+                layout: &ctx.shared_layouts.bind_groups.camera,
+                entries: &[wgpu::BindGroupEntry { binding: 0, resource: buf.binding_resource() }],
+            }),
+            buf,
+        }
     }
 
     pub fn sync(
@@ -66,6 +70,6 @@ impl Camera2DGPU {
     }
 
     pub fn bind(&self, render_pass: &mut wgpu::RenderPass) {
-        render_pass.set_bind_group(0, &self.bind_group, &[]);
+        render_pass.set_bind_group(UniformBindGroup::Camera.value(), &self.bind_group, &[]);
     }
 }

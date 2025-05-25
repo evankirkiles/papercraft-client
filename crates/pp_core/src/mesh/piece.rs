@@ -19,6 +19,11 @@ pub struct Piece {
     /// of the piece. t=0 means fully 3d, whereas t=1 means fully 2d
     pub t: f32,
 
+    /// The position of the piece on the paper
+    pub po: [f32; 3],
+    /// The rotation of the piece on the paper
+    pub ro: [f32; 3],
+
     /// Indicates if this piece's internal faces have changed
     pub elem_dirty: bool,
     /// Indicates if this piece's uniform data has changed, e.g. transform / hover state
@@ -27,7 +32,14 @@ pub struct Piece {
 
 impl Piece {
     fn new(f: id::FaceId) -> Self {
-        Self { f, t: 1.0, elem_dirty: false, is_dirty: false }
+        Self {
+            f,
+            t: 1.0,
+            po: [0.0, 0.0, 0.0],
+            ro: [0.0, 0.0, 0.0],
+            elem_dirty: true,
+            is_dirty: false,
+        }
     }
 }
 

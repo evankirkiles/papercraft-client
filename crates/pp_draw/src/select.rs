@@ -110,7 +110,8 @@ impl SelectManager {
         match self.query_state.borrow().deref() {
             SelectManagerQueryState::Unmapped => {}
             SelectManagerQueryState::Querying { .. } | SelectManagerQueryState::Mapping => {
-                while !ctx.device.poll(wgpu::MaintainBase::Wait).is_queue_empty() {}
+                while !ctx.device.poll(wgpu::MaintainBase::Wait).is_ok_and(|f| f.is_queue_empty()) {
+                }
             }
             SelectManagerQueryState::Mapped(_) | SelectManagerQueryState::MappedAndReady { .. } => {
                 self.select_buf.unmap();
@@ -194,6 +195,7 @@ impl SelectManager {
 
             // Render 3D if viewport has area
             if draw_cache.viewport_3d.bind(&mut render_pass) {
+                draw_cache.common.piece_identity.bind(&mut render_pass);
                 draw_cache.meshes.values().for_each(|mesh| {
                     self.select_engine.draw_mesh(ctx, &mut render_pass, mesh, mask);
                 });
@@ -253,7 +255,7 @@ impl SelectManager {
             // of submissions to be empty ( indicating it completed ). Once that
             // happens, request the buffer be mapped into the CPU.
             SelectManagerQueryState::Querying { query, .. } => {
-                if ctx.device.poll(wgpu::MaintainBase::Poll).is_queue_empty() {
+                if ctx.device.poll(wgpu::MaintainBase::Poll).is_ok_and(|f| f.is_queue_empty()) {
                     self.query_state.replace(SelectManagerQueryState::Mapping);
                     let query_state = self.query_state.clone();
                     self.select_buf.slice(..).map_async(wgpu::MapMode::Read, move |_| {

@@ -7,7 +7,7 @@ use crate::id::{EdgeId, FaceId, Id, LoopId, MeshId, PieceId, VertexId};
 mod edge;
 mod face;
 mod loop_;
-mod piece;
+pub mod piece;
 mod primitives;
 mod vertex;
 

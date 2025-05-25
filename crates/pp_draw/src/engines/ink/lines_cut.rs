@@ -9,18 +9,17 @@ pub(super) struct LinesCutProgram {
 
 impl LinesCutProgram {
     pub(super) fn new(ctx: &gpu::Context) -> Self {
-        let shader =
-            ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/lines_cut.wgsl"));
+        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/lines.wgsl"));
         let layout = Some(&ctx.shared_layouts.pipelines.pipeline_3d);
         let vertex = wgpu::VertexState {
             module: &shader,
-            entry_point: Some("vs_main"),
-            buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_EDIT_CUT_LINES_INSTANCED,
+            entry_point: Some("vs_cut"),
+            buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_EDIT_LINES_INSTANCED,
             compilation_options: wgpu::PipelineCompilationOptions::default(),
         };
         let targets = [Some(wgpu::ColorTargetState {
             format: ctx.config.format,
-            blend: Some(wgpu::BlendState::REPLACE),
+            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
             write_mask: wgpu::ColorWrites::ALL,
         })];
         let fragment = Some(wgpu::FragmentState {
@@ -98,7 +97,7 @@ impl LinesCutProgram {
         mesh: &cache::MeshGPU,
     ) {
         render_pass.set_pipeline(&self.pipeline);
-        mesh.draw_edit_cut_lines_instanced(ctx, render_pass);
+        mesh.draw_edit_lines_instanced(ctx, render_pass);
     }
 
     pub(super) fn draw_mesh_xrayed(
@@ -108,6 +107,6 @@ impl LinesCutProgram {
         mesh: &cache::MeshGPU,
     ) {
         render_pass.set_pipeline(&self.pipeline_xray);
-        mesh.draw_edit_cut_lines_instanced(ctx, render_pass);
+        mesh.draw_edit_lines_instanced(ctx, render_pass);
     }
 }

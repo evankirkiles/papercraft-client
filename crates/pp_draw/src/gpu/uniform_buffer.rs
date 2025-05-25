@@ -1,3 +1,5 @@
+use wgpu::util::DeviceExt;
+
 /// A buffer for storing Uniform data to pass into shaders.
 ///
 /// Because the BindingResource needed to create a BindGroup requires the buffer
@@ -19,13 +21,25 @@ pub struct UniformBuf {
 
 impl UniformBuf {
     /// Creates a Uniform Vertex Buffer.
-    pub fn new(ctx: &super::Context, label: String, size: usize) -> UniformBuf {
+    pub fn new(ctx: &super::Context, label: String, size: usize) -> Self {
         Self {
             buf: ctx.device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some(label.as_str()),
                 size: size as u64,
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
+            }),
+            label,
+        }
+    }
+
+    /// Creates a UBO with data to pre-populate it
+    pub fn init(ctx: &super::Context, label: String, contents: &[impl bytemuck::Pod]) -> Self {
+        Self {
+            buf: ctx.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some(label.as_str()),
+                usage: wgpu::BufferUsages::UNIFORM,
+                contents: bytemuck::cast_slice(contents),
             }),
             label,
         }

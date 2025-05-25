@@ -1,4 +1,5 @@
 use cache::DrawCache;
+use gpu::layouts::bind_groups::UniformBindGroup;
 use std::iter;
 
 mod cache;
@@ -47,20 +48,18 @@ impl<'window> Renderer<'window> {
             .unwrap();
 
         let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    required_features: wgpu::Features::empty(),
-                    required_limits: wgpu::Limits {
-                        // TODO: Abstract this into its own config class
-                        max_buffer_size: adapter.limits().max_buffer_size,
-                        max_texture_dimension_2d: adapter.limits().max_texture_dimension_2d,
-                        ..wgpu::Limits::downlevel_webgl2_defaults()
-                    },
-                    label: None,
-                    memory_hints: Default::default(),
+            .request_device(&wgpu::DeviceDescriptor {
+                required_features: wgpu::Features::empty(),
+                required_limits: wgpu::Limits {
+                    // TODO: Abstract this into its own config class
+                    max_buffer_size: adapter.limits().max_buffer_size,
+                    max_texture_dimension_2d: adapter.limits().max_texture_dimension_2d,
+                    ..wgpu::Limits::downlevel_webgl2_defaults()
                 },
-                None,
-            )
+                label: None,
+                trace: wgpu::Trace::Off,
+                memory_hints: Default::default(),
+            })
             .await
             .unwrap();
 
@@ -149,7 +148,7 @@ impl<'window> Renderer<'window> {
 
             // Render 3D if viewport has area
             if self.draw_cache.viewport_3d.bind(&mut render_pass) {
-                // draw from each engine in the presentation render pass.
+                self.draw_cache.common.piece_identity.bind(&mut render_pass);
                 self.draw_cache.meshes.values().for_each(|mesh| {
                     self.draw_engine.draw_mesh(
                         &self.ctx,
@@ -162,9 +161,8 @@ impl<'window> Renderer<'window> {
                 self.draw_engine.draw_3d_overlays(&self.ctx, &mut render_pass);
             }
 
-            // Render 2D if viewport has area
+            // Render 2D pieces if viewport has area
             if self.draw_cache.viewport_2d.bind(&mut render_pass) {
-                // draw from each engine in the presentation render pass.
                 self.draw_cache.meshes.values().for_each(|mesh| {
                     self.draw_engine.draw_piece_mesh(
                         &self.ctx,
