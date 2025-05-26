@@ -124,6 +124,23 @@ impl MeshGPU {
                 piece.i_end = i + n_els;
                 i += n_els;
             });
+            // Delete pieces no longer being used
+            if mesh.pieces.num_elements() != self.pieces.len() {
+                let old_keys: Vec<_> = self
+                    .pieces
+                    .keys()
+                    .filter_map(|p_id| {
+                        if !mesh.pieces.has_element_at(p_id.to_usize()) {
+                            Some(*p_id)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                old_keys.iter().for_each(|p_id| {
+                    self.pieces.remove_entry(p_id);
+                });
+            }
         }
 
         // If piece transforms have changed, make sure we sync all of them
