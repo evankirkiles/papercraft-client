@@ -68,6 +68,7 @@ impl event::EventHandler for Controller3D {
                         mesh.elem_dirty |= MeshElementType::all();
                         mesh.pieces.iter_mut().for_each(|(_, piece)| {
                             piece.t = new_t;
+                            piece.elem_dirty = true;
                         });
                     });
                     return Ok(event::EventHandleSuccess::StopPropagation);

@@ -107,4 +107,14 @@ impl PointsProgram {
         render_pass.set_pipeline(&self.pipeline_xray);
         mesh.draw_edit_points_instanced(ctx, render_pass);
     }
+
+    pub(super) fn draw_piece_mesh(
+        &self,
+        ctx: &gpu::Context,
+        render_pass: &mut wgpu::RenderPass,
+        mesh: &cache::MeshGPU,
+    ) {
+        render_pass.set_pipeline(&self.pipeline);
+        mesh.draw_piece_edit_points_instanced(ctx, render_pass);
+    }
 }

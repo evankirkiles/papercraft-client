@@ -1,5 +1,4 @@
 use crate::gpu;
-use common::CommonGPUResources;
 use pp_core::id;
 use pp_core::mesh::MeshElementType;
 use std::collections::HashMap;
@@ -27,7 +26,7 @@ pub(crate) struct DrawCache {
     pub materials: HashMap<id::MaterialId, MaterialGPU>,
     pub viewport_3d: viewport_3d::Viewport3DGPU,
     pub viewport_2d: viewport_2d::Viewport2DGPU,
-    pub common: CommonGPUResources,
+    pub common: common::CommonGPUResources,
 }
 
 impl DrawCache {
@@ -37,7 +36,7 @@ impl DrawCache {
             materials: HashMap::new(),
             viewport_3d: viewport_3d::Viewport3DGPU::new(ctx),
             viewport_2d: viewport_2d::Viewport2DGPU::new(ctx),
-            common: CommonGPUResources::new(ctx),
+            common: common::CommonGPUResources::new(ctx),
         }
     }
 

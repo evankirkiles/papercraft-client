@@ -46,7 +46,7 @@ impl SelectEngine {
         mask: select::SelectionMask,
     ) {
         if mask.intersects(select::SelectionMask::VERTS) {
-            self.points.draw_mesh(ctx, render_pass, mesh);
+            self.points.draw_piece_mesh(ctx, render_pass, mesh);
         }
         if mask.intersects(select::SelectionMask::EDGES) {
             self.lines.draw_piece_mesh(ctx, render_pass, mesh);

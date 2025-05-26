@@ -1,5 +1,5 @@
 // Vertex shader
-struct Camera { view_proj: mat4x4<f32>, resolution: vec2<f32> };
+struct Camera { view_proj: mat4x4<f32>, dimensions: vec2<f32> };
 @group(0) @binding(0) var<uniform> camera: Camera;
 
 // Per-piece uniform with piece-specific transforms
@@ -50,7 +50,7 @@ fn _vs_color(in: VertexInput, _out: VertexOutput) -> VertexOutput {
 fn _vs_clip_pos(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     var out = _out;
     var clip_center = camera.view_proj * piece.affine * vec4<f32>(in.pos, 1.0);
-    var ndc_offset = POINT_SIZE * (0.5 - in.offset) / camera.resolution;
+    var ndc_offset = POINT_SIZE * (0.5 - in.offset) / camera.dimensions;
     out.clip_position = clip_center + vec4<f32>(ndc_offset * clip_center.w, 0.0, 0.0);
     return out;
 }

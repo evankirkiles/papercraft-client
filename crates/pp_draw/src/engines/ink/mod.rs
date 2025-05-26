@@ -98,5 +98,8 @@ impl InkEngine {
         self.surface.draw_piece_mesh(ctx, render_pass, mesh);
         self.tris.draw_piece_mesh(ctx, render_pass, mesh);
         self.lines.draw_piece_mesh(ctx, render_pass, mesh);
+        if settings.selection_mode == SelectionMode::Vert {
+            self.points.draw_piece_mesh(ctx, render_pass, mesh);
+        }
     }
 }
