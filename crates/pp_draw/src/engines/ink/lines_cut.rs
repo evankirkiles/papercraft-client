@@ -43,7 +43,7 @@ impl LinesCutProgram {
             alpha_to_coverage_enabled: false,
         };
         let bias = wgpu::DepthBiasState {
-            constant: super::DepthBiasLayer::ForegroundMiddle as i32,
+            constant: super::DepthBiasLayer::ForegroundBottom as i32,
             slope_scale: 0.04,
             ..Default::default()
         };

@@ -43,7 +43,7 @@ impl LinesProgram {
             alpha_to_coverage_enabled: false,
         };
         let bias = wgpu::DepthBiasState {
-            constant: super::DepthBiasLayer::ForegroundTop as i32,
+            constant: super::DepthBiasLayer::ForegroundMiddle as i32,
             slope_scale: 0.03,
             ..Default::default()
         };

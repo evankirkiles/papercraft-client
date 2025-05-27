@@ -42,8 +42,8 @@ fn _vs_color(in: VertexInput, _out: VertexOutput) -> VertexOutput {
 
     // Color the flap (each vertex) based on its select status. Nonexistent
     // flaps should be clipped out already, but just in case...
-    if (bool(in.flap_flags ^ F_FLAG_EXISTS)) { 
-      out.color = vec4<f32>(1.0, 1.0, 1.0, 0.0); 
+    if (bool(in.flags & E_FLAG_SELECTED)) { 
+      out.color = mix(out.color, vec4<f32>(1.0, 0.5, 0.0, 1.0), 0.5); 
     }
 
     // Add the edge index for the selection engine

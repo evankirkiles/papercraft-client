@@ -43,7 +43,7 @@ impl PointsProgram {
             alpha_to_coverage_enabled: false,
         };
         let bias = wgpu::DepthBiasState {
-            constant: super::DepthBiasLayer::ForegroundBottom as i32,
+            constant: super::DepthBiasLayer::ForegroundTop as i32,
             ..Default::default()
         };
         let multiview = None;
