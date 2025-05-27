@@ -27,6 +27,7 @@ impl State {
         action: CutActionType,
         mask: CutMaskType,
     ) {
+        let len = edges.len();
         edges.iter().for_each(|id| {
             let (m_id, e_id) = *id;
             if action == CutActionType::Join
@@ -40,14 +41,19 @@ impl State {
                     }
                 }
             {
-                self.cut_edge(id, action)
+                self.cut_edge(id, action, len > 1)
             }
         });
     }
 
     /// Cuts a single edge.
     /// TODO: "Cut" any border edges during preprocessing, e.g. without two adjacent faces
-    pub fn cut_edge(&mut self, id: &(id::MeshId, id::EdgeId), action: CutActionType) {
+    pub fn cut_edge(
+        &mut self,
+        id: &(id::MeshId, id::EdgeId),
+        action: CutActionType,
+        is_multiple: bool,
+    ) {
         let (m_id, e_id) = id;
         let Some(mesh) = self.meshes.get_mut(m_id) else {
             return;
@@ -111,7 +117,13 @@ impl State {
                     // We need to traverse the piece outwards from each face and
                     // induce a cut as soon as the two pointers cross paths.
                     if p_a == p_b {
-                        log::error!("Tried to join same-piece - not handled yet!")
+                        // If multiple, just clear the pieces instead of trying
+                        // to figure out an optimal set of new cuts
+                        if is_multiple {
+                            mesh.remove_piece(p_a, None);
+                        } else {
+                            log::error!("Tried to join same-piece - not handled yet!")
+                        }
                     } else {
                         // If faces were from different pieces, we're chilling. We
                         // can just clear one of the pieces and rope all of its faces

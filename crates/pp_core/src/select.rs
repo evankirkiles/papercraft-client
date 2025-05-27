@@ -55,6 +55,7 @@ impl State {
                 self.selection.verts.clear();
                 self.selection.faces.clear();
                 self.selection.edges.clear();
+                self.selection.pieces.clear();
             }
             SelectionActionType::Select => {
                 self.meshes.values().for_each(|mesh| {

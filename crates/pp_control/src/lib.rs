@@ -6,6 +6,7 @@ use wasm_bindgen::prelude::*;
 
 mod event;
 mod keyboard;
+mod tool;
 mod viewport_2d;
 mod viewport_3d;
 
@@ -136,7 +137,7 @@ impl App {
     fn handle_event(
         &mut self,
         ev: &UserEvent,
-    ) -> Result<event::EventHandleSuccess, event::EventHandleError> {
+    ) -> Result<event::InternalEventHandleSuccess, event::InternalEventHandleError> {
         let Some(viewport) = self.active_viewport else { return Ok(Default::default()) };
         match viewport {
             AppViewportType::D2 => self.controller_2d.handle_event(&self.event_context, ev),
@@ -157,6 +158,8 @@ impl App {
         self.active_viewport = curr_viewport;
         self.event_context.last_mouse_pos = None;
         self.handle_event(&UserEvent::Pointer(event::PointerEvent::Enter))
+            .map(|s| s.into())
+            .map_err(|e| e.into())
     }
 
     pub fn handle_mouse_move(
@@ -187,12 +190,17 @@ impl App {
         let pos = event::PhysicalPosition { x, y };
         self.event_context.last_mouse_pos = Some(pos);
         self.handle_event(&UserEvent::Pointer(event::PointerEvent::Move(pos)))
+            .map(|s| s.into())
+            .map_err(|e| e.into())
     }
 
     pub fn handle_mouse_exit(
         &mut self,
     ) -> Result<event::EventHandleSuccess, event::EventHandleError> {
-        let res = self.handle_event(&UserEvent::Pointer(event::PointerEvent::Exit));
+        let res = self
+            .handle_event(&UserEvent::Pointer(event::PointerEvent::Exit))
+            .map(|s| s.into())
+            .map_err(|e| e.into());
         self.active_viewport = None;
         res
     }
@@ -203,6 +211,8 @@ impl App {
         dy: f64,
     ) -> Result<event::EventHandleSuccess, event::EventHandleError> {
         self.handle_event(&UserEvent::MouseWheel { dx: -dx, dy: -dy })
+            .map(|s| s.into())
+            .map_err(|e| e.into())
     }
 
     pub fn handle_modifiers_changed(&mut self, modifiers: u32) {
@@ -220,6 +230,8 @@ impl App {
             PressedState::Pressed => event::KeyboardInputEvent::Down(key),
             PressedState::Unpressed => event::KeyboardInputEvent::Up(key),
         }))
+        .map(|s| s.into())
+        .map_err(|e| e.into())
     }
 
     /// Handles single-character keyboard input. This is so we can map to ASCII
@@ -234,6 +246,8 @@ impl App {
             PressedState::Pressed => event::KeyboardInputEvent::Down(key),
             PressedState::Unpressed => event::KeyboardInputEvent::Up(key),
         }))
+        .map(|s| s.into())
+        .map_err(|e| e.into())
     }
 
     /// Handles clicks of all mouse buttons
@@ -246,6 +260,8 @@ impl App {
             PressedState::Pressed => event::MouseInputEvent::Down(button),
             PressedState::Unpressed => event::MouseInputEvent::Up(button),
         }))
+        .map(|s| s.into())
+        .map_err(|e| e.into())
     }
 }
 

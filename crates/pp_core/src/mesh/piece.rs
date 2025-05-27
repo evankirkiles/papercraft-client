@@ -19,10 +19,8 @@ pub struct Piece {
     /// of the piece. t=0 means fully 3d, whereas t=1 means fully 2d
     pub t: f32,
 
-    /// The position of the piece on the paper
-    pub po: [f32; 3],
-    /// The rotation of the piece on the paper
-    pub ro: [f32; 3],
+    /// The transformation matrix of this piece
+    pub transform: cgmath::Matrix4<f32>,
 
     /// Indicates if this piece's internal faces have changed
     pub elem_dirty: bool,
@@ -35,8 +33,7 @@ impl Piece {
         Self {
             f,
             t: 1.0,
-            po: [0.0, 0.0, 0.0],
-            ro: [0.0, 0.0, 0.0],
+            transform: cgmath::Matrix4::identity(),
             elem_dirty: true,
             is_dirty: false,
         }
@@ -131,6 +128,13 @@ impl super::Mesh {
         p_id: id::PieceId,
     ) -> impl Iterator<Item = UnfoldedFace> + '_ {
         UnfoldedPieceFaceWalker::new(self, p_id, self[p_id].t)
+    }
+
+    /// Moves the piece, updating its transformation
+    pub fn transform_piece(&mut self, p_id: id::PieceId, affine: cgmath::Matrix4<f32>) {
+        self[p_id].transform = affine * self[p_id].transform;
+        self[p_id].elem_dirty = true;
+        self.elem_dirty |= MeshElementType::PIECES;
     }
 }
 

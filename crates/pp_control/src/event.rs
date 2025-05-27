@@ -75,17 +75,6 @@ impl core::fmt::Display for EventHandleError {
     }
 }
 
-/// A trait any event handler can conform to.
-pub(crate) trait EventHandler {
-    /// A basic event handling function. Returns `true` if the event should
-    /// not be propagated further, else returns `false`.
-    fn handle_event(
-        &mut self,
-        ctx: &EventContext,
-        ev: &UserEvent,
-    ) -> Result<EventHandleSuccess, EventHandleError>;
-}
-
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct PhysicalSize<T> {
     pub(crate) width: T,
@@ -108,3 +97,68 @@ pub(crate) struct EventContext {
     pub(crate) surface_size: PhysicalSize<f64>,
     pub(crate) last_mouse_pos: Option<PhysicalPosition<f64>>,
 }
+
+impl From<InternalEventHandleSuccess> for EventHandleSuccess {
+    fn from(value: InternalEventHandleSuccess) -> Self {
+        value.external
+    }
+}
+
+impl From<InternalEventHandleError> for EventHandleError {
+    fn from(value: InternalEventHandleError) -> Self {
+        value.external
+    }
+}
+
+/// A trait any event handler can conform to.
+pub(crate) trait EventHandler {
+    /// A basic event handling function.
+    fn handle_event(
+        &mut self,
+        ctx: &EventContext,
+        ev: &UserEvent,
+    ) -> Result<InternalEventHandleSuccess, InternalEventHandleError>;
+}
+
+/// This is the internal event success type, which can be intercepted by the
+/// top-level controller to use nested information within.
+#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
+pub struct InternalEventHandleSuccess {
+    pub clear_tool: bool,
+    pub stop_propagation: bool,
+    pub external: EventHandleSuccess,
+}
+
+impl InternalEventHandleSuccess {
+    pub fn clear_tool() -> Self {
+        Self {
+            clear_tool: true,
+            stop_propagation: true,
+            external: EventHandleSuccess::StopPropagation,
+        }
+    }
+
+    pub fn stop_internal_propagation() -> Self {
+        Self {
+            clear_tool: false,
+            stop_propagation: true,
+            external: EventHandleSuccess::ContinuePropagation,
+        }
+    }
+
+    pub fn stop_propagation() -> Self {
+        Self {
+            clear_tool: false,
+            stop_propagation: true,
+            external: EventHandleSuccess::StopPropagation,
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
+pub struct InternalEventHandleError {
+    pub external: EventHandleError,
+}
+
+pub type InternalEventHandleResult = Result<InternalEventHandleSuccess, InternalEventHandleError>;
+pub type EventHandleResult = Result<EventHandleSuccess, EventHandleError>;

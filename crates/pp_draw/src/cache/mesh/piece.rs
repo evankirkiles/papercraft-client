@@ -18,12 +18,7 @@ impl Default for PieceUniform {
 
 impl PieceUniform {
     fn new(piece: &pp_core::mesh::piece::Piece) -> Self {
-        let rotation_x = cgmath::Matrix4::from_angle_x(cgmath::Rad(piece.ro[0]));
-        let rotation_y = cgmath::Matrix4::from_angle_y(cgmath::Rad(piece.ro[1]));
-        let rotation_z = cgmath::Matrix4::from_angle_z(cgmath::Rad(piece.ro[2]));
-        let translation = cgmath::Matrix4::from_translation(cgmath::Vector3::from(piece.po));
-        let affine = translation * rotation_z * rotation_y * rotation_x;
-        Self { affine: affine.into() }
+        Self { affine: piece.transform.into() }
     }
 }
 

@@ -1,5 +1,5 @@
 use cache::DrawCache;
-use gpu::layouts::bind_groups::UniformBindGroup;
+use pp_core::tool::PhysicalDimensions;
 use std::iter;
 
 mod cache;
@@ -7,6 +7,11 @@ mod gpu;
 
 pub mod engines;
 pub mod select;
+
+pub struct PhysicalSize<T> {
+    width: T,
+    height: T,
+}
 
 #[derive(Debug)]
 pub struct Renderer<'window> {
@@ -200,6 +205,14 @@ impl<'window> Renderer<'window> {
             self.ctx.resize(width, height);
             self.select.resize(&self.ctx);
             self.textures = RendererAttachmentTextures::create(&self.ctx);
+        }
+    }
+
+    /// Gets the current size of the canvas, in pixels
+    pub fn curr_size(&self) -> PhysicalDimensions<f32> {
+        PhysicalDimensions {
+            width: self.ctx.config.width as f32,
+            height: self.ctx.config.height as f32,
         }
     }
 }

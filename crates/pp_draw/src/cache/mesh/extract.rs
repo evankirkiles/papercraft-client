@@ -172,8 +172,9 @@ pub mod vbo {
         e_id: EdgeId,
     ) -> u32 {
         let e = mesh[e_id];
+        let id = (mesh.id, e_id);
         let mut flags = EdgeFlags::empty();
-        if selection.edges.contains(&(mesh.id, e_id)) {
+        if selection.edges.contains(&id) {
             flags |= EdgeFlags::SELECTED;
         }
         if selection.verts.contains(&(mesh.id, e.v[0])) {
@@ -185,6 +186,12 @@ pub mod vbo {
         if e.is_cut {
             flags |= EdgeFlags::CUT;
         }
+        if selection.active_element.as_ref().is_some_and(|el| match el {
+            SelectionActiveElement::Edge(active_id) => id == *active_id,
+            _ => false,
+        }) {
+            flags |= EdgeFlags::ACTIVE;
+        };
         flags.bits()
     }
 

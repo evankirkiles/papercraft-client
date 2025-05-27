@@ -6,6 +6,7 @@ pub mod material;
 pub mod mesh;
 pub mod select;
 pub mod settings;
+pub mod tool;
 pub mod viewport_2d;
 pub mod viewport_3d;
 
