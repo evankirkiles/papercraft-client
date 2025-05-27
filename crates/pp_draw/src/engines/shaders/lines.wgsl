@@ -22,7 +22,7 @@ struct VertexOutput {
 
 // Line width
 const LINE_WIDTH_THIN: f32 = 2.0;
-const LINE_WIDTH_THICK: f32 = 4.0;
+const LINE_WIDTH_THICK: f32 = 5.0;
 
 // Edge flags
 const FLAG_SELECTED: u32 = (u32(1) << 0);

@@ -22,6 +22,7 @@ pub struct MeshGPUVBOs {
     pub edge_pos: gpu::VertBuf,
     pub edge_idx: gpu::VertBuf,
     pub edge_flags: gpu::VertBuf,
+    pub edge_flap: gpu::VertBuf,
 }
 
 impl MeshGPUVBOs {
@@ -35,6 +36,7 @@ impl MeshGPUVBOs {
             edge_pos: gpu::VertBuf::new(format!("{label}.edge_pos")),
             edge_idx: gpu::VertBuf::new(format!("{label}.edge_idx")),
             edge_flags: gpu::VertBuf::new(format!("{label}.edge_flags")),
+            edge_flap: gpu::VertBuf::new(format!("{label}.edge_flap")),
         }
     }
 }
@@ -86,6 +88,7 @@ impl MeshGPU {
             extract::vbo::piece_pos(ctx, mesh, &mut self.vbo_pieces.pos);
             extract::vbo::piece_vnor(ctx, mesh, &mut self.vbo_pieces.nor);
             extract::vbo::piece_edge_pos(ctx, mesh, &mut self.vbo_pieces.edge_pos);
+            extract::vbo::piece_edge_flap(ctx, mesh, &mut self.vbo_pieces.edge_flap);
         }
         if elem_dirty.intersects(MeshElementType::EDGES) {
             extract::vbo::edge_flags(ctx, mesh, selection, &mut self.vbo.edge_flags);
@@ -107,6 +110,7 @@ impl MeshGPU {
             extract::vbo::piece_vert_flags(ctx, mesh, selection, &mut self.vbo_pieces.vert_flags);
             extract::vbo::piece_edge_pos(ctx, mesh, &mut self.vbo_pieces.edge_pos);
             extract::vbo::piece_edge_idx(ctx, mesh, &mut self.vbo_pieces.edge_idx);
+            extract::vbo::piece_edge_flap(ctx, mesh, &mut self.vbo_pieces.edge_flap);
             extract::vbo::piece_edge_flags(ctx, mesh, selection, &mut self.vbo_pieces.edge_flags);
             // Ensure each piece has up-to-date ranges of elements to render
             let mut i = 0;
@@ -192,6 +196,9 @@ impl MeshGPUVBOs {
     vertex_format!(edge_pos Float32x3);
     vertex_format!(edge_flags Uint32);
     vertex_format!(edge_idx Uint32x2); // Just the edge idx
+
+    // For flaps
+    vertex_format!(flap_flags Uint32);
 }
 
 impl MeshGPU {
@@ -396,6 +403,88 @@ impl MeshGPU {
         render_pass.set_vertex_buffer(1, self.vbo_pieces.edge_pos.slice());
         render_pass.set_vertex_buffer(2, self.vbo_pieces.edge_flags.slice());
         render_pass.set_vertex_buffer(3, self.vbo_pieces.edge_idx.slice());
+        self.pieces.values().for_each(|piece| {
+            piece.bind(render_pass);
+            render_pass.draw(0..4, piece.i_start..piece.i_end);
+        })
+    }
+
+    pub const BATCH_BUFFER_LAYOUT_FLAPS_INSTANCED: &[wgpu::VertexBufferLayout<'static>] = &[
+        wgpu::VertexBufferLayout {
+            array_stride: wgpu::VertexFormat::Float32x2.size(),
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[wgpu::VertexAttribute {
+                format: wgpu::VertexFormat::Float32x2,
+                offset: 0,
+                shader_location: 0,
+            }],
+        },
+        wgpu::VertexBufferLayout {
+            array_stride: MeshGPUVBOs::VERTEX_FORMAT_EDGE_POS.size() * 2,
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    format: MeshGPUVBOs::VERTEX_FORMAT_EDGE_POS,
+                    offset: 0,
+                    shader_location: 1,
+                },
+                wgpu::VertexAttribute {
+                    format: MeshGPUVBOs::VERTEX_FORMAT_EDGE_POS,
+                    offset: MeshGPUVBOs::VERTEX_FORMAT_EDGE_POS.size(),
+                    shader_location: 2,
+                },
+            ],
+        },
+        wgpu::VertexBufferLayout {
+            array_stride: MeshGPUVBOs::VERTEX_FORMAT_EDGE_POS.size()
+                + MeshGPUVBOs::VERTEX_FORMAT_FLAP_FLAGS.size(),
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    format: MeshGPUVBOs::VERTEX_FORMAT_EDGE_POS,
+                    offset: 0,
+                    shader_location: 3,
+                },
+                wgpu::VertexAttribute {
+                    format: MeshGPUVBOs::VERTEX_FORMAT_FLAP_FLAGS,
+                    offset: MeshGPUVBOs::VERTEX_FORMAT_EDGE_POS.size(),
+                    shader_location: 4,
+                },
+            ],
+        },
+        wgpu::VertexBufferLayout {
+            array_stride: MeshGPUVBOs::VERTEX_FORMAT_EDGE_FLAGS.size(),
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &[wgpu::VertexAttribute {
+                format: MeshGPUVBOs::VERTEX_FORMAT_EDGE_FLAGS,
+                offset: 0,
+                shader_location: 5,
+            }],
+        },
+        wgpu::VertexBufferLayout {
+            array_stride: MeshGPUVBOs::VERTEX_FORMAT_EDGE_IDX.size(),
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &[wgpu::VertexAttribute {
+                format: MeshGPUVBOs::VERTEX_FORMAT_EDGE_IDX,
+                offset: 0,
+                shader_location: 6,
+            }],
+        },
+    ];
+
+    pub fn draw_piece_flaps_instanced(
+        &self,
+        ctx: &gpu::Context,
+        render_pass: &mut wgpu::RenderPass,
+    ) {
+        if self.pieces.is_empty() {
+            return;
+        };
+        render_pass.set_vertex_buffer(0, ctx.buf_rect.slice(..));
+        render_pass.set_vertex_buffer(1, self.vbo_pieces.edge_pos.slice());
+        render_pass.set_vertex_buffer(2, self.vbo_pieces.edge_flap.slice());
+        render_pass.set_vertex_buffer(3, self.vbo_pieces.edge_flags.slice());
+        render_pass.set_vertex_buffer(4, self.vbo_pieces.edge_idx.slice());
         self.pieces.values().for_each(|piece| {
             piece.bind(render_pass);
             render_pass.draw(0..4, piece.i_start..piece.i_end);

@@ -238,7 +238,7 @@ impl Iterator for ConnectedFaceWalker<'_> {
                 .filter_map(|l| {
                     // Do not traverse across cut edges
                     let e_id = self.mesh[l].e;
-                    if !self.mesh[e_id].is_cut {
+                    if self.mesh[e_id].cut.is_none() {
                         self.mesh.iter_edge_loops(e_id)
                     } else {
                         None

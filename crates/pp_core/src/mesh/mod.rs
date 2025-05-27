@@ -4,7 +4,7 @@ use std::ops;
 
 use crate::id::{EdgeId, FaceId, Id, LoopId, MeshId, PieceId, VertexId};
 
-mod edge;
+pub mod edge;
 mod face;
 mod loop_;
 pub mod piece;
@@ -87,11 +87,6 @@ impl Mesh {
         let el_types_and_dirty = el_types & self.index_dirty;
         if (MeshElementType::VERTS & el_types_and_dirty).into() {
             self.verts.values_mut().enumerate().for_each(|(i, el)| {
-                el.index = Some(i);
-            });
-        }
-        if (MeshElementType::EDGES & el_types_and_dirty).into() {
-            self.edges.values_mut().enumerate().for_each(|(i, el)| {
                 el.index = Some(i);
             });
         }

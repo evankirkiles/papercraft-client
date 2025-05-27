@@ -55,7 +55,7 @@ impl EventHandler for SelectTool {
             // actually "USING" a query. This is because sometimes we don't want
             // to select immediately and would rather select sub-sections of a frozen
             // view (e.g. in selection painting).
-            event::UserEvent::MouseInput(event::MouseInputEvent::Up(button)) => {
+            event::UserEvent::MouseInput(event::MouseInputEvent::Down(button)) => {
                 if let event::MouseButton::Left = button {
                     let state = ctx.state.borrow();
                     let mut renderer = ctx.renderer.borrow_mut();

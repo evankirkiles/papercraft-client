@@ -1,6 +1,6 @@
 use crate::{
     id::{self},
-    mesh::MeshElementType,
+    mesh::{self, MeshElementType},
     State,
 };
 
@@ -59,7 +59,7 @@ impl State {
             return;
         };
 
-        let is_already_cut = mesh[*e_id].is_cut;
+        let is_already_cut = mesh[*e_id].cut.is_some();
         let should_be_cut = match action {
             CutActionType::Join => false,
             CutActionType::Cut => true,
@@ -77,14 +77,25 @@ impl State {
         // Similarly, if the edge had <2 faces, it's either a boundary or
         // dangling, in which case "cutting" doesn't make much sense either.
         let mut loops = mesh.iter_edge_loops(*e_id);
-        let f_a = loops.as_mut().and_then(|l| l.next()).map(|l_id| mesh[l_id].f);
-        let f_b = loops.as_mut().and_then(|l| l.next()).map(|l_id| mesh[l_id].f);
-        let (Some(f_a), Some(f_b)) = (f_a, f_b) else {
+        let Some(loops) = loops.as_mut() else {
             return;
         };
+        let (Some(l_a), Some(l_b)) = (loops.next(), loops.next()) else {
+            return;
+        };
+        let f_a = mesh[l_a].f;
+        let f_b = mesh[l_b].f;
 
-        // Perform the cut
-        mesh[*e_id].is_cut = should_be_cut;
+        // Perform the cut, placing the flap on the non-selected face or l_a by default
+        mesh[*e_id].cut = should_be_cut.then_some(mesh::edge::EdgeCut {
+            l_flap: match (
+                self.selection.faces.contains(&(*m_id, f_a)),
+                self.selection.faces.contains(&(*m_id, f_b)),
+            ) {
+                (true, false) => Some(l_b),
+                _ => Some(l_a),
+            },
+        });
         mesh.elem_dirty |= MeshElementType::EDGES;
 
         // Now, we need to update any pieces affected by the cut / join.

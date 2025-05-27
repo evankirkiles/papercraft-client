@@ -14,6 +14,13 @@ impl DiskLink {
     }
 }
 
+// State of an edge's cut
+#[derive(Debug, Clone, Copy)]
+pub struct EdgeCut {
+    /// Which loop / face the flap extends to
+    pub l_flap: Option<id::LoopId>,
+}
+
 /// An edge, formed by two vertices.
 #[derive(Debug, Clone, Copy)]
 pub struct Edge {
@@ -24,23 +31,15 @@ pub struct Edge {
 
     /// RadialCycle: Any loop (defined by a face) for this specific edge
     pub l: Option<id::LoopId>,
-    /// The "index" of this edge in any final IBO
-    pub index: Option<usize>,
 
     /// Is this edge cut or not?
-    pub is_cut: bool,
+    pub cut: Option<EdgeCut>,
 }
 
 impl Edge {
     /// Creates a new Edge with DiskLinks referencing just itself
     pub fn new(e: id::EdgeId, v1: id::VertexId, v2: id::VertexId) -> Self {
-        Self {
-            v: [v1, v2],
-            dl: [DiskLink::new(e), DiskLink::new(e)],
-            l: None,
-            index: None,
-            is_cut: false,
-        }
+        Self { v: [v1, v2], dl: [DiskLink::new(e), DiskLink::new(e)], l: None, cut: None }
     }
 
     /// Ensures that this edge contains vertex `v`

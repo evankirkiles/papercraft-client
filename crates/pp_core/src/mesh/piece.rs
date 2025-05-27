@@ -96,8 +96,7 @@ impl super::Mesh {
                 .iter_face_loops(f_id)
                 .filter_map(|l| {
                     let e_id = self[l].e;
-                    let is_cut = self[e_id].is_cut;
-                    if !is_cut {
+                    if self[e_id].cut.is_none() {
                         self.iter_edge_loops(e_id)
                     } else {
                         None
@@ -123,10 +122,7 @@ impl super::Mesh {
     }
 
     /// Iterates all the loops in pieces of the mesh in pre-defined order.
-    pub fn iter_piece_faces_unfolded(
-        &self,
-        p_id: id::PieceId,
-    ) -> impl Iterator<Item = UnfoldedFace> + '_ {
+    pub fn iter_piece_faces_unfolded(&self, p_id: id::PieceId) -> UnfoldedPieceFaceWalker {
         UnfoldedPieceFaceWalker::new(self, p_id, self[p_id].t)
     }
 
@@ -152,7 +148,7 @@ pub struct UnfoldedFace {
 pub struct UnfoldedPieceFaceWalker<'mesh> {
     mesh: &'mesh super::Mesh,
     /// 0-1, how much the pieces should be "unfolded"
-    t: f32,
+    pub t: f32,
     /// The faces waiting to be explored, plus the affine transformation which
     /// all of their vertices must go through to be "unfolded"
     frontier: VecDeque<UnfoldedFace>,
@@ -216,7 +212,7 @@ impl Iterator for UnfoldedPieceFaceWalker<'_> {
                 .filter_map(|l| {
                     // Do not traverse across cut edges (keep within piece)
                     let e_id = self.mesh[l].e;
-                    if !self.mesh[e_id].is_cut {
+                    if self.mesh[e_id].cut.is_none() {
                         self.mesh.iter_edge_loops(e_id)
                     } else {
                         None

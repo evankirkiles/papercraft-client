@@ -44,6 +44,7 @@ impl LinesProgram {
         };
         let bias = wgpu::DepthBiasState {
             constant: super::DepthBiasLayer::ForegroundTop as i32,
+            slope_scale: 0.03,
             ..Default::default()
         };
         let multiview = None;
