@@ -152,4 +152,23 @@ impl State {
             }
         }
     }
+
+    /// Swaps the edge's flap to the other face
+    pub fn swap_edge_flap(&mut self, id: &(id::MeshId, id::EdgeId)) {
+        let mesh = self.meshes.get_mut(&id.0).unwrap();
+        let new_l = mesh[id.1].cut.and_then(|c| c.l_flap).map(|l_flap| mesh[l_flap].radial_next);
+        if let Some(cut) = mesh[id.1].cut.as_mut() {
+            cut.l_flap = new_l;
+        }
+        mesh.elem_dirty |= MeshElementType::FLAPS;
+    }
+
+    /// Sets / clears the edge's flap
+    pub fn set_edge_flap(&mut self, id: &(id::MeshId, id::EdgeId), l_flap: Option<id::LoopId>) {
+        let mesh = self.meshes.get_mut(&id.0).unwrap();
+        if let Some(cut) = mesh[id.1].cut.as_mut() {
+            cut.l_flap = l_flap;
+        }
+        mesh.elem_dirty |= MeshElementType::FLAPS;
+    }
 }

@@ -41,6 +41,11 @@ impl EventHandler for SelectTool {
                             pp_core::cut::CutMaskType::SelectionBorder,
                         );
                     }
+                    "KeyD" => {
+                        let mut state = ctx.state.borrow_mut();
+                        let edges: Vec<_> = state.selection.edges.iter().copied().collect();
+                        edges.iter().for_each(|id| state.swap_edge_flap(id));
+                    }
                     _ => {}
                 },
                 _ => {}

@@ -93,6 +93,9 @@ impl MeshGPU {
         if elem_dirty.intersects(MeshElementType::EDGES) {
             extract::vbo::edge_flags(ctx, mesh, selection, &mut self.vbo.edge_flags);
         }
+        if elem_dirty.intersects(MeshElementType::FLAPS) {
+            extract::vbo::piece_edge_flap(ctx, mesh, &mut self.vbo_pieces.edge_flap);
+        }
         if index_dirty.intersects(MeshElementType::VERTS) {
             extract::vbo::vert_idx(ctx, mesh, &mut self.vbo.vert_idx);
         }

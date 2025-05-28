@@ -309,7 +309,7 @@ pub mod vbo {
 
                         // If edge is not cut or there's no flap here, just return the default,
                         // which will not render / render an invisible flap
-                        if e.cut.is_none_or(|e| e.l_flap.is_none_or(|l_id_2| l_id == l_id_2))
+                        if e.cut.is_none_or(|e| e.l_flap.is_none_or(|l_flap| l_id == l_flap))
                             // Or if this edge doesn't have another face
                             || l_id == l.radial_next
                         {

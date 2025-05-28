@@ -162,12 +162,12 @@ impl<'window> Renderer<'window> {
                         mesh,
                         self.draw_cache.viewport_3d.xray_mode,
                     );
-                    self.draw_engine.draw_piece_mesh(
-                        &self.ctx,
-                        &state.settings,
-                        &mut render_pass,
-                        mesh,
-                    );
+                    // self.draw_engine.draw_piece_mesh(
+                    //     &self.ctx,
+                    //     &state.settings,
+                    //     &mut render_pass,
+                    //     mesh,
+                    // );
                 });
                 self.draw_engine.draw_3d_overlays(&self.ctx, &mut render_pass);
             }

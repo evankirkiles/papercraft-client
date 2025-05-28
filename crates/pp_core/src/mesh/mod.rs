@@ -25,6 +25,7 @@ bitflags! {
         const FACES = 1 << 2;
         const LOOPS = 1 << 3;
         const PIECES = 1 << 4;
+        const FLAPS = 1 << 5;
     }
 }
 
