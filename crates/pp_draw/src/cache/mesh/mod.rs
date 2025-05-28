@@ -490,4 +490,23 @@ impl MeshGPU {
             render_pass.draw(0..4, piece.i_start..piece.i_end);
         })
     }
+
+    pub fn draw_piece_flaps_outline_instanced(
+        &self,
+        ctx: &gpu::Context,
+        render_pass: &mut wgpu::RenderPass,
+    ) {
+        if self.pieces.is_empty() {
+            return;
+        };
+        render_pass.set_vertex_buffer(0, ctx.buf_rect_outline.slice(..));
+        render_pass.set_vertex_buffer(1, self.vbo_pieces.edge_pos.slice());
+        render_pass.set_vertex_buffer(2, self.vbo_pieces.edge_flap.slice());
+        render_pass.set_vertex_buffer(3, self.vbo_pieces.edge_flags.slice());
+        render_pass.set_vertex_buffer(4, self.vbo_pieces.edge_idx.slice());
+        self.pieces.values().for_each(|piece| {
+            piece.bind(render_pass);
+            render_pass.draw(0..24, piece.i_start..piece.i_end);
+        })
+    }
 }

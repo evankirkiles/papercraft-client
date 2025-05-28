@@ -2,7 +2,40 @@ use wgpu::util::DeviceExt;
 
 use super::{layouts::SharedLayouts, settings::Settings};
 
+// Simple triangle strip quad
 const BUF_RECT_CONTENTS: [[f32; 2]; 4] = [[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]];
+// Simple outline of a rect, with each segment itself made of a quad. We could
+// compress this down to 14 verts by using miters and a triangle strip, but... whatever
+const BUF_RECT_OUTLINE_CONTENTS: [[f32; 2]; 24] = [
+    // segment 1
+    [0.0, 0.0],
+    [0.0, 1.0],
+    [1.0, 0.0],
+    [0.0, 1.0],
+    [1.0, 0.0],
+    [1.0, 1.0],
+    // segment 2
+    [0.0, 0.0],
+    [0.0, 1.0],
+    [1.0, 0.0],
+    [0.0, 1.0],
+    [1.0, 0.0],
+    [1.0, 1.0],
+    // segment 3
+    [0.0, 0.0],
+    [0.0, 1.0],
+    [1.0, 0.0],
+    [0.0, 1.0],
+    [1.0, 0.0],
+    [1.0, 1.0],
+    // segment 4
+    [0.0, 0.0],
+    [0.0, 1.0],
+    [1.0, 0.0],
+    [0.0, 1.0],
+    [1.0, 0.0],
+    [1.0, 1.0],
+];
 
 /// A GPU Context owns the resources connected to a Surface's lifetime. It is
 /// created when the Renderer is created and used to pass around shared
@@ -17,6 +50,7 @@ pub(crate) struct Context<'window> {
     pub shared_layouts: SharedLayouts,
     /// Common buffers (e.g. rect)
     pub buf_rect: wgpu::Buffer,
+    pub buf_rect_outline: wgpu::Buffer,
     /// Global configuration for draw calls
     pub settings: Settings,
 }
@@ -34,6 +68,11 @@ impl<'window> Context<'window> {
             buf_rect: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("ctx.buf_rect"),
                 contents: bytemuck::bytes_of(&BUF_RECT_CONTENTS),
+                usage: wgpu::BufferUsages::VERTEX,
+            }),
+            buf_rect_outline: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("ctx.buf_rect"),
+                contents: bytemuck::bytes_of(&BUF_RECT_OUTLINE_CONTENTS),
                 usage: wgpu::BufferUsages::VERTEX,
             }),
             device,

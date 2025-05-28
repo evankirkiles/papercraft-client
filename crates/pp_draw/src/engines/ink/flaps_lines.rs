@@ -4,13 +4,14 @@ use crate::gpu;
 use super::DepthBiasLayer;
 
 #[derive(Debug)]
-pub(super) struct FlapsProgram {
+pub(super) struct FlapsLinesProgram {
     pipeline: wgpu::RenderPipeline,
 }
 
-impl FlapsProgram {
+impl FlapsLinesProgram {
     pub(super) fn new(ctx: &gpu::Context) -> Self {
-        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/flaps.wgsl"));
+        let shader =
+            ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/flaps_lines.wgsl"));
         Self {
             pipeline: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("ink3.flaps"),
@@ -32,7 +33,7 @@ impl FlapsProgram {
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 }),
                 primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleStrip,
+                    topology: wgpu::PrimitiveTopology::TriangleList,
                     strip_index_format: None,
                     front_face: wgpu::FrontFace::Ccw,
                     cull_mode: None,
@@ -46,8 +47,8 @@ impl FlapsProgram {
                     depth_compare: wgpu::CompareFunction::Less,
                     stencil: wgpu::StencilState::default(),
                     bias: wgpu::DepthBiasState {
-                        constant: DepthBiasLayer::BackgroundMiddle as i32,
-                        slope_scale: 0.07,
+                        constant: super::DepthBiasLayer::ForegroundMiddle as i32,
+                        slope_scale: 0.03,
                         ..Default::default()
                     },
                 }),
@@ -70,6 +71,6 @@ impl FlapsProgram {
         mesh: &cache::MeshGPU,
     ) {
         render_pass.set_pipeline(&self.pipeline);
-        mesh.draw_piece_flaps_instanced(ctx, render_pass);
+        mesh.draw_piece_flaps_outline_instanced(ctx, render_pass);
     }
 }

@@ -3,6 +3,7 @@ use pp_core::settings::SelectionMode;
 use crate::{cache, gpu};
 
 mod flaps;
+mod flaps_lines;
 mod lines;
 mod lines_cut;
 mod overlay_grid_circle;
@@ -34,6 +35,7 @@ pub struct InkEngine {
     tris: tris::TrisProgram,
     surface: surface::SurfaceProgram,
     flaps: flaps::FlapsProgram,
+    flaps_lines: flaps_lines::FlapsLinesProgram,
 
     // Overlay draw programs
     overlay_grid_sphere: overlay_grid_circle::OverlayGridCircleProgram,
@@ -49,6 +51,7 @@ impl InkEngine {
             tris: tris::TrisProgram::new(ctx),
             surface: surface::SurfaceProgram::new(ctx),
             flaps: flaps::FlapsProgram::new(ctx),
+            flaps_lines: flaps_lines::FlapsLinesProgram::new(ctx),
             overlay_grid_sphere: overlay_grid_circle::OverlayGridCircleProgram::new(ctx),
             overlay_grid_rect: overlay_grid_rect::OverlayGridRectProgram::new(ctx),
         }
@@ -102,6 +105,7 @@ impl InkEngine {
         self.tris.draw_piece_mesh(ctx, render_pass, mesh);
         self.lines.draw_piece_mesh(ctx, render_pass, mesh);
         self.flaps.draw_piece_mesh(ctx, render_pass, mesh);
+        self.flaps_lines.draw_piece_mesh(ctx, render_pass, mesh);
         if settings.selection_mode == SelectionMode::Vert {
             self.points.draw_piece_mesh(ctx, render_pass, mesh);
         }

@@ -13,7 +13,8 @@ struct VertexInput {
     @location(3) v2_pos: vec3<f32>,
     @location(4) flap_flags: u32,
     @location(5) flags: u32,
-    @location(6) select_idx: vec2<u32>
+    @location(6) select_idx: vec2<u32>,
+    @builtin(vertex_index) vertex_index: u32 
 };
 
 struct VertexOutput {
@@ -24,6 +25,7 @@ struct VertexOutput {
 
 // Rendering constants (to move to uniform)
 const PIECE_DEPTH: f32 = 0.2;
+const LINE_WIDTH: f32 = 2.0;
 
 // Edge flags
 const E_FLAG_SELECTED: u32 = (u32(1) << 0);
@@ -59,18 +61,17 @@ fn _compute_flap_corners(in: VertexInput) -> array<vec3<f32>, 4> {
     // Compute the short-edge vertices of the flap
     let top0 = v0 + (apex - v0) * PIECE_DEPTH;
     let top1 = v1 + (apex - v1) * PIECE_DEPTH;
-    return array<vec3<f32>, 4>(v0, v1, top0, top1);  // bottom-left, bottom-right, top-right, top-left
+    return array<vec3<f32>, 4>(v0, v1, top1, top0);  // bottom-left, bottom-right, top-right, top-left
 }
 
 // Calculates the colors of edges as would be seen on-screen.
 fn _vs_color(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     var out = _out;
-    out.color = vec4<f32>(1.0, 1.0, 1.0, 1.0);
+    out.color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
 
-    // Color the flap (each vertex) based on its select status. Nonexistent
-    // flaps should be clipped out already, but just in case...
+    // Color the flap (each vertex) based on its select status
     if (bool(in.flags & E_FLAG_SELECTED)) { 
-      out.color = mix(out.color, vec4<f32>(1.0, 0.5, 0.0, 1.0), 0.5); 
+      out.color = vec4<f32>(1.0, 0.5, 0.0, 1.0); 
     }
 
     // Add the edge index for the selection engine
@@ -81,20 +82,32 @@ fn _vs_color(in: VertexInput, _out: VertexOutput) -> VertexOutput {
 // Calculates the clip position of edge vertices based on the width of the line
 fn _vs_clip_pos(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     var out = _out;
-    
-    // Compute corners of the flap trapezoid
-    let corners = _compute_flap_corners(in);
   
-    // Interpolate between corners of the flap based on input verts
-    let base_pos = mix(corners[0], corners[1], in.offset.x);
-    let top_pos = mix(corners[2], corners[3], in.offset.x);
-    let pos = mix(base_pos, top_pos, in.offset.y);
-    out.clip_position = camera.view_proj * piece.affine * vec4<f32>(pos, 1.0);
-
-    // If flap doesn't exist, push it offscreen to avoid rasterization
+    // If flap doesn't exist, return early with offscreen coordinate
     if (bool(in.flap_flags ^ F_FLAG_EXISTS)) {
         out.clip_position.z = -100.0;
+        return out;
     }
+    
+    // Get the corners of the flap trapezoid
+    let corners = _compute_flap_corners(in);
+
+    // Get the current vertex and the next vertex
+    let p0 = corners[u32(in.vertex_index / 6)];
+    let p1 = corners[(u32(in.vertex_index / 6) + 1) % 4];
+  
+    // Find screen-space positions of each vertex
+    var clip_v0 = camera.view_proj * piece.affine * vec4<f32>(p0, 1.0);
+    var clip_v1 = camera.view_proj * piece.affine * vec4<f32>(p1, 1.0);
+    var screen_v0 = camera.dimensions * (0.5 * clip_v0.xy / clip_v0.w + 0.5);
+    var screen_v1 = camera.dimensions * (0.5 * clip_v1.xy / clip_v1.w + 0.5);
+
+    // Expand into line segment
+    var basis_x = screen_v1 - screen_v0;
+    var basis_y = normalize(vec2<f32>(-basis_x.y, basis_x.x));
+    var pt = screen_v0 + in.offset.x * basis_x + (0.5 - in.offset.y) * basis_y * LINE_WIDTH;
+    var clip = mix(clip_v0, clip_v1, in.offset.x);
+    out.clip_position = vec4<f32>(clip.w * (2.0 * pt / camera.dimensions - 1.0), clip.z, clip.w);
 
     return out;
 }
@@ -112,10 +125,4 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     return in.color;
-}
-
-// [FS.2] Select index rendering
-@fragment
-fn fs_select(in: VertexOutput) -> @location(0) vec4<u32> {
-    return vec4<u32>(0, 0, in.select_idx + vec2<u32>(0, 1));
 }
