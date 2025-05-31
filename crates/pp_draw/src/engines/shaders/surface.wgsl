@@ -43,3 +43,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     return vec4<f32>(in.color * 1.0, 1.0) ;
     // return vec4<f32>(0.5, 0.5, 0.5, 1.0);
 }
+
+// [FS.2] Select masking
+@fragment
+fn fs_select(in: VertexOutput) -> @location(0) vec4<u32> {
+    return vec4<u32>(0, 0, 0, 0) ;
+}

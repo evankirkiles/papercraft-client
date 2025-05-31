@@ -2,6 +2,7 @@ use crate::{cache, gpu, select};
 
 mod lines;
 mod points;
+mod surface;
 mod tris;
 
 #[derive(Debug)]
@@ -9,6 +10,7 @@ pub(crate) struct SelectEngine {
     points: points::PointsProgram,
     lines: lines::LinesProgram,
     tris: tris::TrisProgram,
+    surface: surface::SurfaceProgram,
 }
 
 impl SelectEngine {
@@ -17,6 +19,7 @@ impl SelectEngine {
             points: points::PointsProgram::new(ctx),
             lines: lines::LinesProgram::new(ctx),
             tris: tris::TrisProgram::new(ctx),
+            surface: surface::SurfaceProgram::new(ctx),
         }
     }
 
@@ -26,6 +29,7 @@ impl SelectEngine {
         render_pass: &mut wgpu::RenderPass,
         mesh: &cache::MeshGPU,
         mask: select::SelectionMask,
+        xray: bool,
     ) {
         if mask.intersects(select::SelectionMask::VERTS) {
             self.points.draw_mesh(ctx, render_pass, mesh);
@@ -35,6 +39,9 @@ impl SelectEngine {
         }
         if mask.intersects(select::SelectionMask::FACES | select::SelectionMask::PIECES) {
             self.tris.draw_mesh(ctx, render_pass, mesh);
+        }
+        if !xray {
+            self.surface.draw_mesh(ctx, render_pass, mesh);
         }
     }
 

@@ -197,13 +197,18 @@ impl SelectManager {
             if draw_cache.viewport_3d.bind(&mut render_pass) {
                 draw_cache.common.piece_identity.bind(&mut render_pass);
                 draw_cache.meshes.values().for_each(|mesh| {
-                    self.select_engine.draw_mesh(ctx, &mut render_pass, mesh, mask);
+                    self.select_engine.draw_mesh(
+                        ctx,
+                        &mut render_pass,
+                        mesh,
+                        mask,
+                        draw_cache.viewport_3d.xray_mode,
+                    );
                 });
             }
 
             // Render 2D if viewport has area
             if draw_cache.viewport_2d.bind(&mut render_pass) {
-                // draw from each engine in the presentation render pass.
                 draw_cache.meshes.values().for_each(|mesh| {
                     self.select_engine.draw_piece_mesh(ctx, &mut render_pass, mesh, mask);
                 });
