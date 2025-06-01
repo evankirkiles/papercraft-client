@@ -853,6 +853,7 @@ dependencies = [
  "paste",
  "pp_core",
  "pp_draw",
+ "pp_io",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -891,6 +892,28 @@ dependencies = [
  "log",
  "paste",
  "pp_core",
+ "wgpu",
+]
+
+[[package]]
+name = "pp_io"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "bitflags 2.9.0",
+ "cfg-if",
+ "console_error_panic_hook",
+ "console_log",
+ "futures",
+ "glob",
+ "log",
+ "paste",
+ "pp_core",
+ "pp_draw",
+ "tobj",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
  "wgpu",
 ]
 

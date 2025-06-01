@@ -15,6 +15,7 @@ version = "0.0.1"
 pp_core = { path = "crates/pp_core", version = "0.0.1" }
 pp_draw = { path = "crates/pp_draw", version = "0.0.1" }
 pp_control = { path = "crates/pp_control", version = "0.0.1" }
+pp_io = { path = "crates/pp_io", version = "0.0.1" }
 
 # External:
 anyhow = "1.0"

@@ -5,7 +5,7 @@ use std::ops;
 use crate::id::{EdgeId, FaceId, Id, LoopId, MeshId, PieceId, VertexId};
 
 pub mod edge;
-mod face;
+pub mod face;
 mod loop_;
 pub mod piece;
 mod primitives;

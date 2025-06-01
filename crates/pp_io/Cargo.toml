@@ -1,6 +1,6 @@
 [package]
-name = "pp_control"
-description = "A controller that manages the model, view, and UI interaction."
+name = "pp_io"
+description = "I/O manager"
 readme = "README.md"
 authors.workspace = true
 edition.workspace = true
@@ -14,7 +14,6 @@ crate-type = ["cdylib", "rlib"] # Support both WASM and Native compilation
 
 [dependencies]
 # Internal:
-pp_io.workspace = true
 pp_core.workspace = true
 pp_draw.workspace = true
 # External:
@@ -23,13 +22,13 @@ web-sys = { version = "0.3", features = ["HtmlCanvasElement", "console"] }
 cfg-if.workspace = true
 log.workspace = true
 futures.workspace = true
-compact_str = "0.9.0"
 console_error_panic_hook = { workspace = true }
 console_log.workspace = true
 paste.workspace = true
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 wgpu.workspace = true
+tobj.workspace = true
 
 [build-dependencies]
 anyhow.workspace = true

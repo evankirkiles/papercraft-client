@@ -43,7 +43,7 @@ impl Face {
 impl super::Mesh {
     /// Adds an ngon / face between any number of vertices. If a face already
     /// existed between the verts, returns that face instead.
-    pub(crate) fn add_face(&mut self, verts: &[id::VertexId]) -> id::FaceId {
+    pub fn add_face(&mut self, verts: &[id::VertexId]) -> id::FaceId {
         // If face already exists, return it
         if let Some(f_id) = self.query_face(verts) {
             return f_id;
