@@ -21,7 +21,7 @@ struct VertexOutput {
 };
 
 // Line width
-const LINE_WIDTH_THIN: f32 = 2.0;
+const LINE_WIDTH_THIN: f32 = 1.5;
 const LINE_WIDTH_THICK: f32 = 5.0;
 
 // Edge flags
@@ -79,7 +79,12 @@ fn _vs_clip_pos(in: VertexInput, _out: VertexOutput, size: f32) -> VertexOutput 
     var basis_y = normalize(vec2<f32>(-basis_x.y, basis_x.x));
     var pt = screen_v0 + in.offset.x * basis_x + (0.5 - in.offset.y) * basis_y * size;
     var clip = mix(clip_v0, clip_v1, in.offset.x);
-    out.clip_position = vec4<f32>(clip.w * (2.0 * pt / camera.dimensions - 1.0), clip.z, clip.w);
+    out.clip_position = vec4<f32>(clip.w * (2.0 * pt / camera.dimensions - 1.0), clip.z, clip.w);// - vec4<f32>(0.0, 0.0, 0.001, 0.0);
+
+    // Move cut lines offscreen if not cut
+    if (size == LINE_WIDTH_THICK && !bool(in.flags & FLAG_CUT)) { 
+      out.clip_position.z = -100.0;
+    }
 
     return out;
 }

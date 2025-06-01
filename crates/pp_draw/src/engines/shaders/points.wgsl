@@ -51,7 +51,7 @@ fn _vs_clip_pos(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     var out = _out;
     var clip_center = camera.view_proj * piece.affine * vec4<f32>(in.pos, 1.0);
     var ndc_offset = POINT_SIZE * (0.5 - in.offset) / camera.dimensions;
-    out.clip_position = clip_center + vec4<f32>(ndc_offset * clip_center.w, 0.0, 0.0);
+    out.clip_position = clip_center + vec4<f32>(ndc_offset * clip_center.w, 0.0, 0.0);// - vec4<f32>(0.0, 0.0, 0.001, 0.0);
     return out;
 }
 

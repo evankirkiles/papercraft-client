@@ -123,7 +123,7 @@ impl super::Mesh {
 
     /// Iterates all the loops in pieces of the mesh in pre-defined order.
     pub fn iter_piece_faces_unfolded(&self, p_id: id::PieceId) -> UnfoldedPieceFaceWalker {
-        UnfoldedPieceFaceWalker::new(self, p_id, self[p_id].t)
+        UnfoldedPieceFaceWalker::new(self, p_id)
     }
 
     /// Moves the piece, updating its transformation
@@ -159,7 +159,7 @@ pub struct UnfoldedPieceFaceWalker<'mesh> {
 }
 
 impl<'mesh> UnfoldedPieceFaceWalker<'mesh> {
-    fn new(mesh: &'mesh super::Mesh, p_id: id::PieceId, t: f32) -> Self {
+    fn new(mesh: &'mesh super::Mesh, p_id: id::PieceId) -> Self {
         let Piece { f, t, .. } = mesh[p_id];
         let up = Vector3::unit_z();
         let n = Vector3::from(mesh[f].no);
@@ -185,8 +185,7 @@ impl<'mesh> UnfoldedPieceFaceWalker<'mesh> {
             Matrix4::from_axis_angle(axis.normalize(), angle * t)
         };
         // 2. Translate point to lie on Z = 0
-        let rotated_point =
-            rotation.transform_vector(Vector3::from(mesh[mesh[mesh[f].l_first].v].po));
+        let rotated_point = rotation.transform_vector(Vector3::from(mesh[mesh[mesh[f].l].v].po));
         let translation = Matrix4::from_translation(Vector3::new(0.0, 0.0, -rotated_point.z * t));
         let affine_final = translation * rotation;
 

@@ -13,65 +13,54 @@ use super::MeshElementType;
 pub struct Face {
     /// Face normal
     pub no: [f32; 3],
-    /// Material index for this face
-    pub mat_nr: u16,
-    /// The number of vertices of this face. This will always be 3, for now
-    pub len: usize,
 
-    /// LoopCycle: Any loop in this face
-    pub l_first: id::LoopId,
-    /// The "index" of this face in any final IBO
-    pub index: Option<usize>,
+    /// Any loop in this face, allowing for loop cycle iteration
+    pub l: id::LoopId,
+    /// The material for this face, if any
+    pub m: Option<id::MaterialId>,
     /// The "piece" this face is a part of, if any
     pub p: Option<id::PieceId>,
+
+    /// The "index" of this face in any final IBO
+    pub index: Option<usize>,
 }
 
 impl Face {
     /// Creates a new Face with a temporary Loop Id
-    fn new(len: usize) -> Self {
-        Self {
-            no: [0.0, 0.0, 0.0],
-            mat_nr: 0,
-            len,
-            l_first: id::LoopId::temp(),
-            index: None,
-            p: None,
-        }
+    fn new() -> Self {
+        Self { no: [0.0, 0.0, 0.0], l: id::LoopId::temp(), index: None, p: None, m: None }
     }
 }
 
 impl super::Mesh {
     /// Adds an ngon / face between any number of vertices. If a face already
     /// existed between the verts, returns that face instead.
-    pub fn add_face(&mut self, verts: &[id::VertexId]) -> id::FaceId {
+    pub fn add_face(&mut self, verts: &[id::VertexId; 3]) -> id::FaceId {
         // If face already exists, return it
         if let Some(f_id) = self.query_face(verts) {
             return f_id;
         }
 
         // Otherwise, begin creating the face
-        let len = verts.len();
-        let f = id::FaceId::from_usize(self.faces.push(Face::new(len)));
+        let f = id::FaceId::from_usize(self.faces.push(Face::new()));
 
         // Calculate face normal
-        if verts.len() >= 3 {
-            let v0 = cgmath::Vector3::from(self[verts[0]].po);
-            let v1 = cgmath::Vector3::from(self[verts[1]].po);
-            let v2 = cgmath::Vector3::from(self[verts[2]].po);
-            let normal = (v1 - v0).cross(v2 - v0).normalize();
-            self[f].no = normal.into();
-        }
+        let v0 = cgmath::Vector3::from(self[verts[0]].po);
+        let v1 = cgmath::Vector3::from(self[verts[1]].po);
+        let v2 = cgmath::Vector3::from(self[verts[2]].po);
+        let normal = (v1 - v0).cross(v2 - v0).normalize();
+        self[f].no = normal.into();
 
         // Create or use existing edges between all adjacent vertices
         let edges: Vec<id::EdgeId> =
-            (0..len).map(|i| self.add_edge(verts[i], verts[(i + 1) % len])).collect();
+            (0..3).map(|i| self.add_edge(verts[i], verts[(i + 1) % 3])).collect();
 
         // Create the loops for the face, adding loop + radial data
         let l_start = id::LoopId::from_usize(self.loops.push(Loop::new(f, verts[0], edges[0])));
         self.connect_loop_to_edge(l_start, edges[0]);
-        self[f].l_first = l_start;
+        self[f].l = l_start;
         let mut l_last = l_start;
-        for i in 1..len {
+        for i in 1..3 {
             let l = id::LoopId::from_usize(self.loops.push(Loop::new(f, verts[i], edges[i])));
             self.connect_loop_to_edge(l, edges[i]);
             self[l].prev = l_last;
@@ -102,7 +91,7 @@ impl super::Mesh {
                 loop {
                     // Cycle 2: Loops (radial) for each edge, aka faces containing e_iter
                     let l_curr = self[l_iter_radial];
-                    if l_curr.v == v0 && self[l_curr.f].len == len {
+                    if l_curr.v == v0 {
                         // First two verts match, so iterate through for remaining verts
                         // Note that loop winding direction is undefined, so we
                         // need to iterate in both directions (next's and prev's).
@@ -203,7 +192,7 @@ impl DoubleEndedIterator for LoopCycleWalker<'_> {
 impl super::Mesh {
     /// Walks the loops in a face (vertices)
     pub fn iter_face_loops(&self, f: id::FaceId) -> LoopCycleWalker {
-        LoopCycleWalker::new(self, self[f].l_first)
+        LoopCycleWalker::new(self, self[f].l)
     }
 }
 
