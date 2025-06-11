@@ -6,7 +6,7 @@ use crate::id::{EdgeId, FaceId, Id, LoopId, MeshId, PieceId, VertexId};
 
 pub mod edge;
 pub mod face;
-mod loop_;
+pub mod loop_;
 pub mod piece;
 mod primitives;
 mod vertex;
@@ -79,34 +79,6 @@ impl Mesh {
             index_dirty: MeshElementType::empty(),
         }
     }
-
-    // --- Section: Lazy Calculations ---
-
-    /// Makes sure that element indices are up-to-date to prepare for IBO
-    /// creation.
-    pub fn ensure_elem_index(&mut self, el_types: MeshElementType) {
-        let el_types_and_dirty = el_types & self.index_dirty;
-        if (MeshElementType::VERTS & el_types_and_dirty).into() {
-            self.verts.values_mut().enumerate().for_each(|(i, el)| {
-                el.index = Some(i);
-            });
-        }
-        if ((MeshElementType::FACES | MeshElementType::LOOPS) & el_types_and_dirty).into() {
-            self.faces.values_mut().enumerate().for_each(|(i, el)| {
-                el.index = Some(i);
-            });
-        }
-        if (MeshElementType::LOOPS & el_types_and_dirty).into() {
-            let loops: Vec<_> = self
-                .faces
-                .indices()
-                .flat_map(|f| self.iter_face_loops(FaceId::from_usize(f)))
-                .collect();
-            loops.iter().enumerate().for_each(|(i, l)| {
-                self[*l].index = Some(i);
-            });
-        }
-    }
 }
 
 /// Automatically derive mutable and immutable indexing operations on the Mesh
@@ -146,8 +118,8 @@ mod test {
     #[test]
     fn add_duplicate_edge() {
         let mut mesh = Mesh::new(MeshId::new(0), String::from("test"));
-        let v1 = mesh.add_vertex([1.0, 0.0, 0.0], [0.0, 0.0, 0.0]);
-        let v2 = mesh.add_vertex([0.0, 1.0, 0.0], [0.0, 0.0, 0.0]);
+        let v1 = mesh.add_vertex([1.0, 0.0, 0.0]);
+        let v2 = mesh.add_vertex([0.0, 1.0, 0.0]);
         let e1 = mesh.add_edge(v1, v2);
         let e2 = mesh.add_edge(v2, v1);
         assert_eq!(e1, e2);
@@ -158,11 +130,11 @@ mod test {
     #[test]
     fn add_duplicate_face() {
         let mut mesh = Mesh::new(MeshId::new(0), String::from("test"));
-        let v1 = mesh.add_vertex([1.0, 0.0, 0.0], [0.0, 0.0, 0.0]);
-        let v2 = mesh.add_vertex([0.0, 1.0, 0.0], [0.0, 0.0, 0.0]);
-        let v3 = mesh.add_vertex([0.0, 0.0, 1.0], [0.0, 0.0, 0.0]);
-        let f1 = mesh.add_face(&[v1, v2, v3]);
-        let f2 = mesh.add_face(&[v1, v3, v2]);
+        let v1 = mesh.add_vertex([1.0, 0.0, 0.0]);
+        let v2 = mesh.add_vertex([0.0, 1.0, 0.0]);
+        let v3 = mesh.add_vertex([0.0, 0.0, 1.0]);
+        let f1 = mesh.add_face(&[v1, v2, v3], &Default::default());
+        let f2 = mesh.add_face(&[v1, v3, v2], &Default::default());
         assert_eq!(f1, f2);
         assert_eq!(mesh.verts.num_elements(), 3);
         assert_eq!(mesh.edges.num_elements(), 3);

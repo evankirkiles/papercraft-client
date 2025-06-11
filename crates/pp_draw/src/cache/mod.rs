@@ -43,7 +43,6 @@ impl DrawCache {
     pub(crate) fn sync_meshes(&mut self, ctx: &gpu::Context, state: &mut pp_core::State) {
         // Ensure AppState's meshes are all synced in the DrawCache
         state.meshes.iter_mut().for_each(|(key, mesh)| {
-            mesh.ensure_elem_index(MeshElementType::all());
             let m = self.meshes.entry(*key).or_insert(MeshGPU::new(mesh));
             m.sync(ctx, mesh, &state.selection);
         });

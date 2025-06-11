@@ -15,6 +15,7 @@ pub mod viewport_3d;
 pub struct State {
     pub meshes: HashMap<id::MeshId, mesh::Mesh>,
     pub materials: HashMap<id::MaterialId, material::Material>,
+    pub textures: HashMap<id::TextureId, material::texture::Texture>,
     pub selection: select::SelectionState,
     pub viewport_3d: viewport_3d::Viewport3D,
     pub viewport_2d: viewport_2d::Viewport2D,

@@ -4,9 +4,21 @@ use pp_core::id::{self, Id};
 use pp_core::mesh::{Mesh, MeshElementType};
 use pp_core::select::SelectionState;
 use std::collections::HashMap;
+use std::ops::Range;
 
 mod extract;
 pub mod piece;
+
+/// Pieces maintain their own affine transformation matrix uniform buffers, so
+/// we can translate / rotate all of the faces within a piece easily.
+#[derive(Debug)]
+pub(crate) struct MaterialGPUVBORange {
+    /// This material's range of elements in in the IBO for standard VBOs
+    pub range: Range<u32>,
+    /// This material's range of elements in in the IBO for piecewise VBOs
+    /// A missing entry indicates that the piece doesn't use the given material.
+    pub piece_ranges: HashMap<id::PieceId, Range<u32>>,
+}
 
 /// All the possible VBOs a mesh might need to use.
 #[derive(Debug)]
@@ -23,6 +35,10 @@ pub struct MeshGPUVBOs {
     pub edge_idx: gpu::VertBuf,
     pub edge_flags: gpu::VertBuf,
     pub edge_flap: gpu::VertBuf,
+
+    // For per-material indexing. Each `MaterialSlotGPU` has a corresponding range in
+    // this buffer to render all of the faces with that slot's material
+    pub mat_indices: gpu::IndexBuf,
 }
 
 impl MeshGPUVBOs {
@@ -37,6 +53,7 @@ impl MeshGPUVBOs {
             edge_idx: gpu::VertBuf::new(format!("{label}.edge_idx")),
             edge_flags: gpu::VertBuf::new(format!("{label}.edge_flags")),
             edge_flap: gpu::VertBuf::new(format!("{label}.edge_flap")),
+            mat_indices: gpu::IndexBuf::new(format!("{label}.mat_indices")),
         }
     }
 }
@@ -59,6 +76,9 @@ pub struct MeshGPU {
     // in the piece VBOs.
     pieces: HashMap<id::PieceId, PieceGPU>,
 
+    // Likewise, material slots own their ranges in the material index buffers
+    mat_ranges: HashMap<id::MaterialId, MaterialGPUVBORange>,
+
     /// Forces updating of *all* GPU-side resources
     is_dirty: bool,
 }
@@ -72,6 +92,7 @@ impl MeshGPU {
             vbo: MeshGPUVBOs::new(&format!("{mesh_lbl}.vbo)")),
             vbo_pieces: MeshGPUVBOs::new(&format!("{mesh_lbl}.vbo_pieces)")),
             pieces: HashMap::new(),
+            mat_ranges: HashMap::new(),
         }
     }
 
@@ -89,6 +110,10 @@ impl MeshGPU {
             extract::vbo::piece_vnor(ctx, mesh, &mut self.vbo_pieces.nor);
             extract::vbo::piece_edge_pos(ctx, mesh, &mut self.vbo_pieces.edge_pos);
             extract::vbo::piece_edge_flap(ctx, mesh, &mut self.vbo_pieces.edge_flap);
+            // Material slot IBOs
+            let slots = &mut self.mat_ranges;
+            extract::ibo::mat_indices(ctx, mesh, &mut self.vbo.mat_indices, slots);
+            extract::ibo::piece_mat_indices(ctx, mesh, &mut self.vbo_pieces.mat_indices, slots);
         }
         if elem_dirty.intersects(MeshElementType::EDGES) {
             extract::vbo::edge_flags(ctx, mesh, selection, &mut self.vbo.edge_flags);
@@ -115,6 +140,8 @@ impl MeshGPU {
             extract::vbo::piece_edge_idx(ctx, mesh, &mut self.vbo_pieces.edge_idx);
             extract::vbo::piece_edge_flap(ctx, mesh, &mut self.vbo_pieces.edge_flap);
             extract::vbo::piece_edge_flags(ctx, mesh, selection, &mut self.vbo_pieces.edge_flags);
+            let slots = &mut self.mat_ranges;
+            extract::ibo::piece_mat_indices(ctx, mesh, &mut self.vbo_pieces.mat_indices, slots);
             // Ensure each piece has up-to-date ranges of elements to render
             let mut i = 0;
             mesh.pieces.indices().for_each(|p_id| {
@@ -127,8 +154,7 @@ impl MeshGPU {
                     .iter_connected_faces(mesh[p_id].f)
                     .flat_map(|f_id| mesh.iter_face_loops(f_id))
                     .count() as u32;
-                piece.i_start = i;
-                piece.i_end = i + n_els;
+                piece.range = i..(i + n_els);
                 i += n_els;
             });
             // Delete pieces no longer being used
@@ -263,7 +289,7 @@ impl MeshGPU {
         // Draw ranges from the buffers by binding each uniform
         self.pieces.values().for_each(|piece| {
             piece.bind(render_pass);
-            render_pass.draw(piece.i_start..piece.i_end, 0..1);
+            render_pass.draw(piece.range.clone(), 0..1);
         })
     }
 
@@ -332,7 +358,7 @@ impl MeshGPU {
         render_pass.set_vertex_buffer(3, self.vbo_pieces.vert_idx.slice());
         self.pieces.values().for_each(|piece| {
             piece.bind(render_pass);
-            render_pass.draw(0..4, piece.i_start..piece.i_end);
+            render_pass.draw(0..4, piece.range.clone());
         })
     }
 
@@ -408,7 +434,7 @@ impl MeshGPU {
         render_pass.set_vertex_buffer(3, self.vbo_pieces.edge_idx.slice());
         self.pieces.values().for_each(|piece| {
             piece.bind(render_pass);
-            render_pass.draw(0..4, piece.i_start..piece.i_end);
+            render_pass.draw(0..4, piece.range.clone());
         })
     }
 
@@ -490,7 +516,7 @@ impl MeshGPU {
         render_pass.set_vertex_buffer(4, self.vbo_pieces.edge_idx.slice());
         self.pieces.values().for_each(|piece| {
             piece.bind(render_pass);
-            render_pass.draw(0..4, piece.i_start..piece.i_end);
+            render_pass.draw(0..4, piece.range.clone());
         })
     }
 
@@ -509,7 +535,23 @@ impl MeshGPU {
         render_pass.set_vertex_buffer(4, self.vbo_pieces.edge_idx.slice());
         self.pieces.values().for_each(|piece| {
             piece.bind(render_pass);
-            render_pass.draw(0..24, piece.i_start..piece.i_end);
+            render_pass.draw(0..24, piece.range.clone());
         })
+    }
+
+    pub fn draw_material_surface(
+        &self,
+        _: &gpu::Context,
+        render_pass: &mut wgpu::RenderPass,
+        material_slot_id: &id::MaterialId,
+    ) {
+        let Some(slot) = self.mat_ranges.get(material_slot_id) else {
+            return;
+        };
+        render_pass.set_index_buffer(self.vbo.mat_indices.slice(), wgpu::IndexFormat::Uint32);
+        render_pass.set_vertex_buffer(0, self.vbo.pos.slice());
+        render_pass.set_vertex_buffer(1, self.vbo.nor.slice());
+        render_pass.set_vertex_buffer(2, self.vbo.uv.slice());
+        render_pass.draw_indexed(slot.range.clone(), 0, 0..1);
     }
 }

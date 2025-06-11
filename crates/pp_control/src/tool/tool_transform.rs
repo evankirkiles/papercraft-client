@@ -1,5 +1,4 @@
 use pp_core::tool::ToolContext;
-use pp_draw::PhysicalSize;
 
 use crate::{
     event::{self, EventHandler, MouseButton, PhysicalPosition, PointerEvent},

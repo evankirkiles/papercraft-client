@@ -76,12 +76,19 @@ macro_rules! make_handle_type {
                 self.idx().fmt(f)
             }
         }
+
+        impl Default for $name {
+            fn default() -> Self {
+                Self::temp()
+            }
+        }
     }
 }
 
 // Window things
 make_handle_type! { ViewportId = "Viewport"; }
 make_handle_type! { MaterialId = "Mat"; }
+make_handle_type! { TextureId = "Tex"; }
 // Mesh-specific handles
 make_handle_type! { MeshId = "Mesh"; }
 make_handle_type! { FaceId = "F"; }

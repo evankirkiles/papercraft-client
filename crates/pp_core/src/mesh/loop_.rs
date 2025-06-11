@@ -2,11 +2,15 @@ use crate::id::{self, Id};
 
 /// A loop, best thought of as a "corner" of a face. Corresponds to exactly
 /// one face, vertex, and edge.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Loop {
     pub v: id::VertexId,
     pub e: id::EdgeId,
     pub f: id::FaceId,
+
+    // UVs and normals are per-vertex per-face
+    pub uv: [f32; 2],
+    pub no: [f32; 3],
 
     // RadialCycle: Other loops around the edge
     pub radial_next: id::LoopId,
@@ -15,27 +19,6 @@ pub struct Loop {
     // LoopCycle: Other loops in this face
     pub next: id::LoopId,
     pub prev: id::LoopId,
-
-    /// The "index" of this loop / corner in any final VBO
-    pub index: Option<usize>,
-}
-
-impl Loop {
-    /// Creates a new Loop with temporary radial / loop links. You *must*
-    /// set the radial / loop links once the face is fully created, otherwise
-    /// you'll run into all sorts of adjacency query issues.
-    pub(crate) fn new(f: id::FaceId, v: id::VertexId, e: id::EdgeId) -> Self {
-        Self {
-            v,
-            e,
-            f,
-            next: id::LoopId::temp(),
-            prev: id::LoopId::temp(),
-            radial_next: id::LoopId::temp(),
-            radial_prev: id::LoopId::temp(),
-            index: None,
-        }
-    }
 }
 
 impl super::Mesh {

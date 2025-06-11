@@ -1,3 +1,5 @@
+use pp_core::id;
+
 use crate::cache;
 use crate::gpu;
 
@@ -73,6 +75,17 @@ impl SurfaceProgram {
     ) {
         render_pass.set_pipeline(&self.pipeline);
         mesh.draw_tris(ctx, render_pass);
+    }
+
+    pub(super) fn draw_mesh_with_material(
+        &self,
+        ctx: &gpu::Context,
+        render_pass: &mut wgpu::RenderPass,
+        mesh: &cache::MeshGPU,
+        material_id: &id::MaterialId,
+    ) {
+        render_pass.set_pipeline(&self.pipeline);
+        mesh.draw_material_surface(ctx, render_pass, material_id);
     }
 
     /// Writes geometry draw commands for all the materials in a mesh

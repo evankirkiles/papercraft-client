@@ -1,6 +1,6 @@
-use std::{collections::HashMap, io::Cursor};
+use std::io::Cursor;
 
-use pp_core::{id::Id, State};
+use pp_core::{id::Id, mesh::face::FaceDescriptor, State};
 
 /// Creates a `State` object from a Wavefront OBJ file.
 pub fn import_obj() -> State {
@@ -14,15 +14,18 @@ pub fn import_obj() -> State {
             ignore_points: true,
             ignore_lines: true,
         },
-        |p| {
-            p.file_name().unwrap().to_str().unwrap();
-            Ok((Vec::new(), HashMap::new()))
+        |_| {
+            let cursor = Cursor::new(include_bytes!("./example/penguin/PenguinBaseMesh.mtl"));
+            tobj::load_mtl_buf(&mut cursor.clone())
         },
     );
     let (models, materials) = model.expect("Failed to load OBJ file");
     let materials = materials.expect("Failed to load MTL file");
-    println!("# of models: {}", models.len());
-    println!("# of materials: {}", materials.len());
+
+    // Create each material
+    // for (i, m) in materials.iter().enumerate() {
+    //     let mut material = pp_core::material::Material::new();
+    // }
 
     // Create each mesh
     for (i, m) in models.iter().enumerate() {
@@ -46,17 +49,26 @@ pub fn import_obj() -> State {
                 [0.0, 0.0, 0.0]
             };
 
-            let vid = mesh.add_vertex(pos, normal);
+            let vid = mesh.add_vertex(pos);
             vertex_map.push(vid);
         }
 
         // Faces are triangles because we asked for triangulation
+        let has_uvs = !mesh_data.texcoords.is_empty() && !mesh_data.texcoord_indices.is_empty();
         for i in 0..(mesh_data.indices.len() / 3) {
             let idx0 = mesh_data.indices[3 * i] as usize;
             let idx1 = mesh_data.indices[3 * i + 1] as usize;
             let idx2 = mesh_data.indices[3 * i + 2] as usize;
             let face = [vertex_map[idx0], vertex_map[idx1], vertex_map[idx2]];
-            mesh.add_face(&face);
+            let uv_data = has_uvs.then(|| {
+                let uv_idx = |j| mesh_data.texcoord_indices[3 * i + j] as usize;
+                [
+                    [mesh_data.texcoords[2 * uv_idx(0)], mesh_data.texcoords[2 * uv_idx(0) + 1]],
+                    [mesh_data.texcoords[2 * uv_idx(1)], mesh_data.texcoords[2 * uv_idx(1) + 1]],
+                    [mesh_data.texcoords[2 * uv_idx(2)], mesh_data.texcoords[2 * uv_idx(2) + 1]],
+                ]
+            });
+            mesh.add_face(&face, &FaceDescriptor { uvs: uv_data.as_ref(), ..Default::default() });
         }
         state.meshes.insert(mesh.id, mesh);
     }

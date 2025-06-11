@@ -103,7 +103,7 @@ pub mod vbo {
     }
 
     fn _vnor(mesh: &pp_core::mesh::Mesh, l: LoopId) -> [f32; 3] {
-        mesh[mesh[l].v].no
+        mesh[l].no
     }
 
     /// Reloads the vertex normals VBO from the mesh's data
@@ -365,5 +365,87 @@ pub mod vbo {
             })
             .collect();
         vbo.update(ctx, data.as_slice());
+    }
+}
+
+pub mod ibo {
+    use pp_core::id::{self, Id};
+
+    use crate::{cache::mesh::MaterialGPUVBORange, gpu};
+    use std::collections::HashMap;
+
+    /// Gets an ordered IBO for rendering materials. We sort it so each material's
+    /// surface tris can be drawn from a contiguous range within this IBO.
+    pub fn mat_indices(
+        ctx: &gpu::Context,
+        mesh: &pp_core::mesh::Mesh,
+        ibo: &mut gpu::IndexBuf,
+        mats: &mut HashMap<id::MaterialId, MaterialGPUVBORange>,
+    ) {
+        let mut data: Vec<_> =
+            mesh.iter_loops().zip(0u32..).map(|(l, i)| (i, mesh[mesh[l].f].m)).collect();
+        data.sort_by(|(_, m_a), (_, m_b)| m_a.cmp(m_b));
+        let mut i_prev: u32 = 0;
+        let mut m_prev: Option<id::MaterialId> = None;
+        let final_data: Vec<_> = data
+            .iter()
+            .zip(0u32..)
+            .map(|((ibo_i, m_id), i)| {
+                // If we've changed materials, update i_prev to begin at the new material
+                if m_prev.is_some_and(|m_prev| m_prev != *m_id) {
+                    i_prev = i;
+                };
+                if let Some(m) = mats.get_mut(m_id) {
+                    m.range = i_prev..(i + 1);
+                }
+                m_prev = Some(*m_id);
+                *ibo_i
+            })
+            .collect();
+        ibo.update(ctx, final_data.as_slice());
+    }
+
+    /// Gets an ordered IBO for rendering materials. We sort it so each material's
+    ///
+    pub fn piece_mat_indices(
+        ctx: &gpu::Context,
+        mesh: &pp_core::mesh::Mesh,
+        ibo: &mut gpu::IndexBuf,
+        mats: &mut HashMap<id::MaterialId, MaterialGPUVBORange>,
+    ) {
+        let mut data: Vec<_> = mesh
+            .pieces
+            .indices()
+            .flat_map(|p_id| {
+                let p_id = id::PieceId::from_usize(p_id);
+                mesh.iter_connected_faces(mesh[p_id].f).map(move |f_id| (f_id, p_id))
+            })
+            .flat_map(|(f_id, p_id)| mesh.iter_face_loops(f_id).map(move |l_id| (l_id, p_id)))
+            .zip(0u32..)
+            .map(|((l, p), i)| (i, mesh[mesh[l].f].m, p))
+            .collect();
+        data.sort_by(|(_, m_a, p_a), (_, m_b, p_b)| m_a.cmp(m_b).then(p_a.cmp(p_b)));
+        let mut i_prev: u32 = 0;
+        let mut m_prev: Option<id::MaterialId> = None;
+        let mut p_prev: Option<id::PieceId> = None;
+        let final_data: Vec<_> = data
+            .iter()
+            .zip(0u32..)
+            .map(|((ibo_i, m_id, p_id), i)| {
+                // Ensure the `Material` entries are up-to-date
+                if m_prev.is_some_and(|m_prev| m_prev != *m_id)
+                    || p_prev.is_some_and(|p_prev| p_prev != *p_id)
+                {
+                    i_prev = i;
+                };
+                if let Some(m) = mats.get_mut(m_id) {
+                    m.piece_ranges.insert(*p_id, i_prev..(i + 1));
+                }
+                m_prev = Some(*m_id);
+                p_prev = Some(*p_id);
+                *ibo_i
+            })
+            .collect();
+        ibo.update(ctx, final_data.as_slice());
     }
 }

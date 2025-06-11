@@ -8,41 +8,44 @@ use crate::id::{self, Id};
 use super::loop_::*;
 use super::MeshElementType;
 
+/// Input parameters when creating a face
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FaceDescriptor<'a> {
+    pub nos: Option<&'a [[f32; 3]; 3]>,
+    pub uvs: Option<&'a [[f32; 2]; 3]>,
+    pub m: id::MaterialId,
+}
+
 /// A face, formed by three vertices and three edges.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Face {
     /// Face normal
     pub no: [f32; 3],
 
     /// Any loop in this face, allowing for loop cycle iteration
     pub l: id::LoopId,
-    /// The material for this face, if any
-    pub m: Option<id::MaterialId>,
-    /// The "piece" this face is a part of, if any
+    /// The material of this face
+    pub m: id::MaterialId,
+    /// The piece this face is a part of, if any
     pub p: Option<id::PieceId>,
-
-    /// The "index" of this face in any final IBO
-    pub index: Option<usize>,
-}
-
-impl Face {
-    /// Creates a new Face with a temporary Loop Id
-    fn new() -> Self {
-        Self { no: [0.0, 0.0, 0.0], l: id::LoopId::temp(), index: None, p: None, m: None }
-    }
 }
 
 impl super::Mesh {
     /// Adds an ngon / face between any number of vertices. If a face already
     /// existed between the verts, returns that face instead.
-    pub fn add_face(&mut self, verts: &[id::VertexId; 3]) -> id::FaceId {
+    pub fn add_face(
+        &mut self,
+        verts: &[id::VertexId; 3],
+        descriptor: &FaceDescriptor,
+    ) -> id::FaceId {
+        let &FaceDescriptor { uvs, m, nos } = descriptor;
         // If face already exists, return it
         if let Some(f_id) = self.query_face(verts) {
             return f_id;
         }
 
         // Otherwise, begin creating the face
-        let f = id::FaceId::from_usize(self.faces.push(Face::new()));
+        let f = id::FaceId::from_usize(self.faces.push(Face { m, ..Default::default() }));
 
         // Calculate face normal
         let v0 = cgmath::Vector3::from(self[verts[0]].po);
@@ -56,12 +59,26 @@ impl super::Mesh {
             (0..3).map(|i| self.add_edge(verts[i], verts[(i + 1) % 3])).collect();
 
         // Create the loops for the face, adding loop + radial data
-        let l_start = id::LoopId::from_usize(self.loops.push(Loop::new(f, verts[0], edges[0])));
+        let l_start = id::LoopId::from_usize(self.loops.push(Loop {
+            f,
+            e: edges[0],
+            v: verts[0],
+            uv: uvs.map(|arr| arr[0]).unwrap_or_default(),
+            no: nos.map(|arr| arr[0]).unwrap_or_default(),
+            ..Default::default()
+        }));
         self.connect_loop_to_edge(l_start, edges[0]);
         self[f].l = l_start;
         let mut l_last = l_start;
         for i in 1..3 {
-            let l = id::LoopId::from_usize(self.loops.push(Loop::new(f, verts[i], edges[i])));
+            let l = id::LoopId::from_usize(self.loops.push(Loop {
+                f,
+                e: edges[i],
+                v: verts[i],
+                uv: uvs.map(|arr| arr[i]).unwrap_or_default(),
+                no: nos.map(|arr| arr[i]).unwrap_or_default(),
+                ..Default::default()
+            }));
             self.connect_loop_to_edge(l, edges[i]);
             self[l].prev = l_last;
             self[l_last].next = l;

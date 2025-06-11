@@ -37,8 +37,8 @@ pub struct App {
 impl App {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        let state = pp_io::wavefront_obj::import_obj();
-        let state = Rc::new(RefCell::new(state));
+        let state = Rc::new(RefCell::new(pp_io::gltf::import_gltf().unwrap()));
+        // let state = Rc::new(RefCell::new(pp_core::State::with_cube()));
         let renderer = Rc::new(RefCell::<Option<pp_draw::Renderer<'static>>>::new(None));
         Self {
             event_context: EventContext {

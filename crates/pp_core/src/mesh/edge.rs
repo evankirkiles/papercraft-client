@@ -1,39 +1,18 @@
 use crate::id::{self, Id};
 
-/// A disk link for quick iteration of edges around a vertex
-#[derive(Debug, Clone, Copy)]
-pub struct DiskLink {
-    pub prev: id::EdgeId,
-    pub next: id::EdgeId,
-}
-
-impl DiskLink {
-    /// Creates a new DiskLink referencing just the single edge
-    pub fn new(e: id::EdgeId) -> Self {
-        Self { prev: e, next: e }
-    }
-}
-
-// State of an edge's cut
-#[derive(Debug, Clone, Copy)]
-pub struct EdgeCut {
-    /// Which loop / face the flap extends to
-    pub l_flap: Option<id::LoopId>,
-}
-
 /// An edge, formed by two vertices.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Edge {
     /// Vertices connected by this edge
     pub v: [id::VertexId; 2],
-    /// DiskCycle: Support radially iterating the edges of each vertex
-    pub dl: [DiskLink; 2],
-
-    /// RadialCycle: Any loop (defined by a face) for this specific edge
-    pub l: Option<id::LoopId>,
 
     /// Is this edge cut or not?
     pub cut: Option<EdgeCut>,
+
+    /// DiskCycle: Support radially iterating the edges of each vertex
+    pub dl: [DiskLink; 2],
+    /// RadialCycle: Any loop (defined by a face) for this specific edge
+    pub l: Option<id::LoopId>,
 }
 
 impl Edge {
@@ -125,6 +104,27 @@ impl super::Mesh {
         }
         None
     }
+}
+
+/// A disk link for quick iteration of edges around a vertex
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DiskLink {
+    pub prev: id::EdgeId,
+    pub next: id::EdgeId,
+}
+
+impl DiskLink {
+    /// Creates a new DiskLink referencing just the single edge
+    pub fn new(e: id::EdgeId) -> Self {
+        Self { prev: e, next: e }
+    }
+}
+
+// State of an edge's cut
+#[derive(Debug, Clone, Copy)]
+pub struct EdgeCut {
+    /// Which loop / face the flap extends to
+    pub l_flap: Option<id::LoopId>,
 }
 
 // --- Section: Radial Cycle ---

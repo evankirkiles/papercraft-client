@@ -3,24 +3,20 @@ use crate::id::{self, Id};
 use super::MeshElementType;
 
 /// A single vertex in space.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Vertex {
-    /// Vertex positions
+    /// Vertex position
     pub po: [f32; 3],
-    /// Vertex normals
-    pub no: [f32; 3],
 
     /// DiskCycle: Any edge containing this vertex
     pub e: Option<id::EdgeId>,
-    /// The "index" of this vertex in final VBO, not accounting for face-data
-    pub index: Option<usize>,
 }
 
 impl super::Mesh {
     /// Adds a single, disconnected vertex to the mesh.
-    pub fn add_vertex(&mut self, po: [f32; 3], no: [f32; 3]) -> id::VertexId {
+    pub fn add_vertex(&mut self, po: [f32; 3]) -> id::VertexId {
         self.elem_dirty |= MeshElementType::VERTS;
-        id::VertexId::from_usize(self.verts.push(Vertex { e: None, po, no, index: None }))
+        id::VertexId::from_usize(self.verts.push(Vertex { e: None, po }))
     }
 }
 

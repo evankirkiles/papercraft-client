@@ -1,4 +1,4 @@
-use pp_core::settings::SelectionMode;
+use pp_core::{id, settings::SelectionMode};
 
 use crate::{cache, gpu};
 
@@ -63,6 +63,18 @@ impl InkEngine {
 
     pub fn draw_2d_overlays(&self, ctx: &gpu::Context, render_pass: &mut wgpu::RenderPass) {
         self.overlay_grid_rect.draw(ctx, render_pass);
+    }
+
+    /// Draws only the parts of the mesh using the specified material
+    pub fn draw_mesh_for_material(
+        &self,
+        ctx: &gpu::Context,
+        settings: &pp_core::settings::Settings,
+        render_pass: &mut wgpu::RenderPass,
+        mesh: &cache::MeshGPU,
+        material_id: &id::MaterialId,
+    ) {
+        self.surface.draw_mesh_with_material(ctx, render_pass, mesh, material_id);
     }
 
     pub fn draw_mesh(
