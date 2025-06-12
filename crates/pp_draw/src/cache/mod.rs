@@ -1,18 +1,15 @@
 use crate::gpu;
+use material::{image::ImageGPU, texture::TextureGPU, MaterialGPU};
 use pp_core::id;
-use pp_core::mesh::MeshElementType;
 use std::collections::HashMap;
 
 pub(crate) use mesh::MeshGPU;
 
 mod common;
+mod material;
 mod mesh;
 mod viewport_2d;
 mod viewport_3d;
-
-/// A manager for image textures for materials
-#[derive(Debug)]
-pub(crate) struct MaterialGPU {}
 
 /// Represents the current state of all allocated GPU resources.
 ///
@@ -24,6 +21,8 @@ pub(crate) struct MaterialGPU {}
 pub(crate) struct DrawCache {
     pub meshes: HashMap<id::MeshId, MeshGPU>,
     pub materials: HashMap<id::MaterialId, MaterialGPU>,
+    pub textures: HashMap<id::TextureId, TextureGPU>,
+    pub images: HashMap<id::ImageId, ImageGPU>,
     pub viewport_3d: viewport_3d::Viewport3DGPU,
     pub viewport_2d: viewport_2d::Viewport2DGPU,
     pub common: common::CommonGPUResources,
@@ -34,6 +33,8 @@ impl DrawCache {
         Self {
             meshes: HashMap::new(),
             materials: HashMap::new(),
+            textures: HashMap::new(),
+            images: HashMap::new(),
             viewport_3d: viewport_3d::Viewport3DGPU::new(ctx),
             viewport_2d: viewport_2d::Viewport2DGPU::new(ctx),
             common: common::CommonGPUResources::new(ctx),
@@ -41,7 +42,7 @@ impl DrawCache {
     }
 
     pub(crate) fn sync_meshes(&mut self, ctx: &gpu::Context, state: &mut pp_core::State) {
-        // Ensure AppState's meshes are all synced in the DrawCache
+        // Ensure state meshes are all synced in the DrawCache
         state.meshes.iter_mut().for_each(|(key, mesh)| {
             let m = self.meshes.entry(*key).or_insert(MeshGPU::new(mesh));
             m.sync(ctx, mesh, &state.selection);
@@ -50,7 +51,26 @@ impl DrawCache {
         // TODO: Remove unused meshes from the DrawCache
     }
 
-    pub(crate) fn sync_materials(&mut self, ctx: &gpu::Context, state: &mut pp_core::State) {}
+    pub(crate) fn sync_materials(&mut self, ctx: &gpu::Context, state: &mut pp_core::State) {
+        // Ensure all images have been uploaded to the GPU
+        state.images.iter_mut().for_each(|(key, img)| {
+            self.images.entry(*key).or_insert(ImageGPU::new(ctx, img));
+        });
+
+        // Create all textures (image views / samplers to put in material bind groups)
+        state.textures.iter_mut().for_each(|(key, tex)| {
+            let image = &self.images[&tex.image];
+            self.textures.entry(*key).or_insert(TextureGPU::new(ctx, tex, image));
+        });
+
+        // Finally, ensure all the materials are set up (the bind groups themselves)
+        state.materials.iter_mut().for_each(|(key, mat)| {
+            if !self.materials.contains_key(key) || mat.is_dirty {
+                self.materials.insert(*key, MaterialGPU::new(ctx, mat, &self.textures));
+            }
+            mat.is_dirty = false;
+        });
+    }
 
     pub(crate) fn sync_viewports(&mut self, ctx: &gpu::Context, state: &mut pp_core::State) {
         let (width, height) = (ctx.config.width as f32, ctx.config.height as f32);

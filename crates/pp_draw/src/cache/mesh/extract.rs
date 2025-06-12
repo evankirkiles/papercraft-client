@@ -123,6 +123,27 @@ pub mod vbo {
         vbo.update(ctx, data.as_slice());
     }
 
+    fn _uv(mesh: &pp_core::mesh::Mesh, l: LoopId) -> [f32; 2] {
+        mesh[l].uv
+    }
+
+    /// Reloads the vertex normals VBO from the mesh's data
+    pub fn uv(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
+        let data: Vec<_> = mesh.iter_loops().map(|l| _uv(mesh, l)).collect();
+        vbo.update(ctx, data.as_slice());
+    }
+
+    /// Reloads the vertex normals VBO from the mesh's data
+    pub fn piece_uv(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
+        let data: Vec<_> = mesh
+            .pieces
+            .indices()
+            .flat_map(|p_id| mesh.iter_connected_faces(mesh[id::PieceId::from_usize(p_id)].f))
+            .flat_map(|f_id| mesh.iter_face_loops(f_id).map(|l| _uv(mesh, l)))
+            .collect();
+        vbo.update(ctx, data.as_slice());
+    }
+
     fn _vert_flags(
         mesh: &pp_core::mesh::Mesh,
         selection: &pp_core::select::SelectionState,
@@ -395,9 +416,8 @@ pub mod ibo {
                 if m_prev.is_some_and(|m_prev| m_prev != *m_id) {
                     i_prev = i;
                 };
-                if let Some(m) = mats.get_mut(m_id) {
-                    m.range = i_prev..(i + 1);
-                }
+                let m = mats.entry(*m_id).or_default();
+                m.range = i_prev..(i + 1);
                 m_prev = Some(*m_id);
                 *ibo_i
             })
@@ -438,9 +458,8 @@ pub mod ibo {
                 {
                     i_prev = i;
                 };
-                if let Some(m) = mats.get_mut(m_id) {
-                    m.piece_ranges.insert(*p_id, i_prev..(i + 1));
-                }
+                let m = mats.entry(*m_id).or_default();
+                m.piece_ranges.insert(*p_id, i_prev..(i + 1));
                 m_prev = Some(*m_id);
                 p_prev = Some(*p_id);
                 *ibo_i

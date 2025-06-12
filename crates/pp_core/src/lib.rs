@@ -10,12 +10,14 @@ pub mod tool;
 pub mod viewport_2d;
 pub mod viewport_3d;
 
-/// Represents the entire state of the "core" editor.
+/// Represents the entire state of the "core" editor. Note that this closely
+/// mimics the structure of a GLTF file.
 #[derive(Default, Debug)]
 pub struct State {
     pub meshes: HashMap<id::MeshId, mesh::Mesh>,
     pub materials: HashMap<id::MaterialId, material::Material>,
     pub textures: HashMap<id::TextureId, material::texture::Texture>,
+    pub images: HashMap<id::ImageId, material::image::Image>,
     pub selection: select::SelectionState,
     pub viewport_3d: viewport_3d::Viewport3D,
     pub viewport_2d: viewport_2d::Viewport2D,

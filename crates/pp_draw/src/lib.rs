@@ -149,6 +149,18 @@ impl<'window> Renderer<'window> {
             // Render 3D if viewport has area
             if self.draw_cache.viewport_3d.bind(&mut render_pass) {
                 self.draw_cache.common.piece_identity.bind(&mut render_pass);
+                self.draw_cache.materials.iter().for_each(|(id, mat)| {
+                    mat.bind(&mut render_pass);
+                    self.draw_cache.meshes.values().for_each(|mesh| {
+                        self.draw_engine.draw_mesh_for_material(
+                            &self.ctx,
+                            &mut render_pass,
+                            mesh,
+                            id,
+                        );
+                    });
+                });
+                // Now draw the overlays / not the surface
                 self.draw_cache.meshes.values().for_each(|mesh| {
                     self.draw_engine.draw_mesh(
                         &self.ctx,
@@ -157,18 +169,24 @@ impl<'window> Renderer<'window> {
                         mesh,
                         self.draw_cache.viewport_3d.xray_mode,
                     );
-                    self.draw_engine.draw_piece_mesh(
-                        &self.ctx,
-                        &state.settings,
-                        &mut render_pass,
-                        mesh,
-                    );
                 });
                 self.draw_engine.draw_3d_overlays(&self.ctx, &mut render_pass);
             }
 
             // Render 2D pieces if viewport has area
             if self.draw_cache.viewport_2d.bind(&mut render_pass) {
+                self.draw_cache.materials.iter().for_each(|(id, mat)| {
+                    mat.bind(&mut render_pass);
+                    self.draw_cache.meshes.values().for_each(|mesh| {
+                        self.draw_engine.draw_piece_mesh_for_material(
+                            &self.ctx,
+                            &mut render_pass,
+                            mesh,
+                            id,
+                        );
+                    });
+                });
+                // Draw the overlays / not the surface
                 self.draw_cache.meshes.values().for_each(|mesh| {
                     self.draw_engine.draw_piece_mesh(
                         &self.ctx,

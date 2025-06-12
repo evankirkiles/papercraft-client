@@ -1,16 +1,18 @@
 /// Global ordering of bind groups, so shaders can refer to consistent bind
 /// groups without conflict.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub enum UniformBindGroup {
+pub enum BindGroup {
     Camera,
     Piece,
+    Material,
 }
 
-impl UniformBindGroup {
+impl BindGroup {
     pub fn value(&self) -> u32 {
         match self {
-            UniformBindGroup::Camera => 0,
-            UniformBindGroup::Piece => 1,
+            BindGroup::Camera => 0,
+            BindGroup::Piece => 1,
+            BindGroup::Material => 2,
         }
     }
 }
@@ -21,6 +23,7 @@ impl UniformBindGroup {
 pub struct SharedBindGroupLayouts {
     pub camera: wgpu::BindGroupLayout,
     pub piece: wgpu::BindGroupLayout,
+    pub material: wgpu::BindGroupLayout,
 }
 
 impl SharedBindGroupLayouts {
@@ -51,6 +54,37 @@ impl SharedBindGroupLayouts {
                     },
                     count: None,
                 }],
+            }),
+            material: device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("material"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
             }),
         }
     }

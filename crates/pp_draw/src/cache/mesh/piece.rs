@@ -3,7 +3,7 @@ use std::{collections::HashMap, mem, ops::Range};
 use cgmath::SquareMatrix;
 use pp_core::id;
 
-use crate::gpu::{self, layouts::bind_groups::UniformBindGroup};
+use crate::gpu::{self, layouts::bind_groups::BindGroup};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -76,6 +76,6 @@ impl PieceGPU {
     }
 
     pub fn bind(&self, render_pass: &mut wgpu::RenderPass) {
-        render_pass.set_bind_group(UniformBindGroup::Piece.value(), &self.bind_group, &[]);
+        render_pass.set_bind_group(BindGroup::Piece.value(), &self.bind_group, &[]);
     }
 }

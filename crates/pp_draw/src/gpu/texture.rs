@@ -8,7 +8,7 @@ pub struct Texture {
 impl Texture {
     pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
-    pub fn new(ctx: &super::Context, descriptor: wgpu::TextureDescriptor<'static>) -> Self {
+    pub fn new<'a>(ctx: &super::Context, descriptor: wgpu::TextureDescriptor<'a>) -> Self {
         let texture = ctx.device.create_texture(&descriptor);
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         Self { texture, view }

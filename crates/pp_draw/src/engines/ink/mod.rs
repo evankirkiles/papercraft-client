@@ -69,12 +69,21 @@ impl InkEngine {
     pub fn draw_mesh_for_material(
         &self,
         ctx: &gpu::Context,
-        settings: &pp_core::settings::Settings,
         render_pass: &mut wgpu::RenderPass,
         mesh: &cache::MeshGPU,
         material_id: &id::MaterialId,
     ) {
         self.surface.draw_mesh_with_material(ctx, render_pass, mesh, material_id);
+    }
+
+    pub fn draw_piece_mesh_for_material(
+        &self,
+        ctx: &gpu::Context,
+        render_pass: &mut wgpu::RenderPass,
+        mesh: &cache::MeshGPU,
+        material_id: &id::MaterialId,
+    ) {
+        self.surface.draw_piece_mesh_with_material(ctx, render_pass, mesh, material_id);
     }
 
     pub fn draw_mesh(
@@ -85,7 +94,7 @@ impl InkEngine {
         mesh: &cache::MeshGPU,
         xray: bool,
     ) {
-        self.surface.draw_mesh(ctx, render_pass, mesh);
+        // self.surface.draw_mesh(ctx, render_pass, mesh);
 
         if xray {
             // occluded wireframe elements go over the surface in xray mode
@@ -113,7 +122,7 @@ impl InkEngine {
         render_pass: &mut wgpu::RenderPass,
         mesh: &cache::MeshGPU,
     ) {
-        self.surface.draw_piece_mesh(ctx, render_pass, mesh);
+        // self.surface.draw_piece_mesh(ctx, render_pass, mesh);
         self.tris.draw_piece_mesh(ctx, render_pass, mesh);
         self.lines.draw_piece_mesh(ctx, render_pass, mesh);
         self.flaps.draw_piece_mesh(ctx, render_pass, mesh);

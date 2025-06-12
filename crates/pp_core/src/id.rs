@@ -89,8 +89,10 @@ macro_rules! make_handle_type {
 make_handle_type! { ViewportId = "Viewport"; }
 make_handle_type! { MaterialId = "Mat"; }
 make_handle_type! { TextureId = "Tex"; }
-// Mesh-specific handles
+make_handle_type! { ImageId = "Image"; }
+make_handle_type! { SamplerId = "Sampler"; }
 make_handle_type! { MeshId = "Mesh"; }
+// Mesh-specific handles
 make_handle_type! { FaceId = "F"; }
 make_handle_type! { EdgeId = "E"; }
 make_handle_type! { VertexId = "V"; }

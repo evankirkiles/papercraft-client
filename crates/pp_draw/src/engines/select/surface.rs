@@ -19,7 +19,7 @@ impl SurfaceProgram {
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: Some("vs_main"),
-                    buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_TRIS,
+                    buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_SURFACE,
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 },
                 fragment: Some(wgpu::FragmentState {
@@ -70,6 +70,6 @@ impl SurfaceProgram {
         mesh: &cache::MeshGPU,
     ) {
         render_pass.set_pipeline(&self.pipeline);
-        mesh.draw_tris(ctx, render_pass);
+        mesh.draw_surface(ctx, render_pass);
     }
 }

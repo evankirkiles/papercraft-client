@@ -11,11 +11,11 @@ pub mod piece;
 
 /// Pieces maintain their own affine transformation matrix uniform buffers, so
 /// we can translate / rotate all of the faces within a piece easily.
-#[derive(Debug)]
+#[derive(Clone, Debug, Default)]
 pub(crate) struct MaterialGPUVBORange {
     /// This material's range of elements in in the IBO for standard VBOs
     pub range: Range<u32>,
-    /// This material's range of elements in in the IBO for piecewise VBOs
+    /// This material's range of elements in the IBO for piecewise VBOs
     /// A missing entry indicates that the piece doesn't use the given material.
     pub piece_ranges: HashMap<id::PieceId, Range<u32>>,
 }
@@ -103,10 +103,12 @@ impl MeshGPU {
         if elem_dirty.intersects(MeshElementType::VERTS) {
             // Meshwise VBOs
             extract::vbo::pos(ctx, mesh, &mut self.vbo.pos);
+            extract::vbo::uv(ctx, mesh, &mut self.vbo.uv);
             extract::vbo::vnor(ctx, mesh, &mut self.vbo.nor);
             extract::vbo::edge_pos(ctx, mesh, &mut self.vbo.edge_pos);
             // Piecewise VBOs
             extract::vbo::piece_pos(ctx, mesh, &mut self.vbo_pieces.pos);
+            extract::vbo::piece_uv(ctx, mesh, &mut self.vbo_pieces.uv);
             extract::vbo::piece_vnor(ctx, mesh, &mut self.vbo_pieces.nor);
             extract::vbo::piece_edge_pos(ctx, mesh, &mut self.vbo_pieces.edge_pos);
             extract::vbo::piece_edge_flap(ctx, mesh, &mut self.vbo_pieces.edge_flap);
@@ -133,6 +135,7 @@ impl MeshGPU {
         if index_dirty.intersects(MeshElementType::PIECES) {
             extract::vbo::vert_idx(ctx, mesh, &mut self.vbo.vert_idx);
             extract::vbo::piece_pos(ctx, mesh, &mut self.vbo_pieces.pos);
+            extract::vbo::piece_uv(ctx, mesh, &mut self.vbo_pieces.uv);
             extract::vbo::piece_vnor(ctx, mesh, &mut self.vbo_pieces.nor);
             extract::vbo::piece_vert_idx(ctx, mesh, &mut self.vbo_pieces.vert_idx);
             extract::vbo::piece_vert_flags(ctx, mesh, selection, &mut self.vbo_pieces.vert_flags);
@@ -217,7 +220,7 @@ impl MeshGPUVBOs {
     // For vertices
     vertex_format!(pos Float32x3);
     vertex_format!(nor Float32x3);
-    // vertex_format!(uv Float32x2);
+    vertex_format!(uv Float32x2);
     vertex_format!(vert_flags Uint32);
     vertex_format!(vert_idx Uint32x4); // This contains piece / face / vert / mesh idx
 
@@ -539,19 +542,80 @@ impl MeshGPU {
         })
     }
 
+    pub const BATCH_BUFFER_LAYOUT_SURFACE: &[wgpu::VertexBufferLayout<'static>] = &[
+        wgpu::VertexBufferLayout {
+            array_stride: MeshGPUVBOs::VERTEX_FORMAT_POS.size(),
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[wgpu::VertexAttribute {
+                format: MeshGPUVBOs::VERTEX_FORMAT_POS,
+                offset: 0,
+                shader_location: 0,
+            }],
+        },
+        wgpu::VertexBufferLayout {
+            array_stride: MeshGPUVBOs::VERTEX_FORMAT_NOR.size(),
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[wgpu::VertexAttribute {
+                format: MeshGPUVBOs::VERTEX_FORMAT_NOR,
+                offset: 0,
+                shader_location: 1,
+            }],
+        },
+        wgpu::VertexBufferLayout {
+            array_stride: MeshGPUVBOs::VERTEX_FORMAT_UV.size(),
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[wgpu::VertexAttribute {
+                format: MeshGPUVBOs::VERTEX_FORMAT_UV,
+                offset: 0,
+                shader_location: 2,
+            }],
+        },
+    ];
+
+    pub fn draw_surface(&self, _: &gpu::Context, render_pass: &mut wgpu::RenderPass) {
+        render_pass.set_vertex_buffer(0, self.vbo.pos.slice());
+        render_pass.set_vertex_buffer(1, self.vbo.nor.slice());
+        render_pass.set_vertex_buffer(2, self.vbo.uv.slice());
+        render_pass.draw(0..self.vbo.vert_idx.len, 0..1);
+    }
+
     pub fn draw_material_surface(
         &self,
         _: &gpu::Context,
         render_pass: &mut wgpu::RenderPass,
-        material_slot_id: &id::MaterialId,
+        material_id: &id::MaterialId,
     ) {
-        let Some(slot) = self.mat_ranges.get(material_slot_id) else {
+        let Some(material) = self.mat_ranges.get(material_id) else {
             return;
         };
         render_pass.set_index_buffer(self.vbo.mat_indices.slice(), wgpu::IndexFormat::Uint32);
         render_pass.set_vertex_buffer(0, self.vbo.pos.slice());
         render_pass.set_vertex_buffer(1, self.vbo.nor.slice());
         render_pass.set_vertex_buffer(2, self.vbo.uv.slice());
-        render_pass.draw_indexed(slot.range.clone(), 0, 0..1);
+        render_pass.draw_indexed(material.range.clone(), 0, 0..1);
+    }
+
+    pub fn draw_piece_material_surface(
+        &self,
+        _: &gpu::Context,
+        render_pass: &mut wgpu::RenderPass,
+        material_id: &id::MaterialId,
+    ) {
+        if self.pieces.is_empty() {
+            return;
+        };
+        let Some(material) = self.mat_ranges.get(material_id) else {
+            return;
+        };
+        render_pass
+            .set_index_buffer(self.vbo_pieces.mat_indices.slice(), wgpu::IndexFormat::Uint32);
+        render_pass.set_vertex_buffer(0, self.vbo_pieces.pos.slice());
+        render_pass.set_vertex_buffer(1, self.vbo_pieces.nor.slice());
+        render_pass.set_vertex_buffer(2, self.vbo_pieces.uv.slice());
+        // The material is bound, so draw all the pieces which use it
+        material.piece_ranges.iter().for_each(|(p_id, range)| {
+            self.pieces[p_id].bind(render_pass);
+            render_pass.draw_indexed(range.clone(), 0, 0..1);
+        })
     }
 }

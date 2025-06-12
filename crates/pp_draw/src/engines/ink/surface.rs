@@ -18,11 +18,11 @@ impl SurfaceProgram {
         Self {
             pipeline: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("ink3.surface"),
-                layout: Some(&ctx.shared_layouts.pipelines.pipeline_3d),
+                layout: Some(&ctx.shared_layouts.pipelines.surface),
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: Some("vs_main"),
-                    buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_TRIS,
+                    buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_SURFACE,
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 },
                 fragment: Some(wgpu::FragmentState {
@@ -89,13 +89,14 @@ impl SurfaceProgram {
     }
 
     /// Writes geometry draw commands for all the materials in a mesh
-    pub fn draw_piece_mesh(
+    pub fn draw_piece_mesh_with_material(
         &self,
         ctx: &gpu::Context,
         render_pass: &mut wgpu::RenderPass,
         mesh: &cache::MeshGPU,
+        material_id: &id::MaterialId,
     ) {
         render_pass.set_pipeline(&self.pipeline);
-        mesh.draw_piece_tris(ctx, render_pass);
+        mesh.draw_piece_material_surface(ctx, render_pass, material_id);
     }
 }

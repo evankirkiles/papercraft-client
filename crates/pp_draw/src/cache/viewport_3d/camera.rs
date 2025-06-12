@@ -1,4 +1,4 @@
-use crate::gpu::{self, layouts::bind_groups::UniformBindGroup};
+use crate::gpu::{self, layouts::bind_groups::BindGroup};
 use pp_core::viewport_3d::camera;
 use std::mem;
 
@@ -55,6 +55,6 @@ impl Camera3DGPU {
     }
 
     pub fn bind(&self, render_pass: &mut wgpu::RenderPass) {
-        render_pass.set_bind_group(UniformBindGroup::Camera.value(), &self.bind_group, &[]);
+        render_pass.set_bind_group(BindGroup::Camera.value(), &self.bind_group, &[]);
     }
 }

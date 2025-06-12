@@ -1,18 +1,14 @@
 use crate::id;
 
+pub mod image;
 pub mod texture;
 
 #[derive(Debug)]
-pub enum MaterialDiffuse {
-    Texture(id::TextureId),
-    Color([f32; 4]),
-}
-
-#[derive(Debug)]
 pub struct Material {
-    pub id: id::MaterialId,
     pub label: String,
 
-    /// The diffuse component of the material
-    pub diffuse: MaterialDiffuse,
+    pub base_color_texture: id::TextureId,
+    pub base_color_factor: [f32; 4],
+
+    pub is_dirty: bool,
 }
