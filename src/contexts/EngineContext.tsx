@@ -1,12 +1,10 @@
 import PaperApp from "@/controller";
-import { install_logging } from "@paper/core";
+import init from "@paper/core";
 import {
   createContext,
   PropsWithChildren,
   useContext,
   useEffect,
-  useMemo,
-  useRef,
   useState,
 } from "react";
 
@@ -20,10 +18,23 @@ export const EngineContext = createContext<EngineContextType>({
 
 export const useEngineContext = () => useContext(EngineContext);
 
-install_logging();
+// install_logging();
 
 export function EngineProvider({ children }: PropsWithChildren) {
-  const app = useMemo(() => new PaperApp(), []);
+  const [app, setApp] = useState<PaperApp | null>(null);
+  useEffect(() => {
+    let mounted = true;
+    init().then((output) => {
+      output.__wbindgen_start();
+      console.log("hiiii");
+      if (!mounted) return;
+      setApp(new PaperApp());
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   return (
     <EngineContext.Provider value={{ app }}>{children}</EngineContext.Provider>
   );

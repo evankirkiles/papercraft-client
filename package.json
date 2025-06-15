@@ -18,7 +18,7 @@
     }
   },
   "scripts": {
-    "wasm": "wasm-pack build ./crates/pp_control --target bundler --out-name index --out-dir ../../src/rs",
+    "wasm": "wasm-pack build ./crates/pp_control --target web --out-name index --out-dir ../../src/rs",
     "wasm:postprocess": "sh ./scripts/postprocess-wasm-js.sh",
     "dev": "pnpm wasm --dev && vite",
     "start": "pnpm wasm && vite",

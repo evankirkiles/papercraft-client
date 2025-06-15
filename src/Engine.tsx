@@ -6,7 +6,6 @@ import { useMemo } from "react";
 import styles from "./Engine.module.scss";
 import SidePanel from "./components/SidePanel";
 import MainControls from "./components/MainControls";
-import Toolbar from "./components/Toolbar";
 import Stats from "./components/Stats";
 
 export function Engine() {

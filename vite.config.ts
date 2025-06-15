@@ -28,14 +28,9 @@ export default defineConfig({
   assetsInclude: ["**/*.wasm"],
   build: {
     minify: false,
-    lib: {
-      formats: ["es"],
-      entry: {
-        index: resolve(__dirname, "src/index.tsx"),
-      },
-    },
+    target: "esnext",
+    outDir: "dist",
     rollupOptions: {
-      external: ["react", "react/jsx-runtime"],
       output: {
         assetFileNames: "assets/[name][extname]",
         entryFileNames: "[name].js",

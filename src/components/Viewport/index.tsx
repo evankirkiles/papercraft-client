@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import Draggable, { DraggableCore } from "react-draggable";
+import { DraggableCore } from "react-draggable";
 import styles from "./styles.module.scss";
 import { useEngineContext } from "@/contexts/EngineContext";
 
@@ -13,7 +13,7 @@ export default function Viewport() {
     if (!canvasRef.current || !app) return;
     app.attach(canvasRef.current);
     return () => {};
-  }, []);
+  }, [app]);
 
   return (
     <section className={styles.container} aria-label="Viewport">
