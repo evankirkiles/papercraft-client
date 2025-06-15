@@ -18,16 +18,29 @@ concurrency:
 jobs:
   # Build job
   build:
+    # Specify runner +  build & upload the static files as an artifact
     runs-on: ubuntu-latest
-    environment:
-      name: Demo
-      url: ${{ steps.deploy_to_pages.outputs.github_pages_url }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Vite Github Pages Deployer
-        uses: skywarth/vite-github-pages-deployer@master
-        id: deploy_to_pages
+      - name: Build static files
+        id: build
+        run: |
+          pnpm install
+          pnpm build
+
+      - name: Upload static files as artifact
+        id: deployment
+        uses: actions/upload-pages-artifact@v3 # or specific "vX.X.X" version tag for this action
         with:
-          public_base_path: /papercraft-client
-          package_manager: pnpm
+          path: dist/
+
+  # Deployment job
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
