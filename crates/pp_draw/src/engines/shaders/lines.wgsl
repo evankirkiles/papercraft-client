@@ -30,6 +30,7 @@ const FLAG_ACTIVE: u32 = (u32(1) << 1);
 const FLAG_V0_SELECTED: u32 = (u32(1) << 2);
 const FLAG_V1_SELECTED: u32 = (u32(1) << 3);
 const FLAG_CUT: u32 = (u32(1) << 4);
+const FLAG_BOUNDARY: u32 = (u32(1) << 5);
 
 // Calculates the colors of edges as would be seen on-screen.
 fn _vs_color(in: VertexInput, _out: VertexOutput) -> VertexOutput {
@@ -57,7 +58,9 @@ fn _vs_color_thick(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     out.color = vec4<f32>(0.0, 0.0, 0.0, 0.0);
 
     // Color the line based on input flags
-    if (bool(in.flags & FLAG_CUT)) { 
+    if (bool(in.flags & FLAG_BOUNDARY)) {
+      out.color = vec4<f32>(0.0, 0.0, 1.0, 1.0); 
+    } else if (bool(in.flags & FLAG_CUT)) { 
       out.color = vec4<f32>(1.0, 0.0, 0.0, 1.0); 
     }
 
@@ -79,10 +82,10 @@ fn _vs_clip_pos(in: VertexInput, _out: VertexOutput, size: f32) -> VertexOutput 
     var basis_y = normalize(vec2<f32>(-basis_x.y, basis_x.x));
     var pt = screen_v0 + in.offset.x * basis_x + (0.5 - in.offset.y) * basis_y * size;
     var clip = mix(clip_v0, clip_v1, in.offset.x);
-    out.clip_position = vec4<f32>(clip.w * (2.0 * pt / camera.dimensions - 1.0), clip.z, clip.w);// - vec4<f32>(0.0, 0.0, 0.001, 0.0);
+    out.clip_position = vec4<f32>(clip.w * (2.0 * pt / camera.dimensions - 1.0), clip.z, clip.w) * vec4<f32>(1.0, 1.0, 0.9999, 1.0);
 
-    // Move cut lines offscreen if not cut
-    if (size == LINE_WIDTH_THICK && !bool(in.flags & FLAG_CUT)) { 
+    // Move thick lines offscreen if not cut or boundary
+    if (size == LINE_WIDTH_THICK && !bool(in.flags & (FLAG_CUT | FLAG_BOUNDARY))) { 
       out.clip_position.z = -100.0;
     }
 

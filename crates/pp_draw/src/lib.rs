@@ -170,6 +170,27 @@ impl<'window> Renderer<'window> {
                         self.draw_cache.viewport_3d.xray_mode,
                     );
                 });
+                // 2D drawing
+                self.draw_cache.materials.iter().for_each(|(id, mat)| {
+                    mat.bind(&mut render_pass);
+                    self.draw_cache.meshes.values().for_each(|mesh| {
+                        self.draw_engine.draw_piece_mesh_for_material(
+                            &self.ctx,
+                            &mut render_pass,
+                            mesh,
+                            id,
+                        );
+                    });
+                });
+                // Draw the overlays / not the surface
+                self.draw_cache.meshes.values().for_each(|mesh| {
+                    self.draw_engine.draw_piece_mesh(
+                        &self.ctx,
+                        &state.settings,
+                        &mut render_pass,
+                        mesh,
+                    );
+                });
                 self.draw_engine.draw_3d_overlays(&self.ctx, &mut render_pass);
             }
 

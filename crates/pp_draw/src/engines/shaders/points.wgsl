@@ -22,7 +22,7 @@ struct VertexOutput {
 };
 
 // Point size (width in pixels of sides of vertex dot squares)
-const POINT_SIZE: f32 = 20.0;
+const POINT_SIZE: f32 = 16.0;
 
 // Vertex flags
 const FLAG_SELECTED: u32 = (u32(1) << 0);
@@ -51,7 +51,7 @@ fn _vs_clip_pos(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     var out = _out;
     var clip_center = camera.view_proj * piece.affine * vec4<f32>(in.pos, 1.0);
     var ndc_offset = POINT_SIZE * (0.5 - in.offset) / camera.dimensions;
-    out.clip_position = clip_center + vec4<f32>(ndc_offset * clip_center.w, 0.0, 0.0);// - vec4<f32>(0.0, 0.0, 0.001, 0.0);
+    out.clip_position = (clip_center + vec4<f32>(ndc_offset * clip_center.w, 0.0, 0.0)) * vec4<f32>(1.0, 1.0, 0.9999, 1.0);
     return out;
 }
 

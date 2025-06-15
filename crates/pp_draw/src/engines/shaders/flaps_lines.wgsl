@@ -24,7 +24,7 @@ struct VertexOutput {
 };
 
 // Rendering constants (to move to uniform)
-const PIECE_DEPTH: f32 = 0.2;
+const MAX_FLAP_HEIGHT: f32 = 0.05;
 const LINE_WIDTH: f32 = 2.0;
 
 // Edge flags
@@ -55,12 +55,16 @@ fn _compute_flap_corners(in: VertexInput) -> array<vec3<f32>, 4> {
     let angle0 = acos(clamp(dot(normalize(v1 - v0), normalize(v2 - v0)), -1.0, 1.0));
     let angle1 = acos(clamp(dot(normalize(v0 - v1), normalize(v2 - v1)), -1.0, 1.0));
     let min_angle = min(angle0, angle1);
-    let height = 0.5 * base_len / tan(min_angle);
+    let height = 0.5 * base_len * tan(min_angle);
     let apex = base_mid + perp_dir * height;
 
+    // Keep a consistent max height for all tabs
+    let clamped_height = min(height, MAX_FLAP_HEIGHT);
+    let depth_scale = clamped_height / height;
+
     // Compute the short-edge vertices of the flap
-    let top0 = v0 + (apex - v0) * PIECE_DEPTH;
-    let top1 = v1 + (apex - v1) * PIECE_DEPTH;
+    let top0 = v0 + (apex - v0) * depth_scale;
+    let top1 = v1 + (apex - v1) * depth_scale;
     return array<vec3<f32>, 4>(v0, v1, top1, top0);  // bottom-left, bottom-right, top-right, top-left
 }
 
@@ -82,20 +86,20 @@ fn _vs_color(in: VertexInput, _out: VertexOutput) -> VertexOutput {
 // Calculates the clip position of edge vertices based on the width of the line
 fn _vs_clip_pos(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     var out = _out;
-  
+
     // If flap doesn't exist, return early with offscreen coordinate
     if (bool(in.flap_flags ^ F_FLAG_EXISTS)) {
         out.clip_position.z = -100.0;
         return out;
     }
-    
+
     // Get the corners of the flap trapezoid
     let corners = _compute_flap_corners(in);
 
     // Get the current vertex and the next vertex
     let p0 = corners[u32(in.vertex_index / 6)];
     let p1 = corners[(u32(in.vertex_index / 6) + 1) % 4];
-  
+
     // Find screen-space positions of each vertex
     var clip_v0 = camera.view_proj * piece.affine * vec4<f32>(p0, 1.0);
     var clip_v1 = camera.view_proj * piece.affine * vec4<f32>(p1, 1.0);

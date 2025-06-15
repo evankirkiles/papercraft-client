@@ -23,7 +23,7 @@ struct VertexOutput {
 };
 
 // Rendering constants (to move to uniform)
-const PIECE_DEPTH: f32 = 0.2;
+const MAX_FLAP_HEIGHT: f32 = 0.05;
 
 // Edge flags
 const E_FLAG_SELECTED: u32 = (u32(1) << 0);
@@ -35,6 +35,7 @@ const E_FLAG_CUT: u32 = (u32(1) << 4);
 // Flap flags
 const F_FLAG_EXISTS: u32 = (u32(1) << 0);
 
+// Returns the 4 corners of the trapezoid flap
 // Returns the 4 corners of the trapezoid flap
 fn _compute_flap_corners(in: VertexInput) -> array<vec3<f32>, 4> {
     let v0 = in.v0_pos;
@@ -53,12 +54,16 @@ fn _compute_flap_corners(in: VertexInput) -> array<vec3<f32>, 4> {
     let angle0 = acos(clamp(dot(normalize(v1 - v0), normalize(v2 - v0)), -1.0, 1.0));
     let angle1 = acos(clamp(dot(normalize(v0 - v1), normalize(v2 - v1)), -1.0, 1.0));
     let min_angle = min(angle0, angle1);
-    let height = 0.5 * base_len / tan(min_angle);
+    let height = 0.5 * base_len * tan(min_angle);
     let apex = base_mid + perp_dir * height;
 
+    // Keep a consistent max height for all tabs
+    let clamped_height = min(height, MAX_FLAP_HEIGHT);
+    let depth_scale = clamped_height / height;
+
     // Compute the short-edge vertices of the flap
-    let top0 = v0 + (apex - v0) * PIECE_DEPTH;
-    let top1 = v1 + (apex - v1) * PIECE_DEPTH;
+    let top0 = v0 + (apex - v0) * depth_scale;
+    let top1 = v1 + (apex - v1) * depth_scale;
     return array<vec3<f32>, 4>(v0, v1, top0, top1);  // bottom-left, bottom-right, top-right, top-left
 }
 

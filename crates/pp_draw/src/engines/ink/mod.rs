@@ -98,12 +98,12 @@ impl InkEngine {
 
         if xray {
             // occluded wireframe elements go over the surface in xray mode
-            self.tris.draw_mesh_xrayed(ctx, render_pass, mesh);
-            self.lines.draw_mesh_xrayed(ctx, render_pass, mesh);
-            self.lines_cut.draw_mesh_xrayed(ctx, render_pass, mesh);
             if settings.selection_mode == SelectionMode::Vert {
                 self.points.draw_mesh_xrayed(ctx, render_pass, mesh);
             }
+            self.lines_cut.draw_mesh_xrayed(ctx, render_pass, mesh);
+            self.lines.draw_mesh_xrayed(ctx, render_pass, mesh);
+            self.tris.draw_mesh_xrayed(ctx, render_pass, mesh);
         };
 
         // always draw non-occluded elements

@@ -221,6 +221,9 @@ pub mod vbo {
         if e.cut.is_some() {
             flags |= EdgeFlags::CUT;
         }
+        if e.l.is_none_or(|l| mesh[l].radial_next == l) {
+            flags |= EdgeFlags::BORDER;
+        }
         if selection.active_element.as_ref().is_some_and(|el| match el {
             SelectionActiveElement::Edge(active_id) => id == *active_id,
             _ => false,

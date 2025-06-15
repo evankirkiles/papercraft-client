@@ -7,8 +7,7 @@ use std::mem;
 struct Camera3DUniform {
     view_proj: [[f32; 4]; 4],
     dimensions: [f32; 2],
-    // Extra padding bits to bring up to "144" size
-    padding: [f32; 2],
+    padding: [f32; 2], // Extra padding bits to bring up to correct alignment
 }
 
 impl Camera3DUniform {
