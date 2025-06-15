@@ -3,7 +3,7 @@
 .container {
   grid-area: doc;
   width: 300px;
-  height: fit-content;
+  height: 100%;
   background-color: theme.color("bg");
   border: 1px solid theme.color("bg2");
   border-radius: 0.5em;
@@ -26,4 +26,31 @@
 
 .content {
   padding: 1em;
+  flex: 1;
+  overflow: scroll;
+
+  & ul {
+    padding-inline-start: 1em;
+    margin-block: 1em;
+  }
+
+  & li {
+    &::before {
+      content: "- ";
+      margin-inline-start: -1em;
+    }
+  }
+
+  & h2 {
+    margin-block-end: 1em;
+    font-weight: 700;
+  }
+
+  & h3 {
+    margin-block: 0.5em;
+  }
+
+  & p {
+    margin-block: 1em;
+  }
 }
