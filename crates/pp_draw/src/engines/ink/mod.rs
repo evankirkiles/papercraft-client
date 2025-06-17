@@ -94,21 +94,23 @@ impl InkEngine {
         mesh: &cache::MeshGPU,
         xray: bool,
     ) {
-        // self.surface.draw_mesh(ctx, render_pass, mesh);
-
         if xray {
             // occluded wireframe elements go over the surface in xray mode
             if settings.selection_mode == SelectionMode::Vert {
                 self.points.draw_mesh_xrayed(ctx, render_pass, mesh);
             }
             self.lines_cut.draw_mesh_xrayed(ctx, render_pass, mesh);
-            self.lines.draw_mesh_xrayed(ctx, render_pass, mesh);
+            if settings.selection_mode != SelectionMode::Piece {
+                self.lines.draw_mesh_xrayed(ctx, render_pass, mesh);
+            }
             self.tris.draw_mesh_xrayed(ctx, render_pass, mesh);
         };
 
         // always draw non-occluded elements
         self.tris.draw_mesh(ctx, render_pass, mesh);
-        self.lines.draw_mesh(ctx, render_pass, mesh);
+        if settings.selection_mode != SelectionMode::Piece {
+            self.lines.draw_mesh(ctx, render_pass, mesh);
+        }
         self.lines_cut.draw_mesh(ctx, render_pass, mesh);
         if settings.selection_mode == SelectionMode::Vert {
             self.points.draw_mesh(ctx, render_pass, mesh);
@@ -122,9 +124,10 @@ impl InkEngine {
         render_pass: &mut wgpu::RenderPass,
         mesh: &cache::MeshGPU,
     ) {
-        // self.surface.draw_piece_mesh(ctx, render_pass, mesh);
         self.tris.draw_piece_mesh(ctx, render_pass, mesh);
-        self.lines.draw_piece_mesh(ctx, render_pass, mesh);
+        if settings.selection_mode != SelectionMode::Piece {
+            self.lines.draw_piece_mesh(ctx, render_pass, mesh);
+        }
         self.flaps.draw_piece_mesh(ctx, render_pass, mesh);
         self.flaps_lines.draw_piece_mesh(ctx, render_pass, mesh);
         if settings.selection_mode == SelectionMode::Vert {

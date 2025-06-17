@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+pub mod commands;
 pub mod cut;
 pub mod id;
 pub mod material;
@@ -9,6 +10,8 @@ pub mod settings;
 pub mod tool;
 pub mod viewport_2d;
 pub mod viewport_3d;
+
+pub use commands::*;
 
 /// Represents the entire state of the "core" editor. Note that this closely
 /// mimics the structure of a GLTF file.

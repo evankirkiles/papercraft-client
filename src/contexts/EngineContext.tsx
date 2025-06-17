@@ -18,15 +18,13 @@ export const EngineContext = createContext<EngineContextType>({
 
 export const useEngineContext = () => useContext(EngineContext);
 
-// install_logging();
-
 export function EngineProvider({ children }: PropsWithChildren) {
   const [app, setApp] = useState<PaperApp | null>(null);
   useEffect(() => {
     let mounted = true;
     init().then((output) => {
       output.__wbindgen_start();
-      console.log("hiiii");
+      output.install_logging();
       if (!mounted) return;
       setApp(new PaperApp());
     });

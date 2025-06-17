@@ -1,5 +1,6 @@
 use cache::DrawCache;
 use pp_core::tool::PhysicalDimensions;
+use select::{PixelData, SelectionQueryArea, SelectionQueryResult};
 use std::iter;
 
 mod cache;
@@ -225,18 +226,19 @@ impl<'window> Renderer<'window> {
     }
 
     /// Queries the selection manager to prepare the supplied rect.
-    pub fn select_query(
+    pub fn select_query<F: Fn(&SelectionQueryArea, &SelectionQueryResult) + 'static>(
         &mut self,
-        query: select::SelectionQuery,
+        area: select::SelectionQueryArea,
+        callback: Box<F>,
     ) -> Result<(), select::SelectionQueryError> {
-        self.select.query(&self.ctx, &self.draw_cache, query)
+        self.select.query(&self.ctx, &self.draw_cache, area, callback)
     }
 
     /// Polls the select engine to see if there are any fulfilled selection queries.
     /// If there are, this will register their completion and perform any
     /// selection actions they were queried with.
-    pub fn select_poll(&mut self, state: &mut pp_core::State) {
-        self.select.poll(&self.ctx, state);
+    pub fn select_poll(&mut self) {
+        self.select.poll(&self.ctx);
     }
 
     /// Updates the GPUContext for new dimensions

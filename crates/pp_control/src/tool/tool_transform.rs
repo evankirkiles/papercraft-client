@@ -1,4 +1,4 @@
-use pp_core::tool::ToolContext;
+use pp_core::{tool::ToolContext, transform_piece::TransformPiecesCommand};
 
 use crate::{
     event::{self, EventHandler, MouseButton, PhysicalPosition, PointerEvent},
@@ -42,6 +42,19 @@ impl EventHandler for TransformTool {
                 event::MouseInputEvent::Up(button) => match button {
                     // LMB click "accepts" the changes, removing the transform tool
                     MouseButton::Left => {
+                        ctx.history.borrow_mut().add(pp_core::CommandType::TransformPieces(
+                            TransformPiecesCommand {
+                                pieces: ctx
+                                    .state
+                                    .borrow()
+                                    .selection
+                                    .pieces
+                                    .iter()
+                                    .copied()
+                                    .collect(),
+                                delta: self.tool.transform,
+                            },
+                        ));
                         return Ok(event::InternalEventHandleSuccess::clear_tool());
                     }
                     // RMB click resets any transform that occurred

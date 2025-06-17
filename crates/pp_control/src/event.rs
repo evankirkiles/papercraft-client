@@ -91,6 +91,7 @@ pub(crate) struct PhysicalPosition<T> {
 #[derive(Debug, Default, Clone)]
 pub(crate) struct EventContext {
     pub(crate) state: Rc<RefCell<pp_core::State>>,
+    pub(crate) history: Rc<RefCell<pp_core::CommandStack>>,
     pub(crate) renderer: Rc<RefCell<Option<pp_draw::Renderer<'static>>>>,
     pub(crate) modifiers: keyboard::ModifierKeys,
     pub(crate) surface_dpi: f64,

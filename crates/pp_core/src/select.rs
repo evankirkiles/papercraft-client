@@ -10,7 +10,7 @@ pub enum SelectionActionType {
     Invert,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum SelectionActiveElement {
     Vert((id::MeshId, id::VertexId)),
     Edge((id::MeshId, id::EdgeId)),

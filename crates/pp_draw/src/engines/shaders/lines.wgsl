@@ -82,7 +82,7 @@ fn _vs_clip_pos(in: VertexInput, _out: VertexOutput, size: f32) -> VertexOutput 
     var basis_y = normalize(vec2<f32>(-basis_x.y, basis_x.x));
     var pt = screen_v0 + in.offset.x * basis_x + (0.5 - in.offset.y) * basis_y * size;
     var clip = mix(clip_v0, clip_v1, in.offset.x);
-    out.clip_position = vec4<f32>(clip.w * (2.0 * pt / camera.dimensions - 1.0), clip.z, clip.w) * vec4<f32>(1.0, 1.0, 0.9999, 1.0);
+    out.clip_position = vec4<f32>(clip.w * (2.0 * pt / camera.dimensions - 1.0), clip.z, clip.w);
 
     // Move thick lines offscreen if not cut or boundary
     if (size == LINE_WIDTH_THICK && !bool(in.flags & (FLAG_CUT | FLAG_BOUNDARY))) { 

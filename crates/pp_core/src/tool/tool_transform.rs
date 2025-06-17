@@ -6,7 +6,7 @@ use super::ToolContext;
 #[derive(Debug, Copy, Clone)]
 pub struct TransformTool {
     ctx: ToolContext,
-    transform: cgmath::Matrix4<f32>,
+    pub transform: cgmath::Matrix4<f32>,
 }
 
 impl TransformTool {

@@ -17,6 +17,9 @@ use std::{cell::RefCell, ops::DerefMut, rc::Rc};
 pub struct App {
     /// The core model of the App.
     state: Rc<RefCell<pp_core::State>>,
+    /// The command stack for undoing / redoing operations
+    history: Rc<RefCell<pp_core::CommandStack>>,
+
     /// The GPU resources of the App. Only created once a canvas is `attach`ed.
     renderer: Rc<RefCell<Option<pp_draw::Renderer<'static>>>>,
 
@@ -37,16 +40,19 @@ pub struct App {
 impl App {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        let state = Rc::new(RefCell::new(pp_io::gltf::import_gltf().unwrap()));
         // let state = Rc::new(RefCell::new(pp_core::State::with_cube()));
+        let state = Rc::new(RefCell::new(pp_io::gltf::import_gltf().unwrap()));
+        let history = Rc::new(RefCell::new(pp_core::CommandStack::default()));
         let renderer = Rc::new(RefCell::<Option<pp_draw::Renderer<'static>>>::new(None));
         Self {
             event_context: EventContext {
                 state: state.clone(),
+                history: history.clone(),
                 renderer: renderer.clone(),
                 ..Default::default()
             },
             state,
+            history,
             renderer,
             ..Default::default()
         }
@@ -78,11 +84,11 @@ impl App {
 
     /// Draws a single frame of the app to the canvas.
     pub fn draw(&mut self, _timestamp: u32) -> Result<(), JsError> {
-        let mut state = self.state.borrow_mut();
-        let state = state.deref_mut();
         let mut renderer = self.renderer.borrow_mut();
         let renderer = renderer.as_mut().ok_or(AppError::NoCanvasAttached)?;
-        renderer.select_poll(state);
+        renderer.select_poll();
+        let mut state = self.state.borrow_mut();
+        let state = state.deref_mut();
         renderer.sync(state);
         renderer.draw(state);
         Ok(())
