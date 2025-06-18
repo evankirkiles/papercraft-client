@@ -5,6 +5,7 @@ use std::mem;
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct Camera2DUniform {
     view_proj: [[f32; 4]; 4],
+    eye: [f32; 4], // Indicate orthographic with a 0 `w` component
     dimensions: [f32; 2],
     padding: [f32; 2], // Extra padding bits to bring up to correct alignment
 }
@@ -21,7 +22,12 @@ impl Camera2DUniform {
         ));
         let proj = cgmath::ortho(-half_width, half_width, -half_height, half_height, -1.1, 1.1);
         let view_proj = proj * view;
-        Self { dimensions: [width, height], view_proj: view_proj.into(), padding: [0.0, 0.0] }
+        Self {
+            dimensions: [width, height],
+            eye: [0.0, 0.0, 0.0, 0.0],
+            view_proj: view_proj.into(),
+            padding: [0.0, 0.0],
+        }
     }
 }
 

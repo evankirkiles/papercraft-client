@@ -1,5 +1,5 @@
 // Shared Camera uniform (2D or 3D)
-struct Camera { view_proj: mat4x4<f32>, dimensions: vec2<f32> };
+struct Camera { view_proj: mat4x4<f32>, eye: vec4<f32>, dimensions: vec2<f32> };
 @group(0) @binding(0) var<uniform> camera: Camera;
 
 // Per-piece uniform with piece-specific transforms
@@ -70,10 +70,14 @@ fn _vs_color_thick(in: VertexInput, _out: VertexOutput) -> VertexOutput {
 // Calculates the clip position of edge vertices based on the width of the line
 fn _vs_clip_pos(in: VertexInput, _out: VertexOutput, size: f32) -> VertexOutput {
     var out = _out;
+
+    // Move lines slightly towards camera (by 0.01 in world space)
+    var v0 = in.v0_pos + normalize(camera.eye.xyz - in.v0_pos) * camera.eye.w * 0.001;
+    var v1 = in.v1_pos + normalize(camera.eye.xyz - in.v1_pos) * camera.eye.w * 0.001;
     
     // Find screen-space positions of each vertex
-    var clip_v0 = camera.view_proj * piece.affine * vec4<f32>(in.v0_pos, 1.0);
-    var clip_v1 = camera.view_proj * piece.affine * vec4<f32>(in.v1_pos, 1.0);
+    var clip_v0 = camera.view_proj * piece.affine * vec4<f32>(v0, 1.0);
+    var clip_v1 = camera.view_proj * piece.affine * vec4<f32>(v1, 1.0);
     var screen_v0 = camera.dimensions * (0.5 * clip_v0.xy / clip_v0.w + 0.5);
     var screen_v1 = camera.dimensions * (0.5 * clip_v1.xy / clip_v1.w + 0.5);
 

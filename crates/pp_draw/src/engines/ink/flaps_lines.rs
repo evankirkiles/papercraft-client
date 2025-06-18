@@ -1,8 +1,6 @@
 use crate::cache;
 use crate::gpu;
 
-use super::DepthBiasLayer;
-
 #[derive(Debug)]
 pub(super) struct FlapsLinesProgram {
     pipeline: wgpu::RenderPipeline,
@@ -10,15 +8,14 @@ pub(super) struct FlapsLinesProgram {
 
 impl FlapsLinesProgram {
     pub(super) fn new(ctx: &gpu::Context) -> Self {
-        let shader =
-            ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/flaps_lines.wgsl"));
+        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/flaps.wgsl"));
         Self {
             pipeline: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("ink3.flaps"),
+                label: Some("ink3.flaps_lines"),
                 layout: Some(&ctx.shared_layouts.pipelines.pipeline_3d),
                 vertex: wgpu::VertexState {
                     module: &shader,
-                    entry_point: Some("vs_main"),
+                    entry_point: Some("vs_edge"),
                     buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_FLAPS_INSTANCED,
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 },

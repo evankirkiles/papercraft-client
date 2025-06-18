@@ -6,6 +6,7 @@ use std::mem;
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct Camera3DUniform {
     view_proj: [[f32; 4]; 4],
+    eye: [f32; 4],
     dimensions: [f32; 2],
     padding: [f32; 2], // Extra padding bits to bring up to correct alignment
 }
@@ -16,7 +17,12 @@ impl Camera3DUniform {
         let view = cgmath::Matrix4::look_at_rh(camera.eye, camera.target, camera.up);
         let proj = cgmath::perspective(cgmath::Deg(camera.fovy), aspect, camera.znear, camera.zfar);
         let view_proj = proj * view;
-        Self { dimensions: [width, height], view_proj: view_proj.into(), padding: [0.0, 0.0] }
+        Self {
+            dimensions: [width, height],
+            eye: [camera.eye.x, camera.eye.y, camera.eye.z, 1.0],
+            view_proj: view_proj.into(),
+            padding: [0.0, 0.0],
+        }
     }
 }
 
