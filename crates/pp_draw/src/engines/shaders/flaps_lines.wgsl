@@ -20,7 +20,7 @@ struct VertexInput {
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(1) color: vec4<f32>,
-    @location(2) select_idx: vec2<u32>
+    @location(2) @interpolate(flat) select_idx: vec2<u32>
 };
 
 // Rendering constants (to move to uniform)

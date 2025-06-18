@@ -20,7 +20,7 @@ impl OverlayGridCircleProgram {
                     module: &shader,
                     entry_point: Some("vs_main"),
                     buffers: &[wgpu::VertexBufferLayout {
-                        array_stride: 0,
+                        array_stride: wgpu::VertexFormat::Float32x2.size(),
                         step_mode: wgpu::VertexStepMode::Vertex,
                         attributes: &[wgpu::VertexAttribute {
                             format: wgpu::VertexFormat::Float32x2,
@@ -34,7 +34,7 @@ impl OverlayGridCircleProgram {
                     module: &shader,
                     entry_point: Some("fs_main"),
                     targets: &[Some(wgpu::ColorTargetState {
-                        format: ctx.config.format,
+                        format: ctx.view_format,
                         blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],

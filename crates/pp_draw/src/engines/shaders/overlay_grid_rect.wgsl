@@ -7,8 +7,8 @@ struct VertexInput {
 };
 
 struct VertexOutput {
-    @location(0) world_position: vec3<f32>,
     @builtin(position) clip_position: vec4<f32>,
+    @location(1) world_position: vec3<f32>,
 };
 
 @vertex

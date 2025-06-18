@@ -18,7 +18,7 @@ impl PointsProgram {
             compilation_options: wgpu::PipelineCompilationOptions::default(),
         };
         let targets = [Some(wgpu::ColorTargetState {
-            format: ctx.config.format,
+            format: ctx.view_format,
             blend: Some(wgpu::BlendState::REPLACE),
             write_mask: wgpu::ColorWrites::ALL,
         })];

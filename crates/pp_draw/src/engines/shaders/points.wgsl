@@ -18,7 +18,7 @@ struct VertexInput {
 struct VertexOutput { 
   @builtin(position) clip_position: vec4<f32>,
   @location(0) color: vec4<f32>,
-  @location(1) select_idx: vec4<u32>
+  @location(1) @interpolate(flat) select_idx: vec4<u32>
 };
 
 // Point size (width in pixels of sides of vertex dot squares)

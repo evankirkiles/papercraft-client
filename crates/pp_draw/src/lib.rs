@@ -2,6 +2,7 @@ use cache::DrawCache;
 use pp_core::tool::PhysicalDimensions;
 use select::{PixelData, SelectionQueryArea, SelectionQueryResult};
 use std::iter;
+use wgpu::util::new_instance_with_webgpu_detection;
 
 mod cache;
 mod gpu;
@@ -33,10 +34,11 @@ impl<'window> Renderer<'window> {
         width: u32,
         height: u32,
     ) -> Self {
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::GL,
+        let instance = new_instance_with_webgpu_detection(&wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::BROWSER_WEBGPU | wgpu::Backends::GL,
             ..Default::default()
-        });
+        })
+        .await;
 
         let surface = instance.create_surface(window).unwrap();
         let adapter = instance
@@ -47,6 +49,7 @@ impl<'window> Renderer<'window> {
             })
             .await
             .unwrap();
+        adapter.get_downlevel_capabilities();
 
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
@@ -64,23 +67,28 @@ impl<'window> Renderer<'window> {
             .await
             .unwrap();
 
-        // Surface refers to the capabilities of the surface we're rendering to.
-        // On web, this is a WebGL2Context or the equivalent in WebGPU land
         let surface_caps = surface.get_capabilities(&adapter);
-        let surface_format = surface_caps
+        let mut format = surface_caps
             .formats
             .iter()
             .find(|f| f.is_srgb())
             .copied()
             .unwrap_or(surface_caps.formats[0]);
+        let mut view_format = format;
+        // If running on WebGPU, use SRGB textures for non-SRGB surface
+        if adapter.get_downlevel_capabilities().is_webgpu_compliant() {
+            format = format.remove_srgb_suffix();
+            view_format = format.add_srgb_suffix();
+        }
+
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface_format,
+            format,
             width,
             height,
-            present_mode: surface_caps.present_modes[0],
+            present_mode: wgpu::PresentMode::AutoVsync,
             alpha_mode: surface_caps.alpha_modes[0],
-            view_formats: vec![],
+            view_formats: vec![view_format],
             desired_maximum_frame_latency: 2,
         };
 
@@ -107,7 +115,11 @@ impl<'window> Renderer<'window> {
     /// Draws all of the renderables to the screen in each viewport
     pub fn draw(&self, state: &pp_core::State) {
         let output = self.ctx.surface.get_current_texture().unwrap();
-        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let view = output.texture.create_view(&wgpu::TextureViewDescriptor {
+            format: (self.ctx.view_format != self.ctx.config.format)
+                .then_some(self.ctx.view_format),
+            ..Default::default()
+        });
         let mut encoder = self
             .ctx
             .device
@@ -276,7 +288,7 @@ impl RendererAttachmentTextures {
                     mip_level_count: 1,
                     sample_count: (&ctx.settings.msaa_level).into(),
                     dimension: wgpu::TextureDimension::D2,
-                    format: ctx.config.format,
+                    format: ctx.view_format,
                     usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                     view_formats: &[],
                     size: wgpu::Extent3d {

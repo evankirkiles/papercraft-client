@@ -26,7 +26,7 @@ impl FlapsLinesProgram {
                     module: &shader,
                     entry_point: Some("fs_main"),
                     targets: &[Some(wgpu::ColorTargetState {
-                        format: ctx.config.format,
+                        format: ctx.view_format,
                         blend: Some(wgpu::BlendState::REPLACE),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],

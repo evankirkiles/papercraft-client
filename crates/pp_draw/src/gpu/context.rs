@@ -46,6 +46,7 @@ pub(crate) struct Context<'window> {
     pub device: wgpu::Device,
     pub config: wgpu::SurfaceConfiguration,
     pub queue: wgpu::Queue,
+    pub view_format: wgpu::TextureFormat,
     /// Common wgpu layouts of various types for re-use across programs
     pub shared_layouts: SharedLayouts,
     /// Common buffers (e.g. rect)
@@ -75,6 +76,7 @@ impl<'window> Context<'window> {
                 contents: bytemuck::bytes_of(&BUF_RECT_OUTLINE_CONTENTS),
                 usage: wgpu::BufferUsages::VERTEX,
             }),
+            view_format: config.view_formats[0],
             device,
             config,
             surface,
