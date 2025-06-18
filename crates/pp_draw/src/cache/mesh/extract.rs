@@ -396,7 +396,7 @@ pub mod ibo {
     use pp_core::id::{self, Id};
 
     use crate::{cache::mesh::MaterialGPUVBORange, gpu};
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
 
     /// Gets an ordered IBO for rendering materials. We sort it so each material's
     /// surface tris can be drawn from a contiguous range within this IBO.
@@ -429,7 +429,6 @@ pub mod ibo {
     }
 
     /// Gets an ordered IBO for rendering materials. We sort it so each material's
-    ///
     pub fn piece_mat_indices(
         ctx: &gpu::Context,
         mesh: &pp_core::mesh::Mesh,
@@ -451,6 +450,8 @@ pub mod ibo {
         let mut i_prev: u32 = 0;
         let mut m_prev: Option<id::MaterialId> = None;
         let mut p_prev: Option<id::PieceId> = None;
+        // Clear out all the existing piece_ranges
+        mats.iter_mut().for_each(|(_, mat)| mat.piece_ranges.clear());
         let final_data: Vec<_> = data
             .iter()
             .zip(0u32..)

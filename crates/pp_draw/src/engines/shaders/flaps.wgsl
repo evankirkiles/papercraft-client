@@ -53,7 +53,7 @@ fn _compute_flap_corners(in: VertexInput) -> array<vec3<f32>, 4> {
     // Find the apex of the isosceles triangle in which we inscribe the flap 
     let angle0 = acos(clamp(dot(normalize(v1 - v0), normalize(v2 - v0)), -1.0, 1.0));
     let angle1 = acos(clamp(dot(normalize(v0 - v1), normalize(v2 - v1)), -1.0, 1.0));
-    let min_angle = min(angle0, angle1);
+    let min_angle = min(0.785398, min(angle0, angle1)); // Max angle is 45 degrees
     let height = 0.5 * base_len * tan(min_angle);
     let apex = base_mid + perp_dir * height;
 
