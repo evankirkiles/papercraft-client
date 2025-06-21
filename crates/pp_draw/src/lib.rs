@@ -2,7 +2,7 @@ use cache::DrawCache;
 use pp_core::tool::PhysicalDimensions;
 use select::{PixelData, SelectionQueryArea, SelectionQueryResult};
 use std::iter;
-use wgpu::util::new_instance_with_webgpu_detection;
+use wgpu::{util::new_instance_with_webgpu_detection, CompositeAlphaMode};
 
 mod cache;
 mod gpu;
@@ -16,10 +16,8 @@ pub struct Renderer<'window> {
     ctx: gpu::Context<'window>,
     // Textures used as attachments in pipelines
     textures: RendererAttachmentTextures,
-
     /// Manages querying the GPU for pixels containing element indices to select
     select: select::SelectManager,
-
     /// A storage manager for all updatable GPU resources (mesh, materials)
     draw_cache: cache::DrawCache,
     /// The core renderer for viewport content (2D and 3D)
@@ -75,10 +73,13 @@ impl<'window> Renderer<'window> {
             .copied()
             .unwrap_or(surface_caps.formats[0]);
         let mut view_format = format;
-        // If running on WebGPU, use SRGB textures for non-SRGB surface
+        let mut clear_color = wgpu::Color { r: 0.0, g: 0.0, b: 0.0, a: 0.0 };
+        // If running on WebGPU, use SRGB textures for non-SRGB surface,
+        // and use a different "clear" color as WebGPU canvases seems to be opaque
         if adapter.get_downlevel_capabilities().is_webgpu_compliant() {
             format = format.remove_srgb_suffix();
             view_format = format.add_srgb_suffix();
+            clear_color = wgpu::Color { r: 0.005, g: 0.005, b: 0.005, a: 0.0 };
         }
 
         let config = wgpu::SurfaceConfiguration {
@@ -94,7 +95,7 @@ impl<'window> Renderer<'window> {
 
         // Store the above GPU abstractions into a single context object we
         // can pass around in the future.
-        let ctx = gpu::Context::new(device, config, surface, queue);
+        let ctx = gpu::Context::new(device, config, surface, queue, clear_color);
 
         Self {
             select: select::SelectManager::new(&ctx),
@@ -138,12 +139,7 @@ impl<'window> Renderer<'window> {
                         != gpu::settings::MSAALevel::None)
                         .then_some(&view),
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.000,
-                            g: 0.000,
-                            b: 0.000,
-                            a: 0.0,
-                        }),
+                        load: wgpu::LoadOp::Clear(self.ctx.clear_color),
                         store: wgpu::StoreOp::Store,
                     },
                 })],

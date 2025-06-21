@@ -47,6 +47,7 @@ pub(crate) struct Context<'window> {
     pub config: wgpu::SurfaceConfiguration,
     pub queue: wgpu::Queue,
     pub view_format: wgpu::TextureFormat,
+    pub clear_color: wgpu::Color,
     /// Common wgpu layouts of various types for re-use across programs
     pub shared_layouts: SharedLayouts,
     /// Common buffers (e.g. rect)
@@ -62,6 +63,7 @@ impl<'window> Context<'window> {
         config: wgpu::SurfaceConfiguration,
         surface: wgpu::Surface<'window>,
         queue: wgpu::Queue,
+        clear_color: wgpu::Color,
     ) -> Self {
         let ctx = Context {
             shared_layouts: SharedLayouts::new(&device),
@@ -77,6 +79,7 @@ impl<'window> Context<'window> {
                 usage: wgpu::BufferUsages::VERTEX,
             }),
             view_format: config.view_formats[0],
+            clear_color,
             device,
             config,
             surface,

@@ -44,7 +44,6 @@ impl CutEdgesCommand {
             })
             .copied()
             .collect();
-        log::info!("{edges:?}");
         // Build up the previous history around those edges. What were the
         // cut states, what were the existing pieces, etc.
         let mut pieces: HashMap<(id::MeshId, id::PieceId), Piece> = HashMap::new();
