@@ -5,11 +5,12 @@ use crate::{
     keyboard,
 };
 use pp_core::{
-    commands::select::SelectCommand,
     cut_edges::CutEdgesCommand,
     id::{self, Id},
     select::SelectionActionType,
+    select_elements::SelectCommand,
     settings::SelectionMode,
+    update_flaps::UpdateFlapsCommand,
 };
 use pp_draw::select::{self, PixelData, SelectionMask, SelectionQueryArea, SelectionQueryResult};
 
@@ -118,35 +119,31 @@ impl EventHandler for SelectTool {
             event::UserEvent::KeyboardInput(event::KeyboardInputEvent::Down(
                 keyboard::Key::Character(char),
             )) => match char.as_str() {
-                "KeyA" => {
-                    ctx.history.borrow_mut().add(pp_core::CommandType::Select(
-                        SelectCommand::select_all(
-                            &mut ctx.state.borrow_mut(),
-                            match ctx.modifiers.alt_pressed() {
-                                true => pp_core::select::SelectionActionType::Deselect,
-                                false => pp_core::select::SelectionActionType::Select,
-                            },
-                        ),
-                    ));
-                    return Ok(InternalEventHandleSuccess::stop_propagation());
-                }
-                // TODO: Move this somewhere else, not "select" related
-                "KeyS" => {
-                    ctx.history.borrow_mut().add(pp_core::CommandType::CutEdges(
-                        CutEdgesCommand::cut_edges(
-                            &mut ctx.state.borrow_mut(),
-                            match ctx.modifiers.alt_pressed() {
-                                true => pp_core::cut::CutActionType::Join,
-                                false => pp_core::cut::CutActionType::Cut,
-                            },
-                        ),
-                    ));
-                }
-                "KeyD" => {
-                    let mut state = ctx.state.borrow_mut();
-                    let edges: Vec<_> = state.selection.edges.iter().copied().collect();
-                    edges.iter().for_each(|id| state.swap_edge_flap(id));
-                }
+                // A: Select all
+                "KeyA" => ctx.history.borrow_mut().add(pp_core::CommandType::Select(
+                    SelectCommand::select_all(
+                        &mut ctx.state.borrow_mut(),
+                        match ctx.modifiers.alt_pressed() {
+                            true => pp_core::select::SelectionActionType::Deselect,
+                            false => pp_core::select::SelectionActionType::Select,
+                        },
+                    ),
+                )),
+                // S: Mark edge as cut
+                "KeyS" => ctx.history.borrow_mut().add(pp_core::CommandType::CutEdges(
+                    CutEdgesCommand::cut_edges(
+                        &mut ctx.state.borrow_mut(),
+                        match ctx.modifiers.alt_pressed() {
+                            true => pp_core::cut::CutActionType::Join,
+                            false => pp_core::cut::CutActionType::Cut,
+                        },
+                    ),
+                )),
+                // D: Swap edge flap side
+                "KeyD" => ctx.history.borrow_mut().add(pp_core::CommandType::UpdateFlaps(
+                    UpdateFlapsCommand::swap_flaps(&mut ctx.state.borrow_mut()),
+                )),
+                // CMD+Z: Undo / redo
                 "KeyZ" => {
                     if ctx.modifiers.super_pressed() {
                         let mut state = ctx.state.borrow_mut();

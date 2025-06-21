@@ -1,12 +1,14 @@
 use cut_edges::CutEdgesCommand;
-use select::SelectCommand;
+use select_elements::SelectCommand;
 use transform_pieces::TransformPiecesCommand;
+use update_flaps::UpdateFlapsCommand;
 
 use crate::State;
 
 pub mod cut_edges;
-pub mod select;
+pub mod select_elements;
 pub mod transform_pieces;
+pub mod update_flaps;
 
 pub enum UndoError {
     NoMoreUndos,
@@ -90,6 +92,7 @@ pub enum CommandType {
     Select(SelectCommand),
     TransformPieces(TransformPiecesCommand),
     CutEdges(CutEdgesCommand),
+    UpdateFlaps(UpdateFlapsCommand),
 }
 
 impl Command for CommandType {
@@ -98,6 +101,7 @@ impl Command for CommandType {
             CommandType::Select(cmd) => cmd.execute(state),
             CommandType::TransformPieces(cmd) => cmd.execute(state),
             CommandType::CutEdges(cmd) => cmd.execute(state),
+            CommandType::UpdateFlaps(cmd) => cmd.execute(state),
         }
     }
 
@@ -106,6 +110,7 @@ impl Command for CommandType {
             CommandType::Select(cmd) => cmd.rollback(state),
             CommandType::TransformPieces(cmd) => cmd.rollback(state),
             CommandType::CutEdges(cmd) => cmd.rollback(state),
+            CommandType::UpdateFlaps(cmd) => cmd.rollback(state),
         }
     }
 }

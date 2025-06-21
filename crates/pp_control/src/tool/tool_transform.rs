@@ -38,44 +38,31 @@ impl EventHandler for TransformTool {
                 }
                 _ => (),
             },
-            event::UserEvent::MouseInput(e) => match e {
-                event::MouseInputEvent::Up(button) => match button {
-                    // LMB click "accepts" the changes, removing the transform tool
-                    MouseButton::Left => {
-                        ctx.history.borrow_mut().add(pp_core::CommandType::TransformPieces(
-                            TransformPiecesCommand {
-                                pieces: ctx
-                                    .state
-                                    .borrow()
-                                    .selection
-                                    .pieces
-                                    .iter()
-                                    .copied()
-                                    .collect(),
-                                delta: self.tool.transform,
-                            },
-                        ));
-                        return Ok(event::InternalEventHandleSuccess::clear_tool());
-                    }
-                    // RMB click resets any transform that occurred
-                    MouseButton::Right => {
-                        self.tool.reset(&mut ctx.state.borrow_mut());
-                        return Ok(event::InternalEventHandleSuccess::clear_tool());
-                    }
-                    _ => (),
-                },
+            // LMB click "accepts" the changes, removing the transform tool and
+            // adding an entry onto the history stack for undoing the changes
+            event::UserEvent::MouseInput(event::MouseInputEvent::Up(button)) => match button {
+                MouseButton::Left => {
+                    let pieces: Vec<_> =
+                        ctx.state.borrow().selection.pieces.iter().copied().collect();
+                    ctx.history.borrow_mut().add(pp_core::CommandType::TransformPieces(
+                        TransformPiecesCommand { pieces, delta: self.tool.transform },
+                    ));
+                    return Ok(event::InternalEventHandleSuccess::clear_tool());
+                }
+                // RMB click cancels the tool
+                MouseButton::Right => {
+                    self.tool.reset(&mut ctx.state.borrow_mut());
+                    return Ok(event::InternalEventHandleSuccess::clear_tool());
+                }
                 _ => (),
             },
-            event::UserEvent::KeyboardInput(event::KeyboardInputEvent::Down(key)) => match key {
-                keyboard::Key::Named(char) => match char {
-                    keyboard::NamedKey::Escape => {
-                        self.tool.reset(&mut ctx.state.borrow_mut());
-                        return Ok(event::InternalEventHandleSuccess::clear_tool());
-                    }
-                    _ => (),
-                },
-                _ => (),
-            },
+            // On ESC, clear the tool entirely as if it didn't happen
+            event::UserEvent::KeyboardInput(event::KeyboardInputEvent::Down(
+                keyboard::Key::Named(keyboard::NamedKey::Escape),
+            )) => {
+                self.tool.reset(&mut ctx.state.borrow_mut());
+                return Ok(event::InternalEventHandleSuccess::clear_tool());
+            }
             _ => (),
         };
         Ok(event::InternalEventHandleSuccess::stop_propagation())

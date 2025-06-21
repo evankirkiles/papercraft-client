@@ -1,7 +1,4 @@
-use crate::{
-    select::{self, SelectionActionType},
-    State,
-};
+use crate::select::{self, SelectionActionType};
 
 use super::{Command, CommandError};
 
