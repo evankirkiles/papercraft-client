@@ -19,15 +19,9 @@ impl LinesProgram {
         };
         let targets = [Some(wgpu::ColorTargetState {
             format: ctx.view_format,
-            blend: Some(wgpu::BlendState::REPLACE),
+            blend: Some(wgpu::BlendState::ALPHA_BLENDING),
             write_mask: wgpu::ColorWrites::ALL,
         })];
-        let fragment = Some(wgpu::FragmentState {
-            module: &shader,
-            entry_point: Some("fs_main"),
-            targets: &targets,
-            compilation_options: wgpu::PipelineCompilationOptions::default(),
-        });
         let primitive = wgpu::PrimitiveState {
             topology: wgpu::PrimitiveTopology::TriangleStrip,
             strip_index_format: None,
@@ -54,7 +48,12 @@ impl LinesProgram {
             pipeline: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("ink3.lines"),
                 vertex: vertex.clone(),
-                fragment: fragment.clone(),
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: Some("fs_main"),
+                    targets: &targets,
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                }),
                 layout,
                 primitive,
                 multisample,
@@ -63,7 +62,7 @@ impl LinesProgram {
                 depth_stencil: Some(wgpu::DepthStencilState {
                     format: gpu::Texture::DEPTH_FORMAT,
                     depth_write_enabled: true,
-                    depth_compare: wgpu::CompareFunction::LessEqual,
+                    depth_compare: wgpu::CompareFunction::Less,
                     stencil: wgpu::StencilState::default(),
                     bias,
                 }),
@@ -74,15 +73,20 @@ impl LinesProgram {
                 label: Some("ink3.lines.xray"),
                 layout,
                 vertex,
-                fragment,
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: Some("fs_xray"),
+                    targets: &targets,
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                }),
                 primitive,
                 multisample,
                 multiview,
                 cache,
                 depth_stencil: Some(wgpu::DepthStencilState {
                     format: gpu::Texture::DEPTH_FORMAT,
-                    depth_write_enabled: true,
-                    depth_compare: wgpu::CompareFunction::GreaterEqual,
+                    depth_write_enabled: false,
+                    depth_compare: wgpu::CompareFunction::Greater,
                     stencil: wgpu::StencilState::default(),
                     bias,
                 }),

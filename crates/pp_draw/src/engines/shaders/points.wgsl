@@ -22,7 +22,7 @@ struct VertexOutput {
 };
 
 // Point size (width in pixels of sides of vertex dot squares)
-const POINT_SIZE: f32 = 16.0;
+const POINT_SIZE: f32 = 14.0;
 
 // Vertex flags
 const FLAG_SELECTED: u32 = (u32(1) << 0);
@@ -72,7 +72,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     return in.color;
 }
 
-// [FS.2] Select index rendering
+// [FS.2] X-Ray rendering
+@fragment
+fn fs_xray(in: VertexOutput) -> @location(0) vec4<f32> {
+    return in.color * vec4<f32>(1.0, 1.0, 1.0, 0.05);
+}
+
+// [FS.3] Select index rendering
 @fragment
 fn fs_select(in: VertexOutput) -> @location(0) vec4<u32> {
     return in.select_idx + vec4<u32>(0, 0, 0, 1);

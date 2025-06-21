@@ -6,18 +6,18 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy)]
-pub struct TransformTool {
+pub struct TranslateTool {
     last_pos: Option<PhysicalPosition<f64>>,
     tool: pp_core::tool::TransformTool,
 }
 
-impl TransformTool {
+impl TranslateTool {
     pub fn new(ctx: ToolContext) -> Self {
         Self { last_pos: None, tool: pp_core::tool::TransformTool::new(ctx) }
     }
 }
 
-impl EventHandler for TransformTool {
+impl EventHandler for TranslateTool {
     fn handle_event(
         &mut self,
         ctx: &event::EventContext,
@@ -38,7 +38,7 @@ impl EventHandler for TransformTool {
                 }
                 _ => (),
             },
-            // LMB click "accepts" the changes, removing the transform tool and
+            // LMB click "accepts" the changes, removing the translate tool and
             // adding an entry onto the history stack for undoing the changes
             event::UserEvent::MouseInput(event::MouseInputEvent::Up(button)) => match button {
                 MouseButton::Left => {

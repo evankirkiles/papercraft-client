@@ -38,7 +38,6 @@ const E_FLAG_CUT: u32 = (u32(1) << 4);
 const F_FLAG_EXISTS: u32 = (u32(1) << 0);
 
 // Returns the 4 corners of the trapezoid flap
-// Returns the 4 corners of the trapezoid flap
 fn _compute_flap_corners(in: VertexInput) -> array<vec3<f32>, 4> {
     let v0 = in.v0_pos;
     let v1 = in.v1_pos;
@@ -66,7 +65,7 @@ fn _compute_flap_corners(in: VertexInput) -> array<vec3<f32>, 4> {
     // Compute the short-edge vertices of the flap
     let top0 = v0 + (apex - v0) * depth_scale;
     let top1 = v1 + (apex - v1) * depth_scale;
-    return array<vec3<f32>, 4>(v0, v1, top0, top1);  // bottom-left, bottom-right, top-right, top-left
+    return array<vec3<f32>, 4>(v0, v1, top1, top0);  // bottom-left, bottom-right, top-right, top-left
 }
 
 // Calculates the colors of flaps as would be seen on-screen.
@@ -109,7 +108,7 @@ fn _vs_clip_pos(in: VertexInput, _out: VertexOutput) -> VertexOutput {
   
     // Interpolate between corners of the flap based on input verts
     let base_pos = mix(corners[0], corners[1], in.offset.x);
-    let top_pos = mix(corners[2], corners[3], in.offset.x);
+    let top_pos = mix(corners[3], corners[2], in.offset.x);
     let pos = mix(base_pos, top_pos, in.offset.y);
     out.clip_position = camera.view_proj * piece.affine * vec4<f32>(pos, 1.0);
 

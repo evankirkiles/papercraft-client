@@ -1,8 +1,8 @@
 use cache::DrawCache;
 use pp_core::tool::PhysicalDimensions;
-use select::{PixelData, SelectionQueryArea, SelectionQueryResult};
+use select::{SelectionQueryArea, SelectionQueryResult};
 use std::iter;
-use wgpu::{util::new_instance_with_webgpu_detection, CompositeAlphaMode};
+use wgpu::util::new_instance_with_webgpu_detection;
 
 mod cache;
 mod gpu;
@@ -74,8 +74,10 @@ impl<'window> Renderer<'window> {
             .unwrap_or(surface_caps.formats[0]);
         let mut view_format = format;
         let mut clear_color = wgpu::Color { r: 0.0, g: 0.0, b: 0.0, a: 0.0 };
-        // If running on WebGPU, use SRGB textures for non-SRGB surface,
-        // and use a different "clear" color as WebGPU canvases seems to be opaque
+
+        // If running on WebGPU, use SRGB textures even for non-SRGB surface,
+        // and use a different "clear" color as WebGPU canvases seems to be opaque.
+        // In the future, we should make SRGB an optional thing.
         if adapter.get_downlevel_capabilities().is_webgpu_compliant() {
             format = format.remove_srgb_suffix();
             view_format = format.add_srgb_suffix();
@@ -158,6 +160,7 @@ impl<'window> Renderer<'window> {
             // Render 3D if viewport has area
             if self.draw_cache.viewport_3d.bind(&mut render_pass) {
                 self.draw_cache.common.piece_identity.bind(&mut render_pass);
+                // First, draw the actual textured surface
                 self.draw_cache.materials.iter().for_each(|(id, mat)| {
                     mat.bind(&mut render_pass);
                     self.draw_cache.meshes.values().for_each(|mesh| {
@@ -180,26 +183,26 @@ impl<'window> Renderer<'window> {
                     );
                 });
                 // 2D drawing
-                self.draw_cache.materials.iter().for_each(|(id, mat)| {
-                    mat.bind(&mut render_pass);
-                    self.draw_cache.meshes.values().for_each(|mesh| {
-                        self.draw_engine.draw_piece_mesh_for_material(
-                            &self.ctx,
-                            &mut render_pass,
-                            mesh,
-                            id,
-                        );
-                    });
-                });
-                // Draw the overlays / not the surface
-                self.draw_cache.meshes.values().for_each(|mesh| {
-                    self.draw_engine.draw_piece_mesh(
-                        &self.ctx,
-                        &state.settings,
-                        &mut render_pass,
-                        mesh,
-                    );
-                });
+                // self.draw_cache.materials.iter().for_each(|(id, mat)| {
+                //     mat.bind(&mut render_pass);
+                //     self.draw_cache.meshes.values().for_each(|mesh| {
+                //         self.draw_engine.draw_piece_mesh_for_material(
+                //             &self.ctx,
+                //             &mut render_pass,
+                //             mesh,
+                //             id,
+                //         );
+                //     });
+                // });
+                // // Draw the overlays / not the surface
+                // self.draw_cache.meshes.values().for_each(|mesh| {
+                //     self.draw_engine.draw_piece_mesh(
+                //         &self.ctx,
+                //         &state.settings,
+                //         &mut render_pass,
+                //         mesh,
+                //     );
+                // });
                 self.draw_engine.draw_3d_overlays(&self.ctx, &mut render_pass);
             }
 

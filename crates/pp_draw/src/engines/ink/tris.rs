@@ -81,7 +81,7 @@ impl TrisProgram {
                 cache,
                 depth_stencil: Some(wgpu::DepthStencilState {
                     format: gpu::Texture::DEPTH_FORMAT,
-                    depth_write_enabled: true,
+                    depth_write_enabled: false,
                     depth_compare: wgpu::CompareFunction::Greater,
                     stencil: wgpu::StencilState::default(),
                     bias,

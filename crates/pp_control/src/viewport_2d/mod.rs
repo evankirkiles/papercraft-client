@@ -6,7 +6,8 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub enum Controller2DTool {
     Select(tool::SelectTool),
-    Transform(tool::TransformTool),
+    Translate(tool::d2::TranslateTool),
+    Rotate(tool::d2::RotateTool),
 }
 
 impl Default for Controller2DTool {
@@ -35,7 +36,8 @@ impl Controller2D {
     ) -> Result<event::InternalEventHandleSuccess, event::InternalEventHandleError> {
         let res = match self.tool {
             Controller2DTool::Select(ref mut tool) => tool.handle_event(ctx, ev),
-            Controller2DTool::Transform(ref mut tool) => tool.handle_event(ctx, ev),
+            Controller2DTool::Translate(ref mut tool) => tool.handle_event(ctx, ev),
+            Controller2DTool::Rotate(ref mut tool) => tool.handle_event(ctx, ev),
         };
         if res.is_ok_and(|e| e.clear_tool) {
             self.tool = Default::default()
@@ -64,8 +66,12 @@ impl event::EventHandler for Controller2D {
                 keyboard::Key::Character(char),
             )) => match char.as_str() {
                 "KeyG" => {
-                    let transform_tool = tool::TransformTool::new(get_tool_ctx(ctx));
-                    self.tool = Controller2DTool::Transform(transform_tool);
+                    let tool = tool::d2::TranslateTool::new(get_tool_ctx(ctx));
+                    self.tool = Controller2DTool::Translate(tool);
+                }
+                "KeyR" => {
+                    let tool = tool::d2::RotateTool::new(get_tool_ctx(ctx));
+                    self.tool = Controller2DTool::Rotate(tool);
                 }
                 _ => {}
             },
