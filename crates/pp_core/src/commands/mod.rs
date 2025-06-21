@@ -1,10 +1,12 @@
+use cut_edges::CutEdgesCommand;
 use select::SelectCommand;
-use transform_piece::TransformPiecesCommand;
+use transform_pieces::TransformPiecesCommand;
 
 use crate::State;
 
+pub mod cut_edges;
 pub mod select;
-pub mod transform_piece;
+pub mod transform_pieces;
 
 pub enum UndoError {
     NoMoreUndos,
@@ -74,7 +76,10 @@ pub enum CommandError {
     Unknown,
 }
 
-/// The base trait implemented by all commands
+/// A `Command` bridges the gap between user IO and stateful operations. Because
+/// we use raw state on the server without keeping track of "select"ions,
+/// command execution and rollback should never have any dependencies on select
+/// states so commands can be run anywhere.
 pub trait Command {
     fn execute(&self, state: &mut State) -> Result<(), CommandError>;
     fn rollback(&self, state: &mut State) -> Result<(), CommandError>;
@@ -84,6 +89,7 @@ pub trait Command {
 pub enum CommandType {
     Select(SelectCommand),
     TransformPieces(TransformPiecesCommand),
+    CutEdges(CutEdgesCommand),
 }
 
 impl Command for CommandType {
@@ -91,6 +97,7 @@ impl Command for CommandType {
         match self {
             CommandType::Select(cmd) => cmd.execute(state),
             CommandType::TransformPieces(cmd) => cmd.execute(state),
+            CommandType::CutEdges(cmd) => cmd.execute(state),
         }
     }
 
@@ -98,6 +105,7 @@ impl Command for CommandType {
         match self {
             CommandType::Select(cmd) => cmd.rollback(state),
             CommandType::TransformPieces(cmd) => cmd.rollback(state),
+            CommandType::CutEdges(cmd) => cmd.rollback(state),
         }
     }
 }

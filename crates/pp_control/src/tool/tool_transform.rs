@@ -1,4 +1,4 @@
-use pp_core::{tool::ToolContext, transform_piece::TransformPiecesCommand};
+use pp_core::{tool::ToolContext, transform_pieces::TransformPiecesCommand};
 
 use crate::{
     event::{self, EventHandler, MouseButton, PhysicalPosition, PointerEvent},

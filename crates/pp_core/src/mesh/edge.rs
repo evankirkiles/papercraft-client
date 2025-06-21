@@ -171,7 +171,7 @@ impl DoubleEndedIterator for RadialCycleWalker<'_> {
 
 impl super::Mesh {
     /// Walks the loops including an edge (faces)
-    pub(crate) fn iter_edge_loops(&self, e: id::EdgeId) -> Option<RadialCycleWalker> {
+    pub fn iter_edge_loops(&self, e: id::EdgeId) -> Option<RadialCycleWalker> {
         Some(RadialCycleWalker::new(self, self[e].l?))
     }
 }

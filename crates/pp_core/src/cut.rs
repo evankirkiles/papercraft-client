@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use crate::{
     id::{self},
-    mesh::{self, MeshElementType},
+    mesh::{self, edge::EdgeCut, MeshElementType},
     State,
 };
 
@@ -8,13 +10,21 @@ use crate::{
 pub enum CutActionType {
     Join,
     Cut,
-    Invert,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CutMaskType {
     None,
     SelectionBorder,
+}
+
+/// Keeps track of information we need to preserve per-edge across cuts.
+/// Tuples represent data for face A and B
+#[derive(Clone, Debug)]
+pub struct CutEdgeState {
+    pub cut: Option<EdgeCut>,
+    pub p_a: Option<id::PieceId>,
+    pub p_b: Option<id::PieceId>,
 }
 
 impl State {
@@ -25,25 +35,11 @@ impl State {
         &mut self,
         edges: &[(id::MeshId, id::EdgeId)],
         action: CutActionType,
-        mask: CutMaskType,
+        history: Option<&HashMap<(id::MeshId, id::EdgeId), CutEdgeState>>,
     ) {
-        let len = edges.len();
-        edges.iter().for_each(|id| {
-            let (m_id, e_id) = *id;
-            if action == CutActionType::Join
-                || match mask {
-                    CutMaskType::None => true,
-                    CutMaskType::SelectionBorder => {
-                        let mesh = &self.meshes[&m_id];
-                        !mesh.iter_edge_loops(e_id).is_some_and(|mut walker| {
-                            walker.all(|l| self.selection.faces.contains(&(m_id, mesh[l].f)))
-                        })
-                    }
-                }
-            {
-                self.cut_edge(id, action, len > 1)
-            }
-        });
+        edges
+            .iter()
+            .for_each(|id| self.cut_edge(id, action, history.as_ref().and_then(|h| h.get(id))));
     }
 
     /// Cuts a single edge.
@@ -52,7 +48,7 @@ impl State {
         &mut self,
         id: &(id::MeshId, id::EdgeId),
         action: CutActionType,
-        is_multiple: bool,
+        history: Option<&CutEdgeState>,
     ) {
         let (m_id, e_id) = id;
         let Some(mesh) = self.meshes.get_mut(m_id) else {
@@ -63,7 +59,6 @@ impl State {
         let should_be_cut = match action {
             CutActionType::Join => false,
             CutActionType::Cut => true,
-            CutActionType::Invert => !is_already_cut,
         };
 
         // If the edge is already in the desired state, do nothing
@@ -83,19 +78,14 @@ impl State {
         let (Some(l_a), Some(l_b)) = (loops.next(), loops.next()) else {
             return;
         };
+        // Faces are in radial order, so A then B in the radial link
         let f_a = mesh[l_a].f;
         let f_b = mesh[l_b].f;
 
         // Perform the cut, placing the flap on the non-selected face or l_a by default
-        mesh[*e_id].cut = should_be_cut.then_some(mesh::edge::EdgeCut {
-            l_flap: match (
-                self.selection.faces.contains(&(*m_id, f_a)),
-                self.selection.faces.contains(&(*m_id, f_b)),
-            ) {
-                (true, false) => Some(l_b),
-                _ => Some(l_a),
-            },
-        });
+        mesh[*e_id].cut = should_be_cut.then_some(
+            history.and_then(|h| h.cut).unwrap_or(mesh::edge::EdgeCut { l_flap: Some(l_a) }),
+        );
         mesh.elem_dirty |= MeshElementType::EDGES;
 
         // Now, we need to update any pieces affected by the cut / join.
@@ -103,19 +93,21 @@ impl State {
         if should_be_cut {
             // In case of cut
             match (p_a, p_b) {
-                // If faces were from the same piece, split off a new piece.
+                // If faces were from the same piece, split off a new piece at B.
                 // Make sure that the new piece does not take the root of the
                 // prior piece, which would cause issues.
                 (Some(p_a), Some(_)) => {
-                    let new_root_f_id = if mesh[p_a].f == f_a { f_b } else { f_a };
-                    mesh.create_piece(new_root_f_id).unwrap();
+                    if mesh[p_a].f != f_a {
+                        let _ = mesh.create_piece(f_a, history.and_then(|h| h.p_a)).unwrap();
+                    } else {
+                        let _ = mesh.create_piece(f_b, history.and_then(|h| h.p_b)).unwrap();
+                    }
                 }
                 // If neither face was in a piece, check if we can *make* new pieces
-                // starting from either piece. This most commonly returns an error,
-                // which is to be expected.
+                // starting from either piece.
                 (None, None) => {
-                    _ = mesh.create_piece_if_not_exists(f_a);
-                    _ = mesh.create_piece_if_not_exists(f_b);
+                    let _ = mesh.create_piece(f_a, history.and_then(|h| h.p_a));
+                    let _ = mesh.create_piece(f_b, history.and_then(|h| h.p_b));
                 }
                 // "Cut" between different pieces isn't possible, that edge is always cut
                 _ => {}
@@ -124,17 +116,10 @@ impl State {
             // In case of join
             match (p_a, p_b) {
                 (Some(p_a), Some(p_b)) => {
-                    // If faces were from the same piece, we're in a bit of trouble.
-                    // We need to traverse the piece outwards from each face and
-                    // induce a cut as soon as the two pointers cross paths.
+                    // If faces were from the same piece, just clear the piece,
+                    // as this now induces a cycle in the piece's surface.
                     if p_a == p_b {
-                        // If multiple, just clear the pieces instead of trying
-                        // to figure out an optimal set of new cuts
-                        if is_multiple {
-                            mesh.remove_piece(p_a, None);
-                        } else {
-                            log::error!("Tried to join same-piece - not handled yet!")
-                        }
+                        mesh.remove_piece(p_a, None);
                     } else {
                         // If faces were from different pieces, we're chilling. We
                         // can just clear one of the pieces and rope all of its faces

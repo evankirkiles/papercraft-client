@@ -6,6 +6,7 @@ use crate::{
 };
 use pp_core::{
     commands::select::SelectCommand,
+    cut_edges::CutEdgesCommand,
     id::{self, Id},
     select::SelectionActionType,
     settings::SelectionMode,
@@ -16,17 +17,6 @@ use pp_draw::select::{self, PixelData, SelectionMask, SelectionQueryArea, Select
 pub struct SelectTool {}
 
 impl SelectTool {
-    /// Selects / unselects all elements in the mesh
-    fn select_all(&self, ctx: &crate::event::EventContext, action: SelectionActionType) {
-        let mut state = ctx.state.borrow_mut();
-        let prev_state = state.selection.clone();
-        state.select_all(action);
-        ctx.history.borrow_mut().add(pp_core::CommandType::Select(SelectCommand {
-            after: state.selection.clone(),
-            before: prev_state,
-        }))
-    }
-
     /// Selects a single element vert / edge / face / piece under the mouse.
     fn select_single(
         &self,
@@ -125,47 +115,49 @@ impl EventHandler for SelectTool {
     ) -> Result<event::InternalEventHandleSuccess, event::InternalEventHandleError> {
         match event {
             // Select / cut keybinds
-            event::UserEvent::KeyboardInput(event::KeyboardInputEvent::Down(key)) => match key {
-                keyboard::Key::Character(char) => match char.as_str() {
-                    "KeyA" => {
-                        let action = match ctx.modifiers.alt_pressed() {
-                            true => pp_core::select::SelectionActionType::Deselect,
-                            false => pp_core::select::SelectionActionType::Select,
-                        };
-                        self.select_all(ctx, action);
-                        return Ok(InternalEventHandleSuccess::stop_propagation());
-                    }
-                    // TODO: Move this somewhere else, not "select" related
-                    "KeyS" => {
-                        let mut state = ctx.state.borrow_mut();
-                        let edges: Vec<_> = state.selection.edges.iter().copied().collect();
-                        state.cut_edges(
-                            &edges[..],
+            event::UserEvent::KeyboardInput(event::KeyboardInputEvent::Down(
+                keyboard::Key::Character(char),
+            )) => match char.as_str() {
+                "KeyA" => {
+                    ctx.history.borrow_mut().add(pp_core::CommandType::Select(
+                        SelectCommand::select_all(
+                            &mut ctx.state.borrow_mut(),
+                            match ctx.modifiers.alt_pressed() {
+                                true => pp_core::select::SelectionActionType::Deselect,
+                                false => pp_core::select::SelectionActionType::Select,
+                            },
+                        ),
+                    ));
+                    return Ok(InternalEventHandleSuccess::stop_propagation());
+                }
+                // TODO: Move this somewhere else, not "select" related
+                "KeyS" => {
+                    ctx.history.borrow_mut().add(pp_core::CommandType::CutEdges(
+                        CutEdgesCommand::cut_edges(
+                            &mut ctx.state.borrow_mut(),
                             match ctx.modifiers.alt_pressed() {
                                 true => pp_core::cut::CutActionType::Join,
                                 false => pp_core::cut::CutActionType::Cut,
                             },
-                            pp_core::cut::CutMaskType::SelectionBorder,
-                        );
-                    }
-                    "KeyD" => {
+                        ),
+                    ));
+                }
+                "KeyD" => {
+                    let mut state = ctx.state.borrow_mut();
+                    let edges: Vec<_> = state.selection.edges.iter().copied().collect();
+                    edges.iter().for_each(|id| state.swap_edge_flap(id));
+                }
+                "KeyZ" => {
+                    if ctx.modifiers.super_pressed() {
                         let mut state = ctx.state.borrow_mut();
-                        let edges: Vec<_> = state.selection.edges.iter().copied().collect();
-                        edges.iter().for_each(|id| state.swap_edge_flap(id));
-                    }
-                    "KeyZ" => {
-                        if ctx.modifiers.super_pressed() {
-                            let mut state = ctx.state.borrow_mut();
-                            let mut history = ctx.history.borrow_mut();
-                            if ctx.modifiers.shift_pressed() {
-                                let _ = history.redo(&mut state);
-                            } else {
-                                let _ = history.undo(&mut state);
-                            }
+                        let mut history = ctx.history.borrow_mut();
+                        if ctx.modifiers.shift_pressed() {
+                            let _ = history.redo(&mut state);
+                        } else {
+                            let _ = history.undo(&mut state);
                         }
                     }
-                    _ => {}
-                },
+                }
                 _ => {}
             },
             // Left clicks "submit" selection queries through the GPU. Every
@@ -181,7 +173,7 @@ impl EventHandler for SelectTool {
                     } else {
                         SelectionActionType::Select
                     };
-                    self.select_single(ctx, cursor_pos, action);
+                    let _ = self.select_single(ctx, cursor_pos, action);
                 }
                 return Ok(InternalEventHandleSuccess::stop_internal_propagation());
             }

@@ -1,4 +1,7 @@
-use crate::select::{self};
+use crate::{
+    select::{self, SelectionActionType},
+    State,
+};
 
 use super::{Command, CommandError};
 
@@ -9,6 +12,25 @@ use super::{Command, CommandError};
 pub struct SelectCommand {
     pub after: select::SelectionState,
     pub before: select::SelectionState,
+}
+
+impl SelectCommand {
+    /// Selects all the elements in the mesh
+    pub fn select_all(state: &mut crate::State, action: SelectionActionType) -> Self {
+        let before = state.selection.clone();
+        state.select_all(action);
+        Self { before, after: state.selection.clone() }
+    }
+
+    // Selects a single element inside of the provided select buffer
+    // pub fn select_single(
+    //     state: &mut crate::State,
+    //     cursor_pos: PhysicalPosition<f64>,
+    //     action: SelectionActionType,
+    // ) -> Result<Self, ()> {
+    //     let before = state.selection.clone();
+    //     Self { before, after: state.selection.clone() }
+    // }
 }
 
 impl Command for SelectCommand {

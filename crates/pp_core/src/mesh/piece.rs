@@ -3,7 +3,7 @@ use std::collections::{HashSet, VecDeque};
 use cgmath::*;
 
 use crate::{
-    id::{self, Id},
+    id::{self, Id, PieceId},
     mesh::MeshElementType,
 };
 
@@ -47,32 +47,25 @@ pub(crate) enum PieceCreationError {
 }
 
 impl super::Mesh {
-    /// Tries to create a new piece from all the faces connected to a given face.
-    /// Returns an error if
+    /// Tries to create a new piece from all the faces connected to a given face
+    /// If you provide a `p_id`, then no new piece is created and all faces are
+    /// assigned to the provided `p_id`.
     pub(crate) fn create_piece(
         &mut self,
         f_id: id::FaceId,
+        p_id: Option<PieceId>,
     ) -> Result<id::PieceId, PieceCreationError> {
         self.assert_face_can_make_piece(f_id)?;
-        let piece = Piece::new(f_id);
-        let p_id = id::PieceId::from_usize(self.pieces.push(piece));
+        let p_id = p_id.unwrap_or_else(|| {
+            let piece = Piece::new(f_id);
+            id::PieceId::from_usize(self.pieces.push(piece))
+        });
         let f_ids: Vec<_> = self.iter_connected_faces(f_id).collect();
         f_ids.iter().for_each(|f_id| self[*f_id].p = Some(p_id));
-        log::info!("Made piece {p_id:?} at {f_id:?}");
         // Face and loop resources need to be recreated
         self.elem_dirty |= MeshElementType::PIECES;
         self.index_dirty |= MeshElementType::PIECES;
         Ok(p_id)
-    }
-
-    pub(crate) fn create_piece_if_not_exists(
-        &mut self,
-        f_id: id::FaceId,
-    ) -> Result<id::PieceId, PieceCreationError> {
-        if self[f_id].p.is_some() {
-            return Err(PieceCreationError::PieceAlreadyExists);
-        }
-        self.create_piece(f_id)
     }
 
     /// "Clears" a piece, returning all of its contained faces back to a no-piece state
