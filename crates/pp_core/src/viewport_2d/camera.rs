@@ -27,16 +27,30 @@ impl Default for Camera2D {
 }
 
 impl Camera2D {
+    /// Gets the view projection matrix of the camera
+    pub fn view_proj(&self, width: f32, height: f32) -> cgmath::Matrix4<f32> {
+        let aspect = width.max(1.0) / height.max(1.0);
+        let half_width = aspect / self.zoom;
+        let half_height = 1.0 / self.zoom;
+        let view = cgmath::Matrix4::from_translation(cgmath::Vector3::new(
+            -1.0 * self.eye.x,
+            -1.0 * self.eye.y,
+            -1.0,
+        ));
+        let proj = cgmath::ortho(-half_width, half_width, -half_height, half_height, -1.1, 1.1);
+        proj * view
+    }
+
     /// Dollies the camera towards / away from the target
-    pub fn dolly(&mut self, delta: f64) {
+    pub fn dolly(&mut self, delta: f32) {
         const MIN_ZOOM: f32 = 0.1;
         const MAX_ZOOM: f32 = 10.0;
-        self.zoom = (self.zoom * (1.0 + delta as f32 * self.speed_dolly)).clamp(MIN_ZOOM, MAX_ZOOM);
+        self.zoom = (self.zoom * (1.0 + delta * self.speed_dolly)).clamp(MIN_ZOOM, MAX_ZOOM);
     }
 
     /// Pans the camera by moving its target
-    pub fn pan(&mut self, dx: f64, dy: f64) {
-        self.eye.x -= dx as f32 * self.speed_pan / self.zoom;
-        self.eye.y += dy as f32 * self.speed_pan / self.zoom;
+    pub fn pan(&mut self, dx: f32, dy: f32) {
+        self.eye.x -= dx * self.speed_pan / self.zoom;
+        self.eye.y += dy * self.speed_pan / self.zoom;
     }
 }

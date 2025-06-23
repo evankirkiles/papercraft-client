@@ -78,9 +78,13 @@ pub enum CommandError {
     Unknown,
 }
 
-/// A `Command` bridges the gap between user IO and stateful operations. Because
-/// we use raw state on the server without keeping track of "select"ions,
-/// command execution and rollback should never have any dependencies on select
+/// A `Command` bridges the gap between user IO and stateful operations. Once
+/// a user has confirmed some sort of action on the model, that action is encoded
+/// as a command and stored locally, enabling undo/redo, syncing with the server
+/// for autosave, and
+///
+/// Because we use raw state on the server without keeping track of selections,
+/// command `execution` and `rollback` should never have any dependencies on select
 /// states so commands can be run anywhere.
 pub trait Command {
     fn execute(&self, state: &mut State) -> Result<(), CommandError>;

@@ -1,5 +1,6 @@
 use event::{EventContext, EventHandler, PressedState, UserEvent};
 use keyboard::ModifierKeys;
+use pp_core::{PhysicalDimensions, PhysicalPosition};
 use viewport_2d::Controller2D;
 use viewport_3d::Controller3D;
 use wasm_bindgen::prelude::*;
@@ -74,7 +75,7 @@ impl App {
         self.renderer.replace(Some(renderer));
     }
 
-    /// De-allocates all the GPU resources for the app by "dropping" any renderer.
+    /// De-allocates all the GPU resources for the app
     pub fn unattach(&mut self) {
         self.renderer.replace(None);
     }
@@ -82,11 +83,19 @@ impl App {
     // ---- RENDER CYCLE -----
     // Functions called in a loop or in a global listener, relevant to the renderer.
 
+    /// Updates the internal state of any time-based states in the canvas, e.g.
+    /// scene changes which aren't caused directly by an interaction (like animations)
+    pub fn update(&mut self, _timestamp: u32) -> Result<(), JsError> {
+        let mut renderer = self.renderer.borrow_mut();
+        let renderer = renderer.as_mut().ok_or(AppError::NoCanvasAttached)?;
+        renderer.select_poll();
+        Ok(())
+    }
+
     /// Draws a single frame of the app to the canvas.
     pub fn draw(&mut self, _timestamp: u32) -> Result<(), JsError> {
         let mut renderer = self.renderer.borrow_mut();
         let renderer = renderer.as_mut().ok_or(AppError::NoCanvasAttached)?;
-        renderer.select_poll();
         let mut state = self.state.borrow_mut();
         let state = state.deref_mut();
         renderer.sync(state);
@@ -95,11 +104,11 @@ impl App {
     }
 
     /// Resizes the virtual dimensions of the canvas.
-    pub fn resize(&mut self, width: f64, height: f64, dpi: f64) -> Result<(), JsError> {
+    pub fn resize(&mut self, width: f32, height: f32, dpi: f32) -> Result<(), JsError> {
         let mut renderer = self.renderer.borrow_mut();
         let renderer = renderer.as_mut().ok_or(AppError::NoCanvasAttached)?;
         renderer.resize((width * dpi) as u32, (height * dpi) as u32);
-        self.event_context.surface_size = event::PhysicalSize { width, height };
+        self.event_context.surface_size = PhysicalDimensions { width, height };
         self.event_context.surface_dpi = dpi;
         Ok(())
     }
@@ -107,16 +116,16 @@ impl App {
     // ---- HOOKS ----
     // Functions that can be invoked by JavaScript on user interaction with HTML.
 
-    pub fn update_horizontal_split(&mut self, frac: f64) {
+    pub fn update_horizontal_split(&mut self, frac: f32) {
         self.state.borrow_mut().settings.viewport_split_x = frac;
     }
 
-    pub fn update_vertical_split(&mut self, frac: f64) {
+    pub fn update_vertical_split(&mut self, frac: f32) {
         self.state.borrow_mut().settings.viewport_split_y = frac;
     }
 
     /// Returns the type viewport at the specified coordinates.
-    fn get_viewport_at(&self, x: f64, y: f64) -> Option<AppViewportType> {
+    fn get_viewport_at(&self, x: f32, y: f32) -> Option<AppViewportType> {
         let state = self.state.borrow();
         let (split_x, split_y) = (state.settings.viewport_split_x, state.settings.viewport_split_y);
         let frac_x = x / self.event_context.surface_size.width;
@@ -158,8 +167,8 @@ impl App {
 
     pub fn handle_mouse_enter(
         &mut self,
-        x: f64,
-        y: f64,
+        x: f32,
+        y: f32,
     ) -> Result<event::EventHandleSuccess, event::EventHandleError> {
         let curr_viewport = self.get_viewport_at(x, y);
         self.active_viewport = curr_viewport;
@@ -171,8 +180,8 @@ impl App {
 
     pub fn handle_mouse_move(
         &mut self,
-        x: f64,
-        y: f64,
+        x: f32,
+        y: f32,
     ) -> Result<event::EventHandleSuccess, event::EventHandleError> {
         let active_viewport = self.active_viewport;
         let curr_viewport = self.get_viewport_at(x, y);
@@ -194,7 +203,7 @@ impl App {
         }
 
         // Always emit the mouse move event to the most-recent viewport
-        let pos = event::PhysicalPosition { x, y };
+        let pos = PhysicalPosition { x, y };
         self.event_context.last_mouse_pos = Some(pos);
         self.handle_event(&UserEvent::Pointer(event::PointerEvent::Move(pos)))
             .map(|s| s.into())
@@ -214,10 +223,10 @@ impl App {
 
     pub fn handle_wheel(
         &mut self,
-        dx: f64,
-        dy: f64,
+        dx: f32,
+        dy: f32,
     ) -> Result<event::EventHandleSuccess, event::EventHandleError> {
-        self.handle_event(&UserEvent::MouseWheel { dx: -dx, dy: -dy })
+        self.handle_event(&UserEvent::MouseWheel { dx: -dx as f32, dy: -dy as f32 })
             .map(|s| s.into())
             .map_err(|e| e.into())
     }

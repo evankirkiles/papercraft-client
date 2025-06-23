@@ -1,6 +1,6 @@
 use cgmath::Transform;
 
-use crate::id;
+use crate::{id, tool};
 
 use super::{Command, CommandError};
 
@@ -27,5 +27,17 @@ impl Command for TransformPiecesCommand {
             state.meshes.get_mut(m_id).unwrap().transform_piece(*p_id, delta_inverse);
         });
         Ok(())
+    }
+}
+
+impl From<tool::d2::TranslateTool> for TransformPiecesCommand {
+    fn from(val: tool::d2::TranslateTool) -> Self {
+        Self { pieces: val.pieces, delta: val.transform }
+    }
+}
+
+impl From<tool::d2::RotateTool> for TransformPiecesCommand {
+    fn from(val: tool::d2::RotateTool) -> Self {
+        Self { pieces: val.pieces, delta: val.transform }
     }
 }

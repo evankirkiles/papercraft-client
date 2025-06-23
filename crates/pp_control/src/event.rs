@@ -1,3 +1,4 @@
+use pp_core::{PhysicalDimensions, PhysicalPosition};
 use std::{cell::RefCell, rc::Rc};
 use wasm_bindgen::prelude::*;
 
@@ -26,7 +27,7 @@ pub enum MouseButton {
 pub(crate) enum PointerEvent {
     Enter,
     Exit,
-    Move(PhysicalPosition<f64>),
+    Move(PhysicalPosition<f32>),
 }
 
 /// An mouse button press has been received.
@@ -48,7 +49,7 @@ pub(crate) enum UserEvent {
     Pointer(PointerEvent),
     MouseInput(MouseInputEvent),
     KeyboardInput(KeyboardInputEvent),
-    MouseWheel { dx: f64, dy: f64 },
+    MouseWheel { dx: f32, dy: f32 },
 }
 
 // Successful responses of an Event Handler
@@ -75,18 +76,6 @@ impl core::fmt::Display for EventHandleError {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy)]
-pub(crate) struct PhysicalSize<T> {
-    pub(crate) width: T,
-    pub(crate) height: T,
-}
-
-#[derive(Debug, Default, Clone, Copy)]
-pub(crate) struct PhysicalPosition<T> {
-    pub(crate) x: T,
-    pub(crate) y: T,
-}
-
 /// A common "event" context, including the state of any modifiers.
 #[derive(Debug, Default, Clone)]
 pub(crate) struct EventContext {
@@ -94,9 +83,9 @@ pub(crate) struct EventContext {
     pub(crate) history: Rc<RefCell<pp_core::CommandStack>>,
     pub(crate) renderer: Rc<RefCell<Option<pp_draw::Renderer<'static>>>>,
     pub(crate) modifiers: keyboard::ModifierKeys,
-    pub(crate) surface_dpi: f64,
-    pub(crate) surface_size: PhysicalSize<f64>,
-    pub(crate) last_mouse_pos: Option<PhysicalPosition<f64>>,
+    pub(crate) surface_dpi: f32,
+    pub(crate) surface_size: PhysicalDimensions<f32>,
+    pub(crate) last_mouse_pos: Option<PhysicalPosition<f32>>,
 }
 
 impl From<InternalEventHandleSuccess> for EventHandleSuccess {

@@ -14,8 +14,8 @@ pub enum SelectionMode {
 #[derive(Debug, Clone)]
 pub struct Settings {
     pub selection_mode: SelectionMode,
-    pub viewport_split_x: f64,
-    pub viewport_split_y: f64,
+    pub viewport_split_x: f32,
+    pub viewport_split_y: f32,
     pub t: f32,
     pub is_dirty: bool,
 }

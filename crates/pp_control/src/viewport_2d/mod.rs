@@ -3,11 +3,11 @@ use crate::{
     keyboard, tool,
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Controller2DTool {
     Select(tool::SelectTool),
-    Translate(tool::d2::TranslateTool),
-    Rotate(tool::d2::RotateTool),
+    Translate(pp_core::tool::d2::TranslateTool),
+    Rotate(pp_core::tool::d2::RotateTool),
 }
 
 impl Default for Controller2DTool {
@@ -16,7 +16,7 @@ impl Default for Controller2DTool {
     }
 }
 
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Clone)]
 pub(crate) struct Controller2D {
     tool: Controller2DTool,
 }
@@ -62,16 +62,22 @@ impl event::EventHandler for Controller2D {
         // If no tool took the event, pass it to the camera.
         use event::UserEvent;
         match ev {
-            event::UserEvent::KeyboardInput(event::KeyboardInputEvent::Down(
+            UserEvent::KeyboardInput(event::KeyboardInputEvent::Down(
                 keyboard::Key::Character(char),
             )) => match char.as_str() {
                 "KeyG" => {
-                    let tool = tool::d2::TranslateTool::new(get_tool_ctx(ctx));
-                    self.tool = Controller2DTool::Translate(tool);
+                    let state = ctx.state.borrow();
+                    self.tool = Controller2DTool::Translate(pp_core::tool::d2::TranslateTool::new(
+                        &state,
+                        get_tool_ctx(ctx),
+                    ));
                 }
                 "KeyR" => {
-                    let tool = tool::d2::RotateTool::new(get_tool_ctx(ctx));
-                    self.tool = Controller2DTool::Rotate(tool);
+                    let state = ctx.state.borrow();
+                    let tool = pp_core::tool::d2::RotateTool::new(&state, get_tool_ctx(ctx));
+                    if let Ok(tool) = tool {
+                        self.tool = Controller2DTool::Rotate(tool);
+                    }
                 }
                 _ => {}
             },

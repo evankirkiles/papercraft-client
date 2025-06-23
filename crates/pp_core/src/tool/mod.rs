@@ -1,11 +1,11 @@
-mod transform;
+use crate::PhysicalDimensions;
 
-pub use transform::*;
+pub mod d2;
 
-#[derive(Debug, Default, Clone, Copy)]
-pub struct PhysicalDimensions<T> {
-    pub width: T,
-    pub height: T,
+/// An error indicating a tool could not be created.
+#[derive(Debug, Clone, Copy)]
+pub enum ToolCreationError {
+    NoSelection,
 }
 
 /// Common fields provided by the controller which all tools may need
@@ -15,12 +15,4 @@ pub struct ToolContext {
     pub viewport: PhysicalDimensions<f32>,
     /// The Device Pixel Ratio, the number of pixels per logical pixel
     pub dpr: f32,
-}
-
-impl std::ops::Mul<PhysicalDimensions<f32>> for PhysicalDimensions<f32> {
-    type Output = PhysicalDimensions<f32>;
-
-    fn mul(self, rhs: PhysicalDimensions<f32>) -> PhysicalDimensions<f32> {
-        Self { width: self.width * rhs.width, height: self.height * rhs.height }
-    }
 }

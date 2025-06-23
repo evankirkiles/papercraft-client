@@ -1,5 +1,5 @@
 use cache::DrawCache;
-use pp_core::tool::PhysicalDimensions;
+use pp_core::PhysicalDimensions;
 use select::{SelectionQueryArea, SelectionQueryResult};
 use std::iter;
 use wgpu::util::new_instance_with_webgpu_detection;

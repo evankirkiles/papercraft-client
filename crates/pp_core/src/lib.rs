@@ -4,6 +4,7 @@ pub mod commands;
 pub mod cut;
 pub mod id;
 pub mod material;
+pub mod measures;
 pub mod mesh;
 pub mod select;
 pub mod settings;
@@ -12,6 +13,7 @@ pub mod viewport_2d;
 pub mod viewport_3d;
 
 pub use commands::*;
+pub use measures::*;
 
 /// Represents the entire state of the "core" editor. Note that this closely
 /// mimics the structure of a GLTF file.
@@ -30,11 +32,8 @@ pub struct State {
 impl State {
     pub fn with_cube() -> Self {
         let mut state = Self::default();
-        // Set up basic initial scene
         let cube = mesh::Mesh::new_cube(0);
         state.meshes.insert(cube.id, cube);
-
-        // Now return the populated state
         state
     }
 }

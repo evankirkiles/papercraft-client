@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use itertools::Itertools;
+
 use crate::id::{self, Id};
 use crate::State;
 
@@ -268,5 +270,15 @@ impl State {
         }
 
         self.selection.is_dirty = true
+    }
+
+    /// Returns all the pieces which have at least one face selected in the mesh
+    pub fn get_selected_pieces(&self) -> Vec<(id::MeshId, id::PieceId)> {
+        self.selection
+            .faces
+            .iter()
+            .filter_map(|(m_id, f_id)| self.meshes[m_id][*f_id].p.map(|p_id| (*m_id, p_id)))
+            .unique()
+            .collect()
     }
 }

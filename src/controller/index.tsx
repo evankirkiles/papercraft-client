@@ -71,6 +71,7 @@ export default class PaperApp
     // Start the animation loop
     const onAnimationFrame: FrameRequestCallback = (dt) => {
       if (signal.aborted) return;
+      this.update(dt);
       this.draw(dt);
       requestAnimationFrame(onAnimationFrame);
     };

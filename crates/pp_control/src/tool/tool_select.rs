@@ -1,7 +1,7 @@
 use std::ops::DerefMut;
 
 use crate::{
-    event::{self, EventHandler, InternalEventHandleSuccess, PhysicalPosition},
+    event::{self, EventHandler, InternalEventHandleSuccess},
     keyboard,
 };
 use pp_core::{
@@ -11,6 +11,7 @@ use pp_core::{
     select_elements::SelectCommand,
     settings::SelectionMode,
     update_flaps::UpdateFlapsCommand,
+    PhysicalPosition,
 };
 use pp_draw::select::{self, PixelData, SelectionMask, SelectionQueryArea, SelectionQueryResult};
 
@@ -22,7 +23,7 @@ impl SelectTool {
     fn select_single(
         &self,
         ctx: &crate::event::EventContext,
-        cursor_pos: PhysicalPosition<f64>,
+        cursor_pos: PhysicalPosition<f32>,
         action: SelectionActionType,
     ) -> Result<(), ()> {
         let query = {

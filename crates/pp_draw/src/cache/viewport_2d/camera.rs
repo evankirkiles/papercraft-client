@@ -12,20 +12,10 @@ struct Camera2DUniform {
 
 impl Camera2DUniform {
     fn new(camera: &pp_core::viewport_2d::camera::Camera2D, width: f32, height: f32) -> Self {
-        let aspect = width.max(1.0) / height.max(1.0);
-        let half_width = aspect / camera.zoom;
-        let half_height = 1.0 / camera.zoom;
-        let view = cgmath::Matrix4::from_translation(cgmath::Vector3::new(
-            -1.0 * camera.eye.x,
-            -1.0 * camera.eye.y,
-            -1.0,
-        ));
-        let proj = cgmath::ortho(-half_width, half_width, -half_height, half_height, -1.1, 1.1);
-        let view_proj = proj * view;
         Self {
             dimensions: [width, height],
             eye: [0.0, 0.0, 0.0, 0.0],
-            view_proj: view_proj.into(),
+            view_proj: camera.view_proj(width, height).into(),
             padding: [0.0, 0.0],
         }
     }

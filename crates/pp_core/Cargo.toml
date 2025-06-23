@@ -13,6 +13,7 @@ bitflags.workspace = true
 bytemuck.workspace = true
 cgmath.workspace = true
 image.workspace = true
+itertools.workspace = true
 tobj.workspace = true
 stable-vec.workspace = true
 log.workspace = true

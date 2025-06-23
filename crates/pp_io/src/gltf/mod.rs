@@ -134,7 +134,7 @@ pub fn import_gltf() -> Result<State, gltf::Error> {
                     gltf::image::Format::R16G16 => Format::R16G16,
                     gltf::image::Format::R16G16B16A16 => Format::R16G16B16A16,
                     gltf::image::Format::R32G32B32A32FLOAT => Format::R32G32B32A32FLOAT,
-                    // Three-channel textures are given an alpha channel, so they can
+                    // Three-channel textures are given an alpha channel so they can
                     // be handled by `wgpu` (which doesn't support 3-channel textures)
                     gltf::image::Format::R8G8B8 => Format::R8G8B8A8,
                     gltf::image::Format::R16G16B16 => Format::R16G16B16A16,
