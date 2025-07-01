@@ -1,4 +1,4 @@
-use pp_core::{PhysicalDimensions, PhysicalPosition};
+use pp_editor::{measures::Dimensions, tool};
 use std::{cell::RefCell, rc::Rc};
 use wasm_bindgen::prelude::*;
 
@@ -27,7 +27,7 @@ pub enum MouseButton {
 pub(crate) enum PointerEvent {
     Enter,
     Exit,
-    Move(PhysicalPosition<f32>),
+    Move(cgmath::Point2<f32>),
 }
 
 /// An mouse button press has been received.
@@ -49,13 +49,13 @@ pub(crate) enum UserEvent {
     Pointer(PointerEvent),
     MouseInput(MouseInputEvent),
     KeyboardInput(KeyboardInputEvent),
-    MouseWheel { dx: f32, dy: f32 },
+    MouseWheel { delta: cgmath::Point2<f32> },
 }
 
 // Successful responses of an Event Handler
 #[wasm_bindgen]
 #[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
-pub enum EventHandleSuccess {
+pub enum ExternalEventHandleSuccess {
     #[default]
     ContinuePropagation,
     StopPropagation,
@@ -64,19 +64,20 @@ pub enum EventHandleSuccess {
 // All potential errors that can come from event handlers.
 #[wasm_bindgen]
 #[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
-pub enum EventHandleError {
+pub enum ExternalEventHandleError {
     #[default]
     Unknown,
 }
 
-impl std::error::Error for EventHandleError {}
-impl core::fmt::Display for EventHandleError {
+impl std::error::Error for ExternalEventHandleError {}
+impl core::fmt::Display for ExternalEventHandleError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
-/// A common "event" context, including the state of any modifiers.
+/// A common event context making core state objects available inside of event
+/// handlers, including the state of any modifiers.
 #[derive(Debug, Default, Clone)]
 pub(crate) struct EventContext {
     pub(crate) state: Rc<RefCell<pp_core::State>>,
@@ -84,18 +85,18 @@ pub(crate) struct EventContext {
     pub(crate) renderer: Rc<RefCell<Option<pp_draw::Renderer<'static>>>>,
     pub(crate) modifiers: keyboard::ModifierKeys,
     pub(crate) surface_dpi: f32,
-    pub(crate) surface_size: PhysicalDimensions<f32>,
-    pub(crate) last_mouse_pos: Option<PhysicalPosition<f32>>,
+    pub(crate) surface_size: Dimensions<f32>,
+    pub(crate) last_mouse_pos: Option<cgmath::Point2<f32>>,
 }
 
-impl From<InternalEventHandleSuccess> for EventHandleSuccess {
-    fn from(value: InternalEventHandleSuccess) -> Self {
+impl From<EventHandleSuccess> for ExternalEventHandleSuccess {
+    fn from(value: EventHandleSuccess) -> Self {
         value.external
     }
 }
 
-impl From<InternalEventHandleError> for EventHandleError {
-    fn from(value: InternalEventHandleError) -> Self {
+impl From<EventHandleError> for ExternalEventHandleError {
+    fn from(value: EventHandleError) -> Self {
         value.external
     }
 }
@@ -107,48 +108,45 @@ pub(crate) trait EventHandler {
         &mut self,
         ctx: &EventContext,
         ev: &UserEvent,
-    ) -> Result<InternalEventHandleSuccess, InternalEventHandleError>;
+    ) -> Result<EventHandleSuccess, EventHandleError>;
 }
 
 /// This is the internal event success type, which can be intercepted by the
 /// top-level controller to use nested information within.
-#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
-pub struct InternalEventHandleSuccess {
-    pub clear_tool: bool,
+#[derive(Debug, Default, Clone)]
+pub struct EventHandleSuccess {
+    pub set_tool: Option<Option<tool::Tool>>,
     pub stop_propagation: bool,
-    pub external: EventHandleSuccess,
+    pub external: ExternalEventHandleSuccess,
 }
 
-impl InternalEventHandleSuccess {
-    pub fn clear_tool() -> Self {
+impl EventHandleSuccess {
+    pub fn set_tool(tool: Option<tool::Tool>) -> Self {
         Self {
-            clear_tool: true,
+            set_tool: Some(tool),
             stop_propagation: true,
-            external: EventHandleSuccess::StopPropagation,
+            external: ExternalEventHandleSuccess::StopPropagation,
         }
     }
 
     pub fn stop_internal_propagation() -> Self {
         Self {
-            clear_tool: false,
+            set_tool: None,
             stop_propagation: true,
-            external: EventHandleSuccess::ContinuePropagation,
+            external: ExternalEventHandleSuccess::ContinuePropagation,
         }
     }
 
     pub fn stop_propagation() -> Self {
         Self {
-            clear_tool: false,
+            set_tool: None,
             stop_propagation: true,
-            external: EventHandleSuccess::StopPropagation,
+            external: ExternalEventHandleSuccess::StopPropagation,
         }
     }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
-pub struct InternalEventHandleError {
-    pub external: EventHandleError,
+pub struct EventHandleError {
+    pub external: ExternalEventHandleError,
 }
-
-pub type InternalEventHandleResult = Result<InternalEventHandleSuccess, InternalEventHandleError>;
-pub type EventHandleResult = Result<EventHandleSuccess, EventHandleError>;

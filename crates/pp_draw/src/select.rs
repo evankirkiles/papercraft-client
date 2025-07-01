@@ -1,8 +1,11 @@
 use bitflags::bitflags;
+use cgmath::Point2;
+use pp_editor::measures::Rect;
 use std::fmt::Debug;
 use std::{cell::RefCell, iter, ops::Deref, rc::Rc};
 
 use crate::cache;
+use crate::cache::viewport::BindableViewport;
 use crate::engines::select::SelectEngine;
 use crate::gpu;
 
@@ -39,14 +42,16 @@ pub enum SelectImmediateAction {
 
 #[derive(Debug, Copy, Clone)]
 pub struct SelectionQueryArea {
-    pub rect: SelectionRect,
+    pub rect: Rect<u32>,
     pub mask: SelectionMask,
 }
+
+pub type SelectionPixelData = Vec<(Point2<f32>, PixelData)>;
 
 /// A single query submitted to the GPU to populate the
 pub struct SelectionQuery<'a> {
     pub area: SelectionQueryArea,
-    pub callback: Option<&'a mut dyn Fn(&Vec<(f32, f32, PixelData)>)>,
+    pub callback: Option<&'a mut dyn Fn(&SelectionPixelData)>,
 }
 
 impl<'a> Debug for SelectionQuery<'a> {
@@ -57,11 +62,7 @@ impl<'a> Debug for SelectionQuery<'a> {
 
 impl SelectionQueryArea {
     fn contains(&self, other: &SelectionQueryArea) -> bool {
-        self.mask.contains(other.mask)
-            && other.rect.x >= self.rect.x
-            && other.rect.y >= self.rect.y
-            && other.rect.x + other.rect.width <= self.rect.x + self.rect.width
-            && other.rect.y + other.rect.height <= self.rect.y + self.rect.height
+        self.mask.contains(other.mask) && self.rect.contains_rect(&other.rect)
     }
 }
 
@@ -69,7 +70,7 @@ impl SelectionQueryArea {
 #[derive(Debug, Clone)]
 pub struct SelectionQueryResult {
     pub area: SelectionQueryArea,
-    pub pixels: Vec<(f32, f32, PixelData)>,
+    pub pixels: SelectionPixelData,
 }
 
 #[derive(Debug)]
@@ -93,7 +94,7 @@ enum SelectManagerQueryState {
 pub type SelectionCallback = dyn Fn(&SelectionQueryArea, &SelectionQueryResult);
 pub(super) struct SelectManager {
     /// The rendering engine for drawing into the select textures
-    select_engine: SelectEngine,
+    pub(crate) select_engine: SelectEngine,
     /// The GPU textures the select engine renders into
     textures: SelectManagerAttachmentTextures,
 
@@ -209,27 +210,18 @@ impl SelectManager {
             // Set the scissor for the active viewport so we don't rasterize
             // any unnecessary pixels, just the ones which we'll check for selection.
             render_pass.set_scissor_rect(rect.x, rect.y, rect.width, rect.height);
-
-            // Render 3D if viewport has area
-            if draw_cache.viewport_3d.bind(&mut render_pass) {
-                draw_cache.common.piece_identity.bind(&mut render_pass);
-                draw_cache.meshes.values().for_each(|mesh| {
-                    self.select_engine.draw_mesh(
-                        ctx,
-                        &mut render_pass,
-                        mesh,
-                        mask,
-                        draw_cache.viewport_3d.xray_mode,
-                    );
-                });
-            }
-
-            // Render 2D if viewport has area
-            if draw_cache.viewport_2d.bind(&mut render_pass) {
-                draw_cache.meshes.values().for_each(|mesh| {
-                    self.select_engine.draw_piece_mesh(ctx, &mut render_pass, mesh, mask);
-                });
-            }
+            draw_cache.viewports.iter().for_each(|(_, viewport)| {
+                use cache::viewport::ViewportGPU;
+                viewport.bind(&mut render_pass);
+                match viewport {
+                    ViewportGPU::Folding(_) => {
+                        self.draw_for_folding(ctx, draw_cache, mask, &mut render_pass)
+                    }
+                    ViewportGPU::Cutting(_) => {
+                        self.draw_for_cutting(ctx, draw_cache, mask, &mut render_pass)
+                    }
+                }
+            });
         }
 
         // After render pass completes, copy the desired region of the texture
@@ -303,19 +295,14 @@ impl SelectManager {
                             .zip(0u32..)
                             .filter_map(move |(chunk, i)| {
                                 let pixel_idx = start_idx / tex_block_size + i;
-                                let x = pixel_idx % tex_width;
-                                let y = pixel_idx / tex_width;
+                                let pos =
+                                    Point2 { x: pixel_idx % tex_width, y: pixel_idx / tex_width };
                                 let pixel_data = bytemuck::from_bytes::<PixelData>(chunk);
-                                if pixel_data.mesh_id != 0 // Mesh indices are offset by 1 for valid elements
-                                && x >= area.rect.x
-                                && y >= area.rect.y
-                                && x < area.rect.x + area.rect.width
-                                && y < area.rect.y + area.rect.height
-                                {
-                                    Some((x as f32, y as f32, *pixel_data))
-                                } else {
-                                    None
-                                }
+                                // Mesh indices are offset by 1 for valid elements
+                                (pixel_data.mesh_id != 0 && area.rect.contains(&pos)).then_some((
+                                    Point2 { x: pos.x as f32, y: pos.y as f32 },
+                                    *pixel_data,
+                                ))
                             })
                             .collect();
                         query_state.replace(SelectManagerQueryState::Mapped(

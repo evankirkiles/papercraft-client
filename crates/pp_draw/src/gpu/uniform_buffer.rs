@@ -11,7 +11,7 @@ use wgpu::util::DeviceExt;
 /// Instead of worrying about this, we will just avoid thinking about variable
 /// size UniformBuffers for now, and allocate the buffer with a pre-defined size
 /// upon creation of a `UniformBuf` (so we can immediately use it for Bind Groups).
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct UniformBuf {
     pub label: String,
 

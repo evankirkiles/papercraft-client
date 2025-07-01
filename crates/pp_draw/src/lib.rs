@@ -1,10 +1,11 @@
-use cache::DrawCache;
-use pp_core::PhysicalDimensions;
+use cache::{viewport::BindableViewport, DrawCache};
+use pp_editor::measures::Dimensions;
 use select::{SelectionQueryArea, SelectionQueryResult};
 use std::iter;
 use wgpu::util::new_instance_with_webgpu_detection;
 
 mod cache;
+mod draw;
 mod gpu;
 
 pub mod engines;
@@ -109,14 +110,14 @@ impl<'window> Renderer<'window> {
     }
 
     /// Synchronizes the DrawCache with the App's current state.
-    pub fn sync(&mut self, state: &mut pp_core::State) {
-        self.draw_cache.sync_meshes(&self.ctx, state);
-        self.draw_cache.sync_materials(&self.ctx, state);
-        self.draw_cache.sync_viewports(&self.ctx, state);
+    pub fn prepare(&mut self, state: &mut pp_core::State, editor: &mut pp_editor::Editor) {
+        self.draw_cache.prepare_meshes(&self.ctx, state);
+        self.draw_cache.prepare_materials(&self.ctx, state);
+        self.draw_cache.prepare_viewports(&self.ctx, editor);
     }
 
     /// Draws all of the renderables to the screen in each viewport
-    pub fn draw(&self, state: &pp_core::State) {
+    pub fn render(&self, state: &pp_core::State) {
         let output = self.ctx.surface.get_current_texture().unwrap();
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor {
             format: (self.ctx.view_format != self.ctx.config.format)
@@ -157,79 +158,19 @@ impl<'window> Renderer<'window> {
                 timestamp_writes: None,
             });
 
-            // Render 3D if viewport has area
-            if self.draw_cache.viewport_3d.bind(&mut render_pass) {
-                self.draw_cache.common.piece_identity.bind(&mut render_pass);
-                // First, draw the actual textured surface
-                self.draw_cache.materials.iter().for_each(|(id, mat)| {
-                    mat.bind(&mut render_pass);
-                    self.draw_cache.meshes.values().for_each(|mesh| {
-                        self.draw_engine.draw_mesh_for_material(
-                            &self.ctx,
-                            &mut render_pass,
-                            mesh,
-                            id,
-                        );
-                    });
-                });
-                // Now draw the overlays / not the surface
-                self.draw_cache.meshes.values().for_each(|mesh| {
-                    self.draw_engine.draw_mesh(
-                        &self.ctx,
-                        &state.settings,
-                        &mut render_pass,
-                        mesh,
-                        self.draw_cache.viewport_3d.xray_mode,
-                    );
-                });
-                // 2D drawing
-                // self.draw_cache.materials.iter().for_each(|(id, mat)| {
-                //     mat.bind(&mut render_pass);
-                //     self.draw_cache.meshes.values().for_each(|mesh| {
-                //         self.draw_engine.draw_piece_mesh_for_material(
-                //             &self.ctx,
-                //             &mut render_pass,
-                //             mesh,
-                //             id,
-                //         );
-                //     });
-                // });
-                // // Draw the overlays / not the surface
-                // self.draw_cache.meshes.values().for_each(|mesh| {
-                //     self.draw_engine.draw_piece_mesh(
-                //         &self.ctx,
-                //         &state.settings,
-                //         &mut render_pass,
-                //         mesh,
-                //     );
-                // });
-                self.draw_engine.draw_3d_overlays(&self.ctx, &mut render_pass);
-            }
-
-            // Render 2D pieces if viewport has area
-            if self.draw_cache.viewport_2d.bind(&mut render_pass) {
-                self.draw_cache.materials.iter().for_each(|(id, mat)| {
-                    mat.bind(&mut render_pass);
-                    self.draw_cache.meshes.values().for_each(|mesh| {
-                        self.draw_engine.draw_piece_mesh_for_material(
-                            &self.ctx,
-                            &mut render_pass,
-                            mesh,
-                            id,
-                        );
-                    });
-                });
-                // Draw the overlays / not the surface
-                self.draw_cache.meshes.values().for_each(|mesh| {
-                    self.draw_engine.draw_piece_mesh(
-                        &self.ctx,
-                        &state.settings,
-                        &mut render_pass,
-                        mesh,
-                    );
-                });
-                self.draw_engine.draw_2d_overlays(&self.ctx, &mut render_pass);
-            }
+            // Iterate the active viewports and render their corresponding items
+            self.draw_cache.viewports.iter().for_each(|(_, viewport)| {
+                use cache::viewport::ViewportGPU;
+                viewport.bind(&mut render_pass);
+                match viewport {
+                    ViewportGPU::Folding(_) => {
+                        self.draw_for_folding(&state.settings, &mut render_pass)
+                    }
+                    ViewportGPU::Cutting(_) => {
+                        self.draw_for_cutting(&state.settings, &mut render_pass)
+                    }
+                }
+            });
         }
 
         self.ctx.queue.submit(iter::once(encoder.finish()));
@@ -253,19 +194,11 @@ impl<'window> Renderer<'window> {
     }
 
     /// Updates the GPUContext for new dimensions
-    pub fn resize(&mut self, width: u32, height: u32) {
-        if width > 0 && height > 0 {
-            self.ctx.resize(width, height);
+    pub fn resize(&mut self, dimensions: &Dimensions<u32>) {
+        if dimensions.width > 0 && dimensions.height > 0 {
+            self.ctx.resize(dimensions);
             self.select.resize(&self.ctx);
             self.textures = RendererAttachmentTextures::create(&self.ctx);
-        }
-    }
-
-    /// Gets the current size of the canvas, in pixels
-    pub fn curr_size(&self) -> PhysicalDimensions<f32> {
-        PhysicalDimensions {
-            width: self.ctx.config.width as f32,
-            height: self.ctx.config.height as f32,
         }
     }
 }

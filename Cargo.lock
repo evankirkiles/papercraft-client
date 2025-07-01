@@ -931,6 +931,7 @@ dependencies = [
  "anyhow",
  "bitflags 2.9.0",
  "cfg-if",
+ "cgmath",
  "compact_str",
  "console_error_panic_hook",
  "console_log",
@@ -940,6 +941,7 @@ dependencies = [
  "paste",
  "pp_core",
  "pp_draw",
+ "pp_editor",
  "pp_io",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -960,6 +962,7 @@ dependencies = [
  "image",
  "itertools",
  "log",
+ "slotmap",
  "stable-vec",
  "tobj",
  "wasm-bindgen",
@@ -980,7 +983,22 @@ dependencies = [
  "log",
  "paste",
  "pp_core",
+ "pp_editor",
+ "slotmap",
  "wgpu",
+]
+
+[[package]]
+name = "pp_editor"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "cgmath",
+ "fs_extra",
+ "glob",
+ "log",
+ "pp_core",
+ "slotmap",
 ]
 
 [[package]]

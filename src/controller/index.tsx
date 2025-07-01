@@ -1,4 +1,4 @@
-import { App, EventHandleSuccess, NamedKey, PressedState } from "@paper/core";
+import { App, PressedState } from "@paper/core";
 import { ModifierKeys } from "./modifiers";
 
 // TODO: Clean this up

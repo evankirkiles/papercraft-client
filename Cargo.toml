@@ -12,9 +12,10 @@ version = "0.0.1"
 
 [workspace.dependencies]
 # Internal:
+pp_control = { path = "crates/pp_control", version = "0.0.1" }
 pp_core = { path = "crates/pp_core", version = "0.0.1" }
 pp_draw = { path = "crates/pp_draw", version = "0.0.1" }
-pp_control = { path = "crates/pp_control", version = "0.0.1" }
+pp_editor = { path = "crates/pp_editor", version = "0.0.1" }
 pp_io = { path = "crates/pp_io", version = "0.0.1" }
 
 # External:
@@ -41,6 +42,7 @@ paste = "1.0.15"
 pollster = "0.4.0"
 raw-window-handle = "0.6.2"
 tobj = { version = "4.0", default-features = false, features = ["async"] }
+slotmap = "1.0.7"
 stable-vec = "0.4.1"
 wasm-bindgen = "0.2.100"
 wasm-bindgen-futures = "0.4.50"

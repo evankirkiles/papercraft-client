@@ -1,24 +1,15 @@
 [package]
-name = "pp_draw"
+name = "pp_editor"
 version = "0.0.1"
-description = "The WASM engine for Paperarium"
+description = "Editor-related state, managing viewports / tools / user input"
 authors = ["Evan Kirkiles"]
 repository = "https://github.com/evankirkiles/papercraft-client"
 edition = "2021"
 
 [dependencies]
-# Internal:
 pp_core.workspace = true
-pp_editor.workspace = true
-# External:
-bitflags.workspace = true
-bytemuck.workspace = true
-cfg-if.workspace = true
 cgmath.workspace = true
 log.workspace = true
-paste.workspace = true
-wgpu.workspace = true
-image.workspace = true
 slotmap.workspace = true
 
 [build-dependencies]

@@ -1,3 +1,4 @@
+use pp_editor::measures::Dimensions;
 use wgpu::util::DeviceExt;
 
 use super::{layouts::SharedLayouts, settings::Settings};
@@ -94,9 +95,9 @@ impl<'window> Context<'window> {
     }
 
     /// Reconfigures the surface for the specified width and heights
-    pub fn resize(&mut self, width: u32, height: u32) {
-        self.config.width = width;
-        self.config.height = height;
+    pub fn resize(&mut self, dimensions: &Dimensions<u32>) {
+        self.config.width = dimensions.width;
+        self.config.height = dimensions.height;
         self.configure_surface();
     }
 }

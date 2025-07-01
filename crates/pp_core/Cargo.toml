@@ -18,6 +18,7 @@ tobj.workspace = true
 stable-vec.workspace = true
 log.workspace = true
 wasm-bindgen.workspace = true
+slotmap.workspace = true
 
 [build-dependencies]
 anyhow.workspace = true

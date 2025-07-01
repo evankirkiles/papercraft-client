@@ -1,15 +1,17 @@
 use crate::gpu;
 use material::{image::ImageGPU, texture::TextureGPU, MaterialGPU};
 use pp_core::id;
+use pp_editor::ViewportId;
+use slotmap::SecondaryMap;
 use std::collections::HashMap;
+use viewport::{BindableViewport, ViewportGPU};
 
 pub(crate) use mesh::MeshGPU;
 
 mod common;
 mod material;
 mod mesh;
-mod viewport_2d;
-mod viewport_3d;
+pub mod viewport;
 
 /// Represents the current state of all allocated GPU resources.
 ///
@@ -23,8 +25,7 @@ pub(crate) struct DrawCache {
     pub materials: HashMap<id::MaterialId, MaterialGPU>,
     pub textures: HashMap<id::TextureId, TextureGPU>,
     pub images: HashMap<id::ImageId, ImageGPU>,
-    pub viewport_3d: viewport_3d::Viewport3DGPU,
-    pub viewport_2d: viewport_2d::Viewport2DGPU,
+    pub viewports: SecondaryMap<ViewportId, ViewportGPU>,
     pub common: common::CommonGPUResources,
 }
 
@@ -35,13 +36,12 @@ impl DrawCache {
             materials: HashMap::new(),
             textures: HashMap::new(),
             images: HashMap::new(),
-            viewport_3d: viewport_3d::Viewport3DGPU::new(ctx),
-            viewport_2d: viewport_2d::Viewport2DGPU::new(ctx),
+            viewports: SecondaryMap::new(),
             common: common::CommonGPUResources::new(ctx),
         }
     }
 
-    pub(crate) fn sync_meshes(&mut self, ctx: &gpu::Context, state: &mut pp_core::State) {
+    pub(crate) fn prepare_meshes(&mut self, ctx: &gpu::Context, state: &mut pp_core::State) {
         // Ensure state meshes are all synced in the DrawCache
         state.meshes.iter_mut().for_each(|(key, mesh)| {
             let m = self.meshes.entry(*key).or_insert(MeshGPU::new(mesh));
@@ -51,7 +51,7 @@ impl DrawCache {
         // TODO: Remove unused meshes from the DrawCache
     }
 
-    pub(crate) fn sync_materials(&mut self, ctx: &gpu::Context, state: &mut pp_core::State) {
+    pub(crate) fn prepare_materials(&mut self, ctx: &gpu::Context, state: &mut pp_core::State) {
         // Ensure all images have been uploaded to the GPU
         state.images.iter_mut().for_each(|(key, img)| {
             self.images.entry(*key).or_insert(ImageGPU::new(ctx, img));
@@ -72,10 +72,19 @@ impl DrawCache {
         });
     }
 
-    pub(crate) fn sync_viewports(&mut self, ctx: &gpu::Context, state: &mut pp_core::State) {
-        let (width, height) = (ctx.config.width as f32, ctx.config.height as f32);
-        let x_border = state.settings.viewport_split_x as f32 * width;
-        self.viewport_3d.sync(ctx, &state.viewport_3d, 0.0, 0.0, x_border, height);
-        self.viewport_2d.sync(ctx, &state.viewport_2d, x_border, 0.0, width - x_border, height);
+    /// Ensures that all draw cache viewports have been synchronized
+    pub(crate) fn prepare_viewports(&mut self, ctx: &gpu::Context, editor: &mut pp_editor::Editor) {
+        editor
+            .viewports
+            .iter_mut()
+            .filter(|(_, viewport)| viewport.bounds.area.has_area())
+            .for_each(|(key, viewport)| {
+                self.viewports
+                    .entry(key)
+                    .unwrap()
+                    .or_insert_with(|| ViewportGPU::new(ctx, viewport))
+                    .sync(ctx, viewport)
+                    .expect("Viewport type changed!");
+            });
     }
 }
