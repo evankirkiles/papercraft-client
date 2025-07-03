@@ -1,4 +1,4 @@
-use crate::id;
+use crate::TextureId;
 
 pub mod image;
 pub mod texture;
@@ -7,7 +7,7 @@ pub mod texture;
 pub struct Material {
     pub label: String,
 
-    pub base_color_texture: id::TextureId,
+    pub base_color_texture: TextureId,
     pub base_color_factor: [f32; 4],
 
     pub is_dirty: bool,

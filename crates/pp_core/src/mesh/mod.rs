@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use slotmap::{new_key_type, SlotMap};
 use stable_vec::StableVec;
 use std::ops;
 
@@ -7,6 +8,7 @@ use crate::id::{EdgeId, FaceId, Id, LoopId, MeshId, PieceId, VertexId};
 pub mod edge;
 pub mod face;
 pub mod loop_;
+pub mod matslot;
 pub mod piece;
 mod primitives;
 mod vertex;
@@ -14,8 +16,13 @@ mod vertex;
 use edge::*;
 use face::*;
 use loop_::*;
+use matslot::*;
 use piece::*;
 use vertex::*;
+
+new_key_type! {
+    pub struct MaterialSlotId;
+}
 
 bitflags! {
     #[derive(Debug, Clone, Copy)]
@@ -51,7 +58,6 @@ impl From<MeshElementType> for bool {
 /// @see https://developer.blender.org/docs/features/objects/mesh/bmesh/
 #[derive(Debug)]
 pub struct Mesh {
-    pub id: MeshId,
     pub label: String,
 
     pub verts: StableVec<Vertex>,
@@ -59,6 +65,7 @@ pub struct Mesh {
     pub faces: StableVec<Face>,
     pub loops: StableVec<Loop>,
     pub pieces: StableVec<Piece>,
+    pub material_slots: SlotMap<MaterialSlotId, MaterialSlot>,
 
     /// Indicates which type of element has changed in this mesh
     pub elem_dirty: MeshElementType,
@@ -66,15 +73,15 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn new(id: MeshId, label: String) -> Self {
+    pub fn new(label: String) -> Self {
         Self {
-            id,
             label,
             verts: StableVec::new(),
             edges: StableVec::new(),
             faces: StableVec::new(),
             loops: StableVec::new(),
             pieces: StableVec::new(),
+            material_slots: SlotMap::with_key(),
             elem_dirty: MeshElementType::empty(),
             index_dirty: MeshElementType::empty(),
         }
@@ -117,7 +124,7 @@ mod test {
 
     #[test]
     fn add_duplicate_edge() {
-        let mut mesh = Mesh::new(MeshId::new(0), String::from("test"));
+        let mut mesh = Mesh::new(String::from("test"));
         let v1 = mesh.add_vertex([1.0, 0.0, 0.0]);
         let v2 = mesh.add_vertex([0.0, 1.0, 0.0]);
         let e1 = mesh.add_edge(v1, v2);
@@ -129,7 +136,7 @@ mod test {
 
     #[test]
     fn add_duplicate_face() {
-        let mut mesh = Mesh::new(MeshId::new(0), String::from("test"));
+        let mut mesh = Mesh::new(String::from("test"));
         let v1 = mesh.add_vertex([1.0, 0.0, 0.0]);
         let v2 = mesh.add_vertex([0.0, 1.0, 0.0]);
         let v3 = mesh.add_vertex([0.0, 0.0, 1.0]);

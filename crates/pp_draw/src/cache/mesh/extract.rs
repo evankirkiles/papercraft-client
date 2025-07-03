@@ -43,7 +43,9 @@ pub mod vbo {
     use pp_core::{
         id::{self, EdgeId, Id, LoopId},
         select::SelectionActiveElement,
+        MeshId,
     };
+    use slotmap::Key;
 
     use crate::{cache::mesh::extract::EdgeFlags, gpu};
 
@@ -145,26 +147,27 @@ pub mod vbo {
     }
 
     fn _vert_flags(
+        m_id: MeshId,
         mesh: &pp_core::mesh::Mesh,
         selection: &pp_core::select::SelectionState,
         l: LoopId,
     ) -> u32 {
         let mut flags = VertFlags::empty();
-        if selection.faces.contains(&(mesh.id, mesh[l].f)) {
+        if selection.faces.contains(&(m_id, mesh[l].f)) {
             flags |= VertFlags::FACE_SELECTED;
         }
-        if selection.verts.contains(&(mesh.id, mesh[l].v)) {
+        if selection.verts.contains(&(m_id, mesh[l].v)) {
             flags |= VertFlags::SELECTED;
         }
         if let Some(el) = selection.active_element.as_ref() {
             match el {
-                SelectionActiveElement::Vert((m_id, v_id)) => {
-                    if *m_id == mesh.id && *v_id == mesh[l].v {
+                SelectionActiveElement::Vert(id) => {
+                    if id.0 == m_id && id.1 == mesh[l].v {
                         flags |= VertFlags::ACTIVE;
                     }
                 }
-                SelectionActiveElement::Face((m_id, f_id)) => {
-                    if *m_id == mesh.id && *f_id == mesh[l].f {
+                SelectionActiveElement::Face(id) => {
+                    if id.0 == m_id && id.1 == mesh[l].f {
                         flags |= VertFlags::FACE_ACTIVE;
                     }
                 }
@@ -177,17 +180,20 @@ pub mod vbo {
     /// Reloads flags indicating the state of the vertex (select, active)
     pub fn vert_flags(
         ctx: &gpu::Context,
+        m_id: MeshId,
         mesh: &pp_core::mesh::Mesh,
         selection: &pp_core::select::SelectionState,
         vbo: &mut gpu::VertBuf,
     ) {
-        let data: Vec<_> = mesh.iter_loops().map(|l| _vert_flags(mesh, selection, l)).collect();
+        let data: Vec<_> =
+            mesh.iter_loops().map(|l| _vert_flags(m_id, mesh, selection, l)).collect();
         vbo.update(ctx, data.as_slice())
     }
 
     /// Reloads the vertex normals VBO from the mesh's data
     pub fn piece_vert_flags(
         ctx: &gpu::Context,
+        m_id: MeshId,
         mesh: &pp_core::mesh::Mesh,
         selection: &pp_core::select::SelectionState,
         vbo: &mut gpu::VertBuf,
@@ -196,26 +202,29 @@ pub mod vbo {
             .pieces
             .indices()
             .flat_map(|p_id| mesh.iter_connected_faces(mesh[id::PieceId::from_usize(p_id)].f))
-            .flat_map(|f_id| mesh.iter_face_loops(f_id).map(|l| _vert_flags(mesh, selection, l)))
+            .flat_map(|f_id| {
+                mesh.iter_face_loops(f_id).map(|l| _vert_flags(m_id, mesh, selection, l))
+            })
             .collect();
         vbo.update(ctx, data.as_slice());
     }
 
     fn _edge_flags(
+        m_id: MeshId,
         mesh: &pp_core::mesh::Mesh,
         selection: &pp_core::select::SelectionState,
         e_id: EdgeId,
     ) -> u32 {
         let e = mesh[e_id];
-        let id = (mesh.id, e_id);
+        let id = (m_id, e_id);
         let mut flags = EdgeFlags::empty();
         if selection.edges.contains(&id) {
             flags |= EdgeFlags::SELECTED;
         }
-        if selection.verts.contains(&(mesh.id, e.v[0])) {
+        if selection.verts.contains(&(m_id, e.v[0])) {
             flags |= EdgeFlags::V0_SELECTED;
         }
-        if selection.verts.contains(&(mesh.id, e.v[1])) {
+        if selection.verts.contains(&(m_id, e.v[1])) {
             flags |= EdgeFlags::V1_SELECTED;
         }
         if e.cut.is_some() {
@@ -236,6 +245,7 @@ pub mod vbo {
     /// Reloads flags indicating the state of the vertex (select, active)
     pub fn edge_flags(
         ctx: &gpu::Context,
+        m_id: MeshId,
         mesh: &pp_core::mesh::Mesh,
         selection: &pp_core::select::SelectionState,
         vbo: &mut gpu::VertBuf,
@@ -243,7 +253,7 @@ pub mod vbo {
         let data: Vec<_> = mesh
             .edges
             .indices()
-            .map(|e_id| _edge_flags(mesh, selection, id::EdgeId::from_usize(e_id)))
+            .map(|e_id| _edge_flags(m_id, mesh, selection, id::EdgeId::from_usize(e_id)))
             .collect();
         vbo.update(ctx, data.as_slice())
     }
@@ -251,6 +261,7 @@ pub mod vbo {
     /// Reloads the vertex normals VBO from the mesh's data
     pub fn piece_edge_flags(
         ctx: &gpu::Context,
+        m_id: MeshId,
         mesh: &pp_core::mesh::Mesh,
         selection: &pp_core::select::SelectionState,
         vbo: &mut gpu::VertBuf,
@@ -260,56 +271,72 @@ pub mod vbo {
             .indices()
             .flat_map(|p_id| mesh.iter_connected_faces(mesh[id::PieceId::from_usize(p_id)].f))
             .flat_map(|f_id| {
-                mesh.iter_face_loops(f_id).map(|l| _edge_flags(mesh, selection, mesh[l].e))
+                mesh.iter_face_loops(f_id).map(|l| _edge_flags(m_id, mesh, selection, mesh[l].e))
             })
             .collect();
         vbo.update(ctx, data.as_slice());
     }
 
-    fn _vert_idx(mesh: &pp_core::mesh::Mesh, l: LoopId) -> [u32; 4] {
-        [
-            mesh[mesh[l].f].p.map(|p| p.idx() + 1).unwrap_or_default(), // `0` indicates no piece
-            mesh[l].f.idx(),
-            mesh[l].v.idx(),
-            mesh.id.idx(),
-        ]
+    fn _vert_idx(m_id: MeshId, mesh: &pp_core::mesh::Mesh, l: LoopId) -> [u64; 2] {
+        [((u64::from(mesh[l].v.idx())) << 32) | u64::from(mesh[l].f.idx()), m_id.data().as_ffi()]
     }
 
     /// Reloads the vertex selection idx from the mesh
-    pub fn vert_idx(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
-        let data: Vec<_> = mesh.iter_loops().map(|l| _vert_idx(mesh, l)).collect();
+    pub fn vert_idx(
+        ctx: &gpu::Context,
+        m_id: MeshId,
+        mesh: &pp_core::mesh::Mesh,
+        vbo: &mut gpu::VertBuf,
+    ) {
+        let data: Vec<_> = mesh.iter_loops().map(|l| _vert_idx(m_id, mesh, l)).collect();
         vbo.update(ctx, data.as_slice())
     }
 
     /// Reloads the vertex normals VBO from the mesh's data
-    pub fn piece_vert_idx(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
+    pub fn piece_vert_idx(
+        ctx: &gpu::Context,
+
+        m_id: MeshId,
+        mesh: &pp_core::mesh::Mesh,
+        vbo: &mut gpu::VertBuf,
+    ) {
         let data: Vec<_> = mesh
             .pieces
             .indices()
             .flat_map(|p_id| mesh.iter_connected_faces(mesh[id::PieceId::from_usize(p_id)].f))
-            .flat_map(|f_id| mesh.iter_face_loops(f_id).map(|l| _vert_idx(mesh, l)))
+            .flat_map(|f_id| mesh.iter_face_loops(f_id).map(|l| _vert_idx(m_id, mesh, l)))
             .collect();
         vbo.update(ctx, data.as_slice());
     }
 
-    fn _edge_idx(mesh: &pp_core::mesh::Mesh, e: usize) -> [u32; 2] {
-        [e as u32, mesh.id.idx()]
+    fn _edge_idx(m_id: MeshId, e: usize) -> [u64; 2] {
+        [(e as u64) << 32, m_id.data().as_ffi()]
     }
 
     /// Reloads the edge selection idx from the mesh
-    pub fn edge_idx(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
-        let data: Vec<_> = mesh.edges.indices().map(|e| _edge_idx(mesh, e)).collect();
+    pub fn edge_idx(
+        ctx: &gpu::Context,
+        m_id: MeshId,
+        mesh: &pp_core::mesh::Mesh,
+        vbo: &mut gpu::VertBuf,
+    ) {
+        let data: Vec<_> = mesh.edges.indices().map(|e| _edge_idx(m_id, e)).collect();
         vbo.update(ctx, data.as_slice())
     }
 
     /// Reloads the vertex selection idx from the mesh
-    pub fn piece_edge_idx(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
+    pub fn piece_edge_idx(
+        ctx: &gpu::Context,
+        m_id: MeshId,
+        mesh: &pp_core::mesh::Mesh,
+        vbo: &mut gpu::VertBuf,
+    ) {
         let data: Vec<_> = mesh
             .pieces
             .indices()
             .flat_map(|p_id| mesh.iter_connected_faces(mesh[id::PieceId::from_usize(p_id)].f))
             .flat_map(|f_id| {
-                mesh.iter_face_loops(f_id).map(|l| _edge_idx(mesh, mesh[l].e.to_usize()))
+                mesh.iter_face_loops(f_id).map(|l| _edge_idx(m_id, mesh[l].e.to_usize()))
             })
             .collect();
         vbo.update(ctx, data.as_slice())
@@ -393,24 +420,39 @@ pub mod vbo {
 }
 
 pub mod ibo {
-    use pp_core::id::{self, Id};
+    use pp_core::{
+        id::{self, Id},
+        mesh::MaterialSlotId,
+        MaterialId,
+    };
+    use slotmap::SecondaryMap;
 
     use crate::{cache::mesh::MaterialGPUVBORange, gpu};
-    use std::collections::{HashMap, HashSet};
 
     /// Gets an ordered IBO for rendering materials. We sort it so each material's
     /// surface tris can be drawn from a contiguous range within this IBO.
     pub fn mat_indices(
         ctx: &gpu::Context,
         mesh: &pp_core::mesh::Mesh,
+        slots: &SecondaryMap<MaterialSlotId, MaterialId>,
+        default_mat: &MaterialId,
         ibo: &mut gpu::IndexBuf,
-        mats: &mut HashMap<id::MaterialId, MaterialGPUVBORange>,
+        ranges: &mut SecondaryMap<MaterialId, MaterialGPUVBORange>,
     ) {
-        let mut data: Vec<_> =
-            mesh.iter_loops().zip(0u32..).map(|(l, i)| (i, mesh[mesh[l].f].m)).collect();
+        let mut data: Vec<_> = mesh
+            .iter_loops()
+            .zip(0u32..)
+            .map(|(l, i)| {
+                let mat = mesh[mesh[l].f]
+                    .m
+                    .and_then(|slot_id| slots.get(slot_id).cloned())
+                    .unwrap_or(*default_mat);
+                (i, mat)
+            })
+            .collect();
         data.sort_by(|(_, m_a), (_, m_b)| m_a.cmp(m_b));
         let mut i_prev: u32 = 0;
-        let mut m_prev: Option<id::MaterialId> = None;
+        let mut m_prev: Option<MaterialId> = None;
         let final_data: Vec<_> = data
             .iter()
             .zip(0u32..)
@@ -419,7 +461,7 @@ pub mod ibo {
                 if m_prev.is_some_and(|m_prev| m_prev != *m_id) {
                     i_prev = i;
                 };
-                let m = mats.entry(*m_id).or_default();
+                let m = ranges.entry(*m_id).unwrap().or_default();
                 m.range = i_prev..(i + 1);
                 m_prev = Some(*m_id);
                 *ibo_i
@@ -432,8 +474,10 @@ pub mod ibo {
     pub fn piece_mat_indices(
         ctx: &gpu::Context,
         mesh: &pp_core::mesh::Mesh,
+        slots: &SecondaryMap<MaterialSlotId, MaterialId>,
+        default_mat: &MaterialId,
         ibo: &mut gpu::IndexBuf,
-        mats: &mut HashMap<id::MaterialId, MaterialGPUVBORange>,
+        mats: &mut SecondaryMap<MaterialId, MaterialGPUVBORange>,
     ) {
         let mut data: Vec<_> = mesh
             .pieces
@@ -444,11 +488,17 @@ pub mod ibo {
             })
             .flat_map(|(f_id, p_id)| mesh.iter_face_loops(f_id).map(move |l_id| (l_id, p_id)))
             .zip(0u32..)
-            .map(|((l, p), i)| (i, mesh[mesh[l].f].m, p))
+            .map(|((l, p), i)| {
+                let mat = mesh[mesh[l].f]
+                    .m
+                    .and_then(|slot_id| slots.get(slot_id).cloned())
+                    .unwrap_or(*default_mat);
+                (i, mat, p)
+            })
             .collect();
         data.sort_by(|(_, m_a, p_a), (_, m_b, p_b)| m_a.cmp(m_b).then(p_a.cmp(p_b)));
         let mut i_prev: u32 = 0;
-        let mut m_prev: Option<id::MaterialId> = None;
+        let mut m_prev: Option<MaterialId> = None;
         let mut p_prev: Option<id::PieceId> = None;
         // Clear out all the existing piece_ranges
         mats.iter_mut().for_each(|(_, mat)| mat.piece_ranges.clear());
@@ -462,7 +512,7 @@ pub mod ibo {
                 {
                     i_prev = i;
                 };
-                let m = mats.entry(*m_id).or_default();
+                let m = mats.entry(*m_id).unwrap().or_default();
                 m.piece_ranges.insert(*p_id, i_prev..(i + 1));
                 m_prev = Some(*m_id);
                 p_prev = Some(*p_id);

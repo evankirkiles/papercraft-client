@@ -4,6 +4,7 @@ use event::{
 };
 use keyboard::ModifierKeys;
 use pp_editor::measures::Dimensions;
+use pp_io::gltf::ImportGLTF;
 use wasm_bindgen::prelude::*;
 
 mod editor;
@@ -37,7 +38,8 @@ impl App {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         // let state = Rc::new(RefCell::new(pp_core::State::with_cube()));
-        let state = Rc::new(RefCell::new(pp_io::gltf::import_gltf().unwrap()));
+        let state = Rc::new(RefCell::new(pp_core::State::default()));
+        state.borrow_mut().import_gltf().expect("Failed to import GLTF");
         let history = Rc::new(RefCell::new(pp_core::CommandStack::default()));
         let renderer = Rc::new(RefCell::<Option<pp_draw::Renderer<'static>>>::new(None));
         Self {

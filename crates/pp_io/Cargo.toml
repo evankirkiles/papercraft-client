@@ -26,6 +26,7 @@ gltf.workspace = true
 console_error_panic_hook = { workspace = true }
 console_log.workspace = true
 ordered-float.workspace = true
+slotmap.workspace = true
 paste.workspace = true
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true

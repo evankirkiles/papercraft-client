@@ -13,14 +13,14 @@ struct VertexInput {
     @location(3) v2_pos: vec3<f32>,
     @location(4) flap_flags: u32,
     @location(5) flags: u32,
-    @location(6) select_idx: vec2<u32>,
+    @location(6) select_idx: vec4<u32>,
     @builtin(vertex_index) vertex_index: u32 
 };
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(1) color: vec4<f32>,
-    @location(2) @interpolate(flat) select_idx: vec2<u32>
+    @location(2) @interpolate(flat) select_idx: vec4<u32>
 };
 
 // Rendering constants (to move to uniform)
@@ -182,5 +182,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 // [FS.2] Select index rendering
 @fragment
 fn fs_select(in: VertexOutput) -> @location(0) vec4<u32> {
-    return vec4<u32>(0, 0, in.select_idx + vec2<u32>(0, 1));
+    return in.select_idx;
 }

@@ -68,5 +68,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 // [FS.2] Select index rendering
 @fragment
 fn fs_select(in: VertexOutput) -> @location(0) vec4<u32> {
-    return in.select_idx + vec4<u32>(0, 0, 0, 1);
+    return in.select_idx;
 }

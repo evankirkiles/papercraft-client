@@ -1,5 +1,5 @@
 use cgmath::{ElementWise, EuclideanSpace, InnerSpace, Matrix4, Rad, SquareMatrix, Transform};
-use pp_core::{id, transform_pieces::TransformPiecesCommand};
+use pp_core::{id, transform_pieces::TransformPiecesCommand, MeshId};
 
 use crate::viewport::{camera::Camera, cutting::CuttingViewport, ViewportBounds};
 
@@ -15,7 +15,7 @@ pub struct RotateTool {
     /// The position of the mouse rotations will be relative to
     pub start_pos: Option<cgmath::Point2<f32>>,
     /// Which pieces are being affected by this translation
-    pub pieces: Vec<(id::MeshId, id::PieceId)>,
+    pub pieces: Vec<(MeshId, id::PieceId)>,
     /// The amount each piece is translated by
     pub transform: cgmath::Matrix4<f32>,
 }
@@ -34,14 +34,15 @@ impl CuttingViewport {
         // Calculate the average unfolded world position of the selected faces' vertices
         let vert_pos: Vec<_> = pieces
             .iter()
+            .copied()
             .flat_map(|(m_id, p_id)| {
                 let mesh = &state.meshes[m_id];
-                mesh.iter_piece_faces_unfolded(*p_id)
-                    .map(|face| ((*m_id, face.f), mesh[*p_id].transform, face))
+                mesh.iter_piece_faces_unfolded(p_id)
+                    .map(move |face| ((m_id, face.f), mesh[p_id].transform, face))
             })
             .filter(|(id, _, _)| state.selection.faces.contains(id))
             .flat_map(|((m_id, _), piece_affine, item)| {
-                let mesh = &state.meshes[&m_id];
+                let mesh = &state.meshes[m_id];
                 mesh.iter_face_loops(item.f).map(move |l| {
                     piece_affine.transform_point(
                         item.affine.transform_point(cgmath::Point3::from(mesh[mesh[l].v].po)),
@@ -58,7 +59,7 @@ impl CuttingViewport {
         let view_proj = self.camera.view_proj(bounds.area.into());
         let center_pos_ndc = view_proj.transform_point(center_pos_world);
         let center_pos_screen =
-            bounds.area.ndc(cgmath::Point2::new(center_pos_ndc.x, center_pos_ndc.y));
+            bounds.area.ndc(cgmath::Point2::new(center_pos_ndc.x, center_pos_ndc.y)) / bounds.dpr;
 
         Ok(RotateTool {
             center_pos_world,
@@ -78,8 +79,8 @@ impl RotateTool {
         };
 
         // Calculate angle between the two mouse positions around the center pos
-        let from: cgmath::Vector2<_> = (start_pos - self.center_pos_screen).into();
-        let to: cgmath::Vector2<_> = (pos - self.center_pos_screen).into();
+        let from: cgmath::Vector2<_> = start_pos - self.center_pos_screen;
+        let to: cgmath::Vector2<_> = pos - self.center_pos_screen;
         let cross = from.x * to.y - from.y * to.x;
         let angle = Rad(cross.atan2(from.dot(to)));
 
@@ -96,9 +97,9 @@ impl RotateTool {
 
     fn apply(&mut self, state: &mut pp_core::State, transform: cgmath::Matrix4<f32>) {
         let diff = transform * self.transform.inverse_transform().unwrap();
-        self.pieces.iter().for_each(|(m_id, p_id)| {
+        self.pieces.iter().copied().for_each(|(m_id, p_id)| {
             let mesh = state.meshes.get_mut(m_id).unwrap();
-            mesh.transform_piece(*p_id, diff);
+            mesh.transform_piece(p_id, diff);
         });
         self.transform = transform;
     }

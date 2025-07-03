@@ -1,4 +1,4 @@
-use pp_core::{id, settings::SelectionMode};
+use pp_core::{id, settings::SelectionMode, MaterialId};
 
 use crate::{cache, gpu};
 
@@ -71,7 +71,7 @@ impl InkEngine {
         ctx: &gpu::Context,
         render_pass: &mut wgpu::RenderPass,
         mesh: &cache::MeshGPU,
-        material_id: &id::MaterialId,
+        material_id: &MaterialId,
     ) {
         self.surface.draw_mesh_with_material(ctx, render_pass, mesh, material_id);
     }
@@ -81,7 +81,7 @@ impl InkEngine {
         ctx: &gpu::Context,
         render_pass: &mut wgpu::RenderPass,
         mesh: &cache::MeshGPU,
-        material_id: &id::MaterialId,
+        material_id: &MaterialId,
     ) {
         self.surface.draw_piece_mesh_with_material(ctx, render_pass, mesh, material_id);
     }

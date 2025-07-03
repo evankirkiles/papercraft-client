@@ -354,10 +354,9 @@ pub(crate) const SELECT_TEX_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::R
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct PixelData {
-    pub p_id: u32,    // (R) Piece ID
     pub f_id: u32,    // (G) Face Id
     pub el_id: u32,   // (B) Edge / Vertex ID
-    pub mesh_id: u32, // (A) Mesh ID
+    pub mesh_id: u64, // (A) Mesh ID
 }
 
 /// Rounds a number up to the nearest multiple of `align`

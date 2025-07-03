@@ -3,7 +3,7 @@ use std::{collections::HashMap, mem, ops::Range};
 use cgmath::SquareMatrix;
 use pp_core::id;
 
-use crate::gpu::{self, layouts::bind_groups::BindGroup};
+use crate::gpu::{self, shared::bind_group_layouts::BindGroup};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -43,7 +43,7 @@ impl PieceGPU {
         Self {
             bind_group: ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some(label),
-                layout: &ctx.shared_layouts.bind_groups.piece,
+                layout: &ctx.shared.bind_group_layouts.piece,
                 entries: &[wgpu::BindGroupEntry { binding: 0, resource: buf.binding_resource() }],
             }),
             buf,
@@ -60,7 +60,7 @@ impl PieceGPU {
         Self {
             bind_group: ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("PieceGPU.identity"),
-                layout: &ctx.shared_layouts.bind_groups.piece,
+                layout: &ctx.shared.bind_group_layouts.piece,
                 entries: &[wgpu::BindGroupEntry { binding: 0, resource: buf.binding_resource() }],
             }),
             buf,

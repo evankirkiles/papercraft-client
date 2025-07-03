@@ -1,8 +1,11 @@
 use crate::gpu;
+use extract::{ibo, vbo};
 use piece::PieceGPU;
 use pp_core::id::{self, Id};
-use pp_core::mesh::{Mesh, MeshElementType};
+use pp_core::mesh::{MaterialSlotId, Mesh, MeshElementType};
 use pp_core::select::SelectionState;
+use pp_core::{MaterialId, MeshId};
+use slotmap::{SecondaryMap, SlotMap};
 use std::collections::HashMap;
 use std::ops::Range;
 
@@ -77,7 +80,7 @@ pub struct MeshGPU {
     pieces: HashMap<id::PieceId, PieceGPU>,
 
     // Likewise, material slots own their ranges in the material index buffers
-    mat_ranges: HashMap<id::MaterialId, MaterialGPUVBORange>,
+    mat_ranges: SecondaryMap<MaterialId, MaterialGPUVBORange>,
 
     /// Forces updating of *all* GPU-side resources
     is_dirty: bool,
@@ -92,59 +95,82 @@ impl MeshGPU {
             vbo: MeshGPUVBOs::new(&format!("{mesh_lbl}.vbo)")),
             vbo_pieces: MeshGPUVBOs::new(&format!("{mesh_lbl}.vbo_pieces)")),
             pieces: HashMap::new(),
-            mat_ranges: HashMap::new(),
+            mat_ranges: SecondaryMap::new(),
         }
     }
 
     /// Updates any outdated VBOs / IBOs in this mesh
-    pub fn sync(&mut self, ctx: &gpu::Context, mesh: &mut Mesh, selection: &SelectionState) {
+    pub fn sync(
+        &mut self,
+        ctx: &gpu::Context,
+        m_id: MeshId,
+        mesh: &mut Mesh,
+        slots: &SecondaryMap<MaterialSlotId, MaterialId>,
+        default_mat: &MaterialId,
+        selection: &SelectionState,
+    ) {
         let elem_dirty = if self.is_dirty { &MeshElementType::all() } else { &mesh.elem_dirty };
         let index_dirty = if self.is_dirty { &MeshElementType::all() } else { &mesh.index_dirty };
         if elem_dirty.intersects(MeshElementType::VERTS) {
             // Meshwise VBOs
-            extract::vbo::pos(ctx, mesh, &mut self.vbo.pos);
-            extract::vbo::uv(ctx, mesh, &mut self.vbo.uv);
-            extract::vbo::vnor(ctx, mesh, &mut self.vbo.nor);
-            extract::vbo::edge_pos(ctx, mesh, &mut self.vbo.edge_pos);
+            vbo::pos(ctx, mesh, &mut self.vbo.pos);
+            vbo::uv(ctx, mesh, &mut self.vbo.uv);
+            vbo::vnor(ctx, mesh, &mut self.vbo.nor);
+            vbo::edge_pos(ctx, mesh, &mut self.vbo.edge_pos);
             // Piecewise VBOs
-            extract::vbo::piece_pos(ctx, mesh, &mut self.vbo_pieces.pos);
-            extract::vbo::piece_uv(ctx, mesh, &mut self.vbo_pieces.uv);
-            extract::vbo::piece_vnor(ctx, mesh, &mut self.vbo_pieces.nor);
-            extract::vbo::piece_edge_pos(ctx, mesh, &mut self.vbo_pieces.edge_pos);
-            extract::vbo::piece_edge_flap(ctx, mesh, &mut self.vbo_pieces.edge_flap);
+            vbo::piece_pos(ctx, mesh, &mut self.vbo_pieces.pos);
+            vbo::piece_uv(ctx, mesh, &mut self.vbo_pieces.uv);
+            vbo::piece_vnor(ctx, mesh, &mut self.vbo_pieces.nor);
+            vbo::piece_edge_pos(ctx, mesh, &mut self.vbo_pieces.edge_pos);
+            vbo::piece_edge_flap(ctx, mesh, &mut self.vbo_pieces.edge_flap);
             // Material slot IBOs
-            let slots = &mut self.mat_ranges;
-            extract::ibo::mat_indices(ctx, mesh, &mut self.vbo.mat_indices, slots);
-            extract::ibo::piece_mat_indices(ctx, mesh, &mut self.vbo_pieces.mat_indices, slots);
+            let ranges = &mut self.mat_ranges;
+            ibo::mat_indices(ctx, mesh, slots, default_mat, &mut self.vbo.mat_indices, ranges);
+            ibo::piece_mat_indices(
+                ctx,
+                mesh,
+                slots,
+                default_mat,
+                &mut self.vbo_pieces.mat_indices,
+                ranges,
+            );
         }
         if elem_dirty.intersects(MeshElementType::EDGES) {
-            extract::vbo::edge_flags(ctx, mesh, selection, &mut self.vbo.edge_flags);
+            vbo::edge_flags(ctx, m_id, mesh, selection, &mut self.vbo.edge_flags);
         }
         if elem_dirty.intersects(MeshElementType::FLAPS) {
-            extract::vbo::piece_edge_flap(ctx, mesh, &mut self.vbo_pieces.edge_flap);
+            vbo::piece_edge_flap(ctx, mesh, &mut self.vbo_pieces.edge_flap);
         }
         if index_dirty.intersects(MeshElementType::VERTS) {
-            extract::vbo::vert_idx(ctx, mesh, &mut self.vbo.vert_idx);
+            vbo::vert_idx(ctx, m_id, mesh, &mut self.vbo.vert_idx);
         }
         if index_dirty.intersects(MeshElementType::EDGES) {
-            extract::vbo::edge_idx(ctx, mesh, &mut self.vbo.edge_idx);
-            extract::vbo::piece_edge_idx(ctx, mesh, &mut self.vbo_pieces.edge_idx);
+            vbo::edge_idx(ctx, m_id, mesh, &mut self.vbo.edge_idx);
+            vbo::piece_edge_idx(ctx, m_id, mesh, &mut self.vbo_pieces.edge_idx);
         }
 
         // TODO: Clean this up
         if index_dirty.intersects(MeshElementType::PIECES) {
-            extract::vbo::vert_idx(ctx, mesh, &mut self.vbo.vert_idx);
-            extract::vbo::piece_pos(ctx, mesh, &mut self.vbo_pieces.pos);
-            extract::vbo::piece_uv(ctx, mesh, &mut self.vbo_pieces.uv);
-            extract::vbo::piece_vnor(ctx, mesh, &mut self.vbo_pieces.nor);
-            extract::vbo::piece_vert_idx(ctx, mesh, &mut self.vbo_pieces.vert_idx);
-            extract::vbo::piece_vert_flags(ctx, mesh, selection, &mut self.vbo_pieces.vert_flags);
-            extract::vbo::piece_edge_pos(ctx, mesh, &mut self.vbo_pieces.edge_pos);
-            extract::vbo::piece_edge_idx(ctx, mesh, &mut self.vbo_pieces.edge_idx);
-            extract::vbo::piece_edge_flap(ctx, mesh, &mut self.vbo_pieces.edge_flap);
-            extract::vbo::piece_edge_flags(ctx, mesh, selection, &mut self.vbo_pieces.edge_flags);
-            let slots = &mut self.mat_ranges;
-            extract::ibo::piece_mat_indices(ctx, mesh, &mut self.vbo_pieces.mat_indices, slots);
+            vbo::vert_idx(ctx, m_id, mesh, &mut self.vbo.vert_idx);
+            vbo::piece_pos(ctx, mesh, &mut self.vbo_pieces.pos);
+            vbo::piece_uv(ctx, mesh, &mut self.vbo_pieces.uv);
+            vbo::piece_vnor(ctx, mesh, &mut self.vbo_pieces.nor);
+            vbo::piece_vert_idx(ctx, m_id, mesh, &mut self.vbo_pieces.vert_idx);
+            vbo::piece_vert_flags(ctx, m_id, mesh, selection, &mut self.vbo_pieces.vert_flags);
+            vbo::piece_edge_pos(ctx, mesh, &mut self.vbo_pieces.edge_pos);
+            vbo::piece_edge_idx(ctx, m_id, mesh, &mut self.vbo_pieces.edge_idx);
+            vbo::piece_edge_flap(ctx, mesh, &mut self.vbo_pieces.edge_flap);
+            vbo::piece_edge_flags(ctx, m_id, mesh, selection, &mut self.vbo_pieces.edge_flags);
+            // Material slot IBOs
+            let ranges = &mut self.mat_ranges;
+            ibo::piece_mat_indices(
+                ctx,
+                mesh,
+                slots,
+                default_mat,
+                &mut self.vbo_pieces.mat_indices,
+                ranges,
+            );
             // Ensure each piece has up-to-date ranges of elements to render
             let mut i = 0;
             mesh.pieces.indices().for_each(|p_id| {
@@ -193,10 +219,10 @@ impl MeshGPU {
         }
 
         if self.is_dirty || selection.is_dirty {
-            extract::vbo::vert_flags(ctx, mesh, selection, &mut self.vbo.vert_flags);
-            extract::vbo::edge_flags(ctx, mesh, selection, &mut self.vbo.edge_flags);
-            extract::vbo::piece_vert_flags(ctx, mesh, selection, &mut self.vbo_pieces.vert_flags);
-            extract::vbo::piece_edge_flags(ctx, mesh, selection, &mut self.vbo_pieces.edge_flags);
+            vbo::vert_flags(ctx, m_id, mesh, selection, &mut self.vbo.vert_flags);
+            vbo::edge_flags(ctx, m_id, mesh, selection, &mut self.vbo.edge_flags);
+            vbo::piece_vert_flags(ctx, m_id, mesh, selection, &mut self.vbo_pieces.vert_flags);
+            vbo::piece_edge_flags(ctx, m_id, mesh, selection, &mut self.vbo_pieces.edge_flags);
         }
         mesh.elem_dirty = MeshElementType::empty();
         mesh.index_dirty = MeshElementType::empty();
@@ -222,12 +248,12 @@ impl MeshGPUVBOs {
     vertex_format!(nor Float32x3);
     vertex_format!(uv Float32x2);
     vertex_format!(vert_flags Uint32);
-    vertex_format!(vert_idx Uint32x4); // This contains piece / face / vert / mesh idx
+    vertex_format!(vert_idx Uint32x4); // Face / Vert / Mesh(x2) idx
 
     // For edges
     vertex_format!(edge_pos Float32x3);
     vertex_format!(edge_flags Uint32);
-    vertex_format!(edge_idx Uint32x2); // Just the edge idx
+    vertex_format!(edge_idx Uint32x4); // _ / Edge / Mesh(x2) idx
 
     // For flaps
     vertex_format!(flap_flags Uint32);
@@ -583,9 +609,9 @@ impl MeshGPU {
         &self,
         _: &gpu::Context,
         render_pass: &mut wgpu::RenderPass,
-        material_id: &id::MaterialId,
+        material_id: &MaterialId,
     ) {
-        let Some(material) = self.mat_ranges.get(material_id) else {
+        let Some(material) = self.mat_ranges.get(*material_id) else {
             return;
         };
         render_pass.set_index_buffer(self.vbo.mat_indices.slice(), wgpu::IndexFormat::Uint32);
@@ -599,12 +625,12 @@ impl MeshGPU {
         &self,
         _: &gpu::Context,
         render_pass: &mut wgpu::RenderPass,
-        material_id: &id::MaterialId,
+        material_id: &MaterialId,
     ) {
         if self.pieces.is_empty() {
             return;
         };
-        let Some(material) = self.mat_ranges.get(material_id) else {
+        let Some(material) = self.mat_ranges.get(*material_id) else {
             return;
         };
         render_pass

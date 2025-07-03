@@ -6,9 +6,11 @@ use pp_core::{
     select::SelectionActionType,
     select_elements::SelectCommand,
     settings::SelectionMode,
+    MeshId,
 };
 use pp_draw::select::{self, PixelData, SelectionMask, SelectionQueryArea, SelectionQueryResult};
 use pp_editor::measures::Rect;
+use slotmap::KeyData;
 
 use crate::{
     event::{self, EventHandler, MouseButton, PointerEvent},
@@ -32,10 +34,8 @@ impl EventHandler for pp_editor::tool::SelectBoxTool {
                 // adding an entry onto the history stack for undoing the changes
                 MouseButton::Left => {
                     if self.start_pos.distance(self.end_pos) < 10.0 * ctx.surface_dpi {
-                        log::info!("Selecting single");
                         let _ = self.select_single(ctx);
                     } else {
-                        log::info!("Selecting multiple");
                         let _ = self.select_multiple(ctx);
                     }
                     return Ok(event::EventHandleSuccess::set_tool(None));
@@ -114,7 +114,7 @@ pub trait MultiselectTool {
                     nearest = Some((*pixel_data, distance));
                 });
                 let Some((pixel_data, _)) = nearest else { return };
-                let mesh_id = id::MeshId::new(pixel_data.mesh_id - 1);
+                let mesh_id: MeshId = KeyData::from_ffi(pixel_data.mesh_id).into();
                 match result.area.mask {
                     SelectionMask::VERTS => {
                         let vert_id = id::VertexId::new(pixel_data.el_id);
@@ -129,9 +129,10 @@ pub trait MultiselectTool {
                         state.select_face(&(mesh_id, face_id), action, true, true);
                     }
                     SelectionMask::PIECES => {
-                        if pixel_data.p_id != 0 {
-                            let piece_id = id::PieceId::new(pixel_data.p_id - 1);
-                            state.select_piece(&(mesh_id, piece_id), action, true, true);
+                        let face_id = id::FaceId::new(pixel_data.f_id);
+                        let p_id = state.meshes[mesh_id].faces[face_id.to_usize()].p;
+                        if let Some(p_id) = p_id {
+                            state.select_piece(&(mesh_id, p_id), action);
                         }
                     }
                     _ => {}
@@ -183,17 +184,16 @@ impl MultiselectTool for pp_editor::tool::SelectBoxTool {
                     .map(|(_, pixel_data)| pixel_data)
                     .collect();
                 elements.dedup_by_key(|pixel| {
-                    let mesh_id = id::MeshId::new(pixel.mesh_id - 1);
+                    let mesh_id: MeshId = KeyData::from_ffi(pixel.mesh_id).into();
                     match result.area.mask {
-                        SelectionMask::VERTS => (mesh_id, pixel.el_id),
-                        SelectionMask::EDGES => (mesh_id, pixel.el_id),
-                        SelectionMask::FACES => (mesh_id, pixel.f_id),
-                        _ => (mesh_id, pixel.p_id),
+                        SelectionMask::VERTS | SelectionMask::EDGES => (mesh_id, pixel.el_id),
+                        SelectionMask::FACES | SelectionMask::PIECES => (mesh_id, pixel.f_id),
+                        _ => (mesh_id, pixel.f_id),
                     }
                 });
                 // Now select all of them
                 elements.iter().for_each(|pixel| {
-                    let mesh_id = id::MeshId::new(pixel.mesh_id - 1);
+                    let mesh_id: MeshId = KeyData::from_ffi(pixel.mesh_id).into();
                     match result.area.mask {
                         SelectionMask::VERTS => {
                             let vert_id = id::VertexId::new(pixel.el_id);
@@ -208,9 +208,10 @@ impl MultiselectTool for pp_editor::tool::SelectBoxTool {
                             state.select_face(&(mesh_id, face_id), action, false, true);
                         }
                         SelectionMask::PIECES => {
-                            if pixel.p_id != 0 {
-                                let piece_id = id::PieceId::new(pixel.p_id - 1);
-                                state.select_piece(&(mesh_id, piece_id), action, false, true);
+                            let face_id = id::FaceId::new(pixel.f_id);
+                            let p_id = state.meshes[mesh_id].faces[face_id.to_usize()].p;
+                            if let Some(p_id) = p_id {
+                                state.select_piece(&(mesh_id, p_id), action);
                             }
                         }
                         _ => {}

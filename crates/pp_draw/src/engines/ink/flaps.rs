@@ -14,7 +14,7 @@ impl FlapsProgram {
         Self {
             pipeline: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("ink3.flaps"),
-                layout: Some(&ctx.shared_layouts.pipelines.pipeline_3d),
+                layout: Some(&ctx.shared.pipeline_layouts.folding_overlays),
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: Some("vs_main"),

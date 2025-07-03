@@ -6,14 +6,15 @@ use cgmath::InnerSpace;
 use crate::id::{self, Id};
 
 use super::loop_::*;
+use super::MaterialSlotId;
 use super::MeshElementType;
 
 /// Input parameters when creating a face
 #[derive(Debug, Clone, Copy, Default)]
 pub struct FaceDescriptor<'a> {
+    pub m: Option<MaterialSlotId>,
     pub nos: Option<&'a [[f32; 3]; 3]>,
     pub uvs: Option<&'a [[f32; 2]; 3]>,
-    pub m: id::MaterialId,
 }
 
 /// A face, formed by three vertices and three edges.
@@ -24,10 +25,10 @@ pub struct Face {
 
     /// Any loop in this face, allowing for loop cycle iteration
     pub l: id::LoopId,
-    /// The material of this face
-    pub m: id::MaterialId,
     /// The piece this face is a part of, if any
     pub p: Option<id::PieceId>,
+    /// The material slot of this face, or none if using the default material
+    pub m: Option<MaterialSlotId>,
 }
 
 impl super::Mesh {

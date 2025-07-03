@@ -1,7 +1,7 @@
 use pp_editor::measures::Dimensions;
 use wgpu::util::DeviceExt;
 
-use super::{layouts::SharedLayouts, settings::Settings};
+use super::{settings::Settings, shared::SharedGPUResources};
 
 // Simple triangle strip quad
 const BUF_RECT_CONTENTS: [[f32; 2]; 4] = [[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]];
@@ -42,15 +42,15 @@ const BUF_RECT_OUTLINE_CONTENTS: [[f32; 2]; 24] = [
 /// created when the Renderer is created and used to pass around shared
 /// fields for allocating / communicating with the GPU.
 #[derive(Debug)]
-pub(crate) struct Context<'window> {
+pub struct Context<'window> {
     pub surface: wgpu::Surface<'window>,
     pub device: wgpu::Device,
     pub config: wgpu::SurfaceConfiguration,
     pub queue: wgpu::Queue,
     pub view_format: wgpu::TextureFormat,
     pub clear_color: wgpu::Color,
-    /// Common wgpu layouts of various types for re-use across programs
-    pub shared_layouts: SharedLayouts,
+    /// Common wgpu resources of various types for re-use across programs
+    pub shared: SharedGPUResources,
     /// Common buffers (e.g. rect)
     pub buf_rect: wgpu::Buffer,
     pub buf_rect_outline: wgpu::Buffer,
@@ -67,7 +67,7 @@ impl<'window> Context<'window> {
         clear_color: wgpu::Color,
     ) -> Self {
         let ctx = Context {
-            shared_layouts: SharedLayouts::new(&device),
+            shared: SharedGPUResources::new(&device, &queue),
             settings: Settings::default(),
             buf_rect: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("ctx.buf_rect"),

@@ -11,13 +11,13 @@ struct VertexInput {
   @location(1) v0_pos: vec3<f32>,
   @location(2) v1_pos: vec3<f32>,
   @location(3) flags: u32,
-  @location(4) select_idx: vec2<u32>
+  @location(4) select_idx: vec4<u32>
 };
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(1) color: vec4<f32>,
-    @location(2) @interpolate(flat) select_idx: vec2<u32>
+    @location(2) @interpolate(flat) select_idx: vec4<u32>
 };
 
 // Line width
@@ -129,5 +129,5 @@ fn fs_xray(in: VertexOutput) -> @location(0) vec4<f32> {
 // [FS.3] Select index rendering
 @fragment
 fn fs_select(in: VertexOutput) -> @location(0) vec4<u32> {
-    return vec4<u32>(0, 0, in.select_idx + vec2<u32>(0, 1));
+    return in.select_idx;
 }

@@ -4,8 +4,8 @@ mod texture;
 mod uniform_buffer;
 mod vertex_buffer;
 
-pub mod layouts;
 pub mod settings;
+pub mod shared;
 
 pub use self::context::*;
 pub use self::index_buffer::*;

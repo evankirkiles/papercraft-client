@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::{
     id,
     mesh::{edge::EdgeCut, MeshElementType},
+    MeshId,
 };
 
 use super::{Command, CommandError};
@@ -12,9 +13,9 @@ use super::{Command, CommandError};
 /// snapshots of the select state.
 #[derive(Clone, Debug)]
 pub struct UpdateFlapsCommand {
-    pub edges: Vec<(id::MeshId, id::EdgeId)>,
-    pub before: HashMap<(id::MeshId, id::EdgeId), EdgeCut>,
-    pub after: HashMap<(id::MeshId, id::EdgeId), EdgeCut>,
+    pub edges: Vec<(MeshId, id::EdgeId)>,
+    pub before: HashMap<(MeshId, id::EdgeId), EdgeCut>,
+    pub after: HashMap<(MeshId, id::EdgeId), EdgeCut>,
 }
 
 impl UpdateFlapsCommand {
@@ -25,16 +26,16 @@ impl UpdateFlapsCommand {
             .edges
             .iter()
             .copied()
-            .filter(|id| state.meshes[&id.0][id.1].cut.is_some())
+            .filter(|id| state.meshes[id.0][id.1].cut.is_some())
             .collect();
         // Build up the previous history around those edges. What were the
         // cut states, what were the existing pieces, etc.
-        let mut before: HashMap<(id::MeshId, id::EdgeId), EdgeCut> = HashMap::new();
-        let mut after: HashMap<(id::MeshId, id::EdgeId), EdgeCut> = HashMap::new();
-        cut_edges.iter().for_each(|id| {
-            before.insert(*id, state.meshes[&id.0][id.1].cut.unwrap());
-            state.swap_edge_flap(id);
-            after.insert(*id, state.meshes[&id.0][id.1].cut.unwrap());
+        let mut before: HashMap<(MeshId, id::EdgeId), EdgeCut> = HashMap::new();
+        let mut after: HashMap<(MeshId, id::EdgeId), EdgeCut> = HashMap::new();
+        cut_edges.iter().copied().for_each(|id| {
+            before.insert(id, state.meshes[id.0][id.1].cut.unwrap());
+            state.swap_edge_flap(&id);
+            after.insert(id, state.meshes[id.0][id.1].cut.unwrap());
         });
         Self { edges: cut_edges, before, after }
     }
@@ -43,7 +44,7 @@ impl UpdateFlapsCommand {
 impl Command for UpdateFlapsCommand {
     fn execute(&self, state: &mut crate::State) -> Result<(), CommandError> {
         self.edges.iter().for_each(|id| {
-            let mesh = state.meshes.get_mut(&id.0).unwrap();
+            let mesh = state.meshes.get_mut(id.0).unwrap();
             mesh[id.1].cut = Some(self.after[id]);
             mesh.elem_dirty |= MeshElementType::FLAPS;
         });
@@ -52,7 +53,7 @@ impl Command for UpdateFlapsCommand {
 
     fn rollback(&self, state: &mut crate::State) -> Result<(), CommandError> {
         self.edges.iter().for_each(|id| {
-            let mesh = state.meshes.get_mut(&id.0).unwrap();
+            let mesh = state.meshes.get_mut(id.0).unwrap();
             mesh[id.1].cut = Some(self.before[id]);
             mesh.elem_dirty |= MeshElementType::FLAPS;
         });

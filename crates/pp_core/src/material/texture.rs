@@ -1,11 +1,4 @@
-use crate::id;
-
-#[derive(Debug)]
-pub struct Texture {
-    pub label: String,
-    pub image: id::ImageId,
-    pub sampler: Sampler,
-}
+use crate::{ImageId, SamplerId};
 
 /// Magnification filter.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
@@ -35,4 +28,11 @@ pub struct Sampler {
     pub wrap_v: WrappingMode,
     pub min_filter: Option<MinMagFilter>,
     pub mag_filter: Option<MinMagFilter>,
+}
+
+#[derive(Debug)]
+pub struct Texture {
+    pub label: String,
+    pub image: ImageId,
+    pub sampler: SamplerId,
 }

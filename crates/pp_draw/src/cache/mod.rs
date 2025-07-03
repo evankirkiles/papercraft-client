@@ -1,9 +1,8 @@
 use crate::gpu;
-use material::{image::ImageGPU, texture::TextureGPU, MaterialGPU};
-use pp_core::id;
+use material::{image::ImageGPU, sampler::SamplerGPU, texture::TextureGPU, MaterialGPU};
+use pp_core::{ImageId, MaterialId, MeshId, SamplerId, TextureId};
 use pp_editor::ViewportId;
 use slotmap::SecondaryMap;
-use std::collections::HashMap;
 use viewport::{BindableViewport, ViewportGPU};
 
 pub(crate) use mesh::MeshGPU;
@@ -21,10 +20,11 @@ pub mod viewport;
 ///   2. For each DrawCache item (meshes.for_each), if it's not in the AppState, remove it
 #[derive(Debug)]
 pub(crate) struct DrawCache {
-    pub meshes: HashMap<id::MeshId, MeshGPU>,
-    pub materials: HashMap<id::MaterialId, MaterialGPU>,
-    pub textures: HashMap<id::TextureId, TextureGPU>,
-    pub images: HashMap<id::ImageId, ImageGPU>,
+    pub meshes: SecondaryMap<MeshId, MeshGPU>,
+    pub materials: SecondaryMap<MaterialId, MaterialGPU>,
+    pub samplers: SecondaryMap<SamplerId, SamplerGPU>,
+    pub textures: SecondaryMap<TextureId, TextureGPU>,
+    pub images: SecondaryMap<ImageId, ImageGPU>,
     pub viewports: SecondaryMap<ViewportId, ViewportGPU>,
     pub common: common::CommonGPUResources,
 }
@@ -32,10 +32,11 @@ pub(crate) struct DrawCache {
 impl DrawCache {
     pub(crate) fn new(ctx: &gpu::Context) -> Self {
         Self {
-            meshes: HashMap::new(),
-            materials: HashMap::new(),
-            textures: HashMap::new(),
-            images: HashMap::new(),
+            meshes: SecondaryMap::new(),
+            materials: SecondaryMap::new(),
+            samplers: SecondaryMap::new(),
+            textures: SecondaryMap::new(),
+            images: SecondaryMap::new(),
             viewports: SecondaryMap::new(),
             common: common::CommonGPUResources::new(ctx),
         }
@@ -43,30 +44,44 @@ impl DrawCache {
 
     pub(crate) fn prepare_meshes(&mut self, ctx: &gpu::Context, state: &mut pp_core::State) {
         // Ensure state meshes are all synced in the DrawCache
-        state.meshes.iter_mut().for_each(|(key, mesh)| {
-            let m = self.meshes.entry(*key).or_insert(MeshGPU::new(mesh));
-            m.sync(ctx, mesh, &state.selection);
+        state.meshes.iter_mut().for_each(|(m_id, mesh)| {
+            self.meshes.entry(m_id).unwrap().or_insert(MeshGPU::new(mesh)).sync(
+                ctx,
+                m_id,
+                mesh,
+                state.mesh_materials.get(m_id).unwrap(),
+                &state.defaults.material,
+                &state.selection,
+            );
         });
+
         state.selection.is_dirty = false;
         // TODO: Remove unused meshes from the DrawCache
     }
 
     pub(crate) fn prepare_materials(&mut self, ctx: &gpu::Context, state: &mut pp_core::State) {
         // Ensure all images have been uploaded to the GPU
-        state.images.iter_mut().for_each(|(key, img)| {
-            self.images.entry(*key).or_insert(ImageGPU::new(ctx, img));
+        state.images.iter_mut().for_each(|(i_id, img)| {
+            self.images.entry(i_id).unwrap().or_insert(ImageGPU::new(ctx, img));
         });
 
         // Create all textures (image views / samplers to put in material bind groups)
-        state.textures.iter_mut().for_each(|(key, tex)| {
-            let image = &self.images[&tex.image];
-            self.textures.entry(*key).or_insert(TextureGPU::new(ctx, tex, image));
+        state.samplers.iter_mut().for_each(|(s_id, sampler)| {
+            self.samplers.entry(s_id).unwrap().or_insert(SamplerGPU::new(ctx, sampler));
+        });
+
+        // Create all textures (image views / samplers to put in material bind groups)
+        state.textures.iter_mut().for_each(|(t_id, tex)| {
+            self.textures.entry(t_id).unwrap().or_insert(TextureGPU::new(tex));
         });
 
         // Finally, ensure all the materials are set up (the bind groups themselves)
-        state.materials.iter_mut().for_each(|(key, mat)| {
-            if !self.materials.contains_key(key) || mat.is_dirty {
-                self.materials.insert(*key, MaterialGPU::new(ctx, mat, &self.textures));
+        state.materials.iter_mut().for_each(|(m_id, mat)| {
+            if !self.materials.contains_key(m_id) || mat.is_dirty {
+                self.materials.insert(
+                    m_id,
+                    MaterialGPU::new(ctx, mat, &self.textures, &self.images, &self.samplers),
+                );
             }
             mat.is_dirty = false;
         });

@@ -25,7 +25,6 @@ impl BindGroup {
 pub struct SharedBindGroupLayouts {
     pub viewport_cutting: wgpu::BindGroupLayout,
     pub viewport_folding: wgpu::BindGroupLayout,
-    pub camera: wgpu::BindGroupLayout,
     pub piece: wgpu::BindGroupLayout,
     pub material: wgpu::BindGroupLayout,
 }
@@ -35,19 +34,6 @@ impl SharedBindGroupLayouts {
         Self {
             viewport_cutting: CuttingViewportGPU::create_bind_group_layout(device),
             viewport_folding: FoldingViewportGPU::create_bind_group_layout(device),
-            camera: device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("camera"),
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-            }),
             piece: device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("piece"),
                 entries: &[wgpu::BindGroupLayoutEntry {

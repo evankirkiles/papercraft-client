@@ -1,11 +1,15 @@
-use std::{collections::HashMap, mem};
+use std::mem;
 
-use pp_core::{id, material::Material};
+use image::ImageGPU;
+use pp_core::{material::Material, ImageId, SamplerId, TextureId};
+use sampler::SamplerGPU;
+use slotmap::SecondaryMap;
 use texture::TextureGPU;
 
-use crate::gpu::{self, layouts::bind_groups::BindGroup};
+use crate::gpu::{self, shared::bind_group_layouts::BindGroup};
 
 pub mod image;
+pub mod sampler;
 pub mod texture;
 
 #[repr(C)]
@@ -36,23 +40,29 @@ impl MaterialGPU {
     pub fn new(
         ctx: &gpu::Context,
         mat: &Material,
-        textures: &HashMap<id::TextureId, TextureGPU>,
+        textures: &SecondaryMap<TextureId, TextureGPU>,
+        images: &SecondaryMap<ImageId, ImageGPU>,
+        samplers: &SecondaryMap<SamplerId, SamplerGPU>,
     ) -> Self {
         let buf = gpu::UniformBuf::new(ctx, mat.label.clone(), mem::size_of::<MaterialUniform>());
-        let tex_diffuse = textures.get(&mat.base_color_texture).unwrap();
+        let tex_diffuse = textures.get(mat.base_color_texture).unwrap();
         Self {
             bind_group: ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some(mat.label.as_str()),
-                layout: &ctx.shared_layouts.bind_groups.material,
+                layout: &ctx.shared.bind_group_layouts.material,
                 entries: &[
                     wgpu::BindGroupEntry { binding: 0, resource: buf.binding_resource() },
                     wgpu::BindGroupEntry {
                         binding: 1,
-                        resource: wgpu::BindingResource::TextureView(&tex_diffuse.view),
+                        resource: wgpu::BindingResource::TextureView(
+                            &images.get(tex_diffuse.image).unwrap().view,
+                        ),
                     },
                     wgpu::BindGroupEntry {
                         binding: 2,
-                        resource: wgpu::BindingResource::Sampler(&tex_diffuse.sampler),
+                        resource: wgpu::BindingResource::Sampler(
+                            &samplers.get(tex_diffuse.sampler).unwrap().sampler,
+                        ),
                     },
                 ],
             }),

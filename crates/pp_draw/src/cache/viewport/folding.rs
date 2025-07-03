@@ -5,7 +5,7 @@ use pp_editor::{
     viewport::{Viewport, ViewportBounds, ViewportContent},
 };
 
-use crate::gpu::{self, layouts::bind_groups::BindGroup};
+use crate::gpu::{self, shared::bind_group_layouts::BindGroup};
 
 use super::{camera::CameraUniform, BindableViewport, ViewportSyncError};
 
@@ -26,7 +26,7 @@ impl FoldingViewportGPU {
             area: Rect::default(),
             bind_group: ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("viewport.folding"),
-                layout: &ctx.shared_layouts.bind_groups.viewport_folding,
+                layout: &ctx.shared.bind_group_layouts.viewport_folding,
                 entries: &[wgpu::BindGroupEntry {
                     binding: 0,
                     resource: buf_camera.binding_resource(),

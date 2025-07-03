@@ -13,7 +13,7 @@ impl<'window> Renderer<'window> {
         draw_cache.materials.iter().for_each(|(id, mat)| {
             mat.bind(render_pass);
             draw_cache.meshes.values().for_each(|mesh| {
-                draw_engine.draw_mesh_for_material(&self.ctx, render_pass, mesh, id);
+                draw_engine.draw_mesh_for_material(&self.ctx, render_pass, mesh, &id);
             });
         });
         let xray_mode = false;
@@ -29,7 +29,7 @@ impl<'window> Renderer<'window> {
         draw_cache.materials.iter().for_each(|(id, mat)| {
             mat.bind(render_pass);
             draw_cache.meshes.values().for_each(|mesh| {
-                draw_engine.draw_piece_mesh_for_material(ctx, render_pass, mesh, id);
+                draw_engine.draw_piece_mesh_for_material(ctx, render_pass, mesh, &id);
             });
         });
         draw_cache.meshes.values().for_each(|mesh| {

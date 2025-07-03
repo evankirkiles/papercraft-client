@@ -1,4 +1,5 @@
 use pp_core::id;
+use pp_core::MaterialId;
 
 use crate::cache;
 use crate::gpu;
@@ -18,7 +19,7 @@ impl SurfaceProgram {
         Self {
             pipeline: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("ink3.surface"),
-                layout: Some(&ctx.shared_layouts.pipelines.surface),
+                layout: Some(&ctx.shared.pipeline_layouts.folding_surface),
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: Some("vs_main"),
@@ -82,7 +83,7 @@ impl SurfaceProgram {
         ctx: &gpu::Context,
         render_pass: &mut wgpu::RenderPass,
         mesh: &cache::MeshGPU,
-        material_id: &id::MaterialId,
+        material_id: &MaterialId,
     ) {
         render_pass.set_pipeline(&self.pipeline);
         mesh.draw_material_surface(ctx, render_pass, material_id);
@@ -94,7 +95,7 @@ impl SurfaceProgram {
         ctx: &gpu::Context,
         render_pass: &mut wgpu::RenderPass,
         mesh: &cache::MeshGPU,
-        material_id: &id::MaterialId,
+        material_id: &MaterialId,
     ) {
         render_pass.set_pipeline(&self.pipeline);
         mesh.draw_piece_material_surface(ctx, render_pass, material_id);

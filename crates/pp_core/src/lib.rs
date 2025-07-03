@@ -1,5 +1,5 @@
-use slotmap::new_key_type;
-use std::collections::HashMap;
+use mesh::MaterialSlotId;
+use slotmap::{new_key_type, SecondaryMap, SlotMap};
 
 pub mod commands;
 pub mod cut;
@@ -11,7 +11,6 @@ pub mod settings;
 
 pub use commands::*;
 
-// TODO: Use these IDs + SlotMaps
 new_key_type! {
     pub struct MeshId;
     pub struct MaterialId;
@@ -20,23 +19,87 @@ new_key_type! {
     pub struct SamplerId;
 }
 
+/// IDs of default rendering items you can use for a given mesh
+#[derive(Debug)]
+pub struct StateDefaults {
+    pub material: MaterialId,
+    pub texture: TextureId,
+    pub sampler: SamplerId,
+    pub image: ImageId,
+}
+
 /// Represents the entire state of the "core" editor. Note that this closely
 /// mimics the structure of a GLTF file.
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct State {
-    pub meshes: HashMap<id::MeshId, mesh::Mesh>,
-    pub materials: HashMap<id::MaterialId, material::Material>,
-    pub textures: HashMap<id::TextureId, material::texture::Texture>,
-    pub images: HashMap<id::ImageId, material::image::Image>,
+    pub meshes: SlotMap<MeshId, mesh::Mesh>,
+    pub materials: SlotMap<MaterialId, material::Material>,
+    pub textures: SlotMap<TextureId, material::texture::Texture>,
+    pub samplers: SlotMap<SamplerId, material::texture::Sampler>,
+    pub images: SlotMap<ImageId, material::image::Image>,
+
+    /// A map from mesh material "slot"s to the actual materials used by them
+    pub mesh_materials: SecondaryMap<MeshId, SecondaryMap<MaterialSlotId, MaterialId>>,
+
     pub selection: select::SelectionState,
     pub settings: settings::Settings,
+    pub defaults: StateDefaults,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        // Default image is a 1x1 white pixel
+        let mut images: SlotMap<ImageId, material::image::Image> = SlotMap::with_key();
+        let image = images.insert(Default::default());
+
+        // Default sampler wraps on U V axes
+        let mut samplers: SlotMap<SamplerId, material::texture::Sampler> = SlotMap::with_key();
+        let sampler = samplers.insert(Default::default());
+
+        // Default texture is just a combination of default image + sampler
+        let mut textures: SlotMap<TextureId, material::texture::Texture> = SlotMap::with_key();
+        let texture = textures.insert(material::texture::Texture {
+            label: "default".to_string(),
+            image,
+            sampler,
+        });
+
+        // Default material uses default texture as its base
+        let mut materials: SlotMap<MaterialId, material::Material> = SlotMap::with_key();
+        let material = materials.insert(material::Material {
+            label: "default".to_string(),
+            base_color_texture: texture,
+            base_color_factor: [1.0, 1.0, 1.0, 1.0],
+            is_dirty: true,
+        });
+
+        Self {
+            meshes: Default::default(),
+            mesh_materials: Default::default(),
+            selection: Default::default(),
+            settings: Default::default(),
+            defaults: StateDefaults { material, texture, sampler, image },
+            materials,
+            textures,
+            samplers,
+            images,
+        }
+    }
 }
 
 impl State {
+    pub fn add_mesh(
+        &mut self,
+        mesh: mesh::Mesh,
+        materials: Option<SecondaryMap<MaterialSlotId, MaterialId>>,
+    ) {
+        let m_id = self.meshes.insert(mesh);
+        self.mesh_materials.insert(m_id, materials.unwrap_or_default());
+    }
+
     pub fn with_cube() -> Self {
         let mut state = Self::default();
-        let cube = mesh::Mesh::new_cube(0);
-        state.meshes.insert(cube.id, cube);
+        state.add_mesh(mesh::Mesh::new_cube(), None);
         state
     }
 }

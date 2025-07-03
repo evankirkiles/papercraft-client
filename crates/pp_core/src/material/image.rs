@@ -34,3 +34,15 @@ pub struct Image {
     /// The image pixel data format.
     pub format: Format,
 }
+
+impl Default for Image {
+    fn default() -> Self {
+        Self {
+            label: "default".to_string(),
+            pixels: vec![255u8, 255u8, 255u8, 255u8],
+            format: Format::R8G8B8A8,
+            width: 1,
+            height: 1,
+        }
+    }
+}

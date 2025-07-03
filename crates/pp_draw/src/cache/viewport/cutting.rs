@@ -5,7 +5,7 @@ use pp_editor::{
     viewport::{Viewport, ViewportBounds, ViewportContent},
 };
 
-use crate::gpu::{self, layouts::bind_groups::BindGroup};
+use crate::gpu::{self, shared::bind_group_layouts::BindGroup};
 
 use super::{camera::CameraUniform, BindableViewport, ViewportSyncError};
 
@@ -42,7 +42,7 @@ impl CuttingViewportGPU {
             area: Rect::default(),
             bind_group: ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("viewport.cutting"),
-                layout: &ctx.shared_layouts.bind_groups.viewport_cutting,
+                layout: &ctx.shared.bind_group_layouts.viewport_cutting,
                 entries: &[wgpu::BindGroupEntry {
                     binding: 0,
                     resource: buf_camera.binding_resource(),

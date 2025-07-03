@@ -5,7 +5,8 @@ use crate::gpu;
 
 #[derive(Clone, Debug)]
 pub struct ImageGPU {
-    pub image: wgpu::Texture,
+    image: wgpu::Texture,
+    pub view: wgpu::TextureView,
 }
 
 impl ImageGPU {
@@ -40,6 +41,6 @@ impl ImageGPU {
             wgpu::wgt::TextureDataOrder::LayerMajor,
             &img.pixels,
         );
-        Self { image }
+        Self { view: image.create_view(&Default::default()), image }
     }
 }

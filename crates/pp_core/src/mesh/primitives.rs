@@ -1,9 +1,8 @@
 use super::{face::FaceDescriptor, Mesh};
-use crate::id::{self, Id};
 
 impl Mesh {
-    pub fn new_tri(id: u32) -> Self {
-        let mut mesh = Self::new(id::MeshId::new(id), "CUBE".to_string());
+    pub fn new_tri() -> Self {
+        let mut mesh = Self::new("CUBE".to_string());
         let v = &[
             mesh.add_vertex([0.0, 0.0, 0.0]),
             mesh.add_vertex([0.0, 1.0, 0.0]),
@@ -13,8 +12,8 @@ impl Mesh {
         mesh
     }
 
-    pub fn new_cube(id: u32) -> Self {
-        let mut mesh = Self::new(id::MeshId::new(id), "CUBE".to_string());
+    pub fn new_cube() -> Self {
+        let mut mesh = Self::new("CUBE".to_string());
         let v = &[
             mesh.add_vertex([-0.5, -0.5, 0.0]), // Bottom-left-front
             mesh.add_vertex([-0.5, 0.5, 0.0]),  // Bottom-right-front

@@ -1,6 +1,6 @@
 use std::io::Cursor;
 
-use pp_core::{id::Id, mesh::face::FaceDescriptor, State};
+use pp_core::{mesh::face::FaceDescriptor, State};
 
 /// Creates a `State` object from a Wavefront OBJ file.
 pub fn import_obj() -> State {
@@ -29,7 +29,7 @@ pub fn import_obj() -> State {
 
     // Create each mesh
     for (i, m) in models.iter().enumerate() {
-        let mut mesh = pp_core::mesh::Mesh::new(pp_core::id::MeshId::from_usize(i), m.name.clone());
+        let mut mesh = pp_core::mesh::Mesh::new(m.name.clone());
         let mesh_data = &m.mesh;
         let mut vertex_map = Vec::with_capacity(mesh_data.positions.len() / 3);
         for i in 0..(mesh_data.positions.len() / 3) {
@@ -70,7 +70,7 @@ pub fn import_obj() -> State {
             });
             mesh.add_face(&face, &FaceDescriptor { uvs: uv_data.as_ref(), ..Default::default() });
         }
-        state.meshes.insert(mesh.id, mesh);
+        state.meshes.insert(mesh);
     }
 
     state
