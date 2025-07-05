@@ -9,8 +9,8 @@ use viewport::{BindableViewport, ViewportGPU};
 pub(crate) use mesh::MeshGPU;
 
 mod common;
-mod material;
-mod mesh;
+pub mod material;
+pub mod mesh;
 pub mod tool;
 pub mod viewport;
 

@@ -5,37 +5,19 @@ use pp_editor::{
 
 use crate::gpu::{self, shared::bind_group_layouts::BindGroup};
 
-use super::{
-    bounds::ViewportBoundsBindGroup, camera::CameraBindGroup, BindableViewport, ViewportSyncError,
-};
+use super::{bounds::ViewportBoundsGPU, camera::CameraGPU, BindableViewport, ViewportSyncError};
 
 /// GPU representation of a viewport, used to set viewport in render passes
 /// and supply the camera uniform for vertex shaders.
 #[derive(Debug, Clone)]
 pub struct CuttingViewportGPU {
-    viewport: ViewportBoundsBindGroup,
-    camera: CameraBindGroup,
+    viewport: ViewportBoundsGPU,
+    camera: CameraGPU,
 }
 
 impl CuttingViewportGPU {
-    pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
-        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("viewport.cutting"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                count: None,
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-            }],
-        })
-    }
-
     pub fn new(ctx: &gpu::Context) -> Self {
-        Self { viewport: ViewportBoundsBindGroup::new(ctx), camera: CameraBindGroup::new(ctx) }
+        Self { viewport: ViewportBoundsGPU::new(ctx), camera: CameraGPU::new(ctx) }
     }
 }
 
@@ -45,11 +27,11 @@ impl BindableViewport for CuttingViewportGPU {
         ctx: &gpu::Context,
         viewport: &mut Viewport,
     ) -> Result<(), ViewportSyncError> {
-        self.viewport.sync(ctx, viewport);
         let ViewportContent::Cutting(cut_viewport) = &mut viewport.content else {
             return Err(ViewportSyncError::WrongViewportType);
         };
-        self.camera.sync(ctx, &mut cut_viewport.camera, &self.viewport.area);
+        self.camera.sync(ctx, &mut cut_viewport.camera, &viewport.bounds);
+        self.viewport.sync(ctx, viewport);
         Ok(())
     }
 

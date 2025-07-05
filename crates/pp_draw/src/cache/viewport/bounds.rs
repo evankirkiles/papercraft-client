@@ -37,13 +37,13 @@ impl ViewportBoundsUniform {
 }
 
 #[derive(Debug, Clone)]
-pub struct ViewportBoundsBindGroup {
+pub struct ViewportBoundsGPU {
     pub area: Rect<f32>,
     buf: gpu::UniformBuf,
     pub bind_group: wgpu::BindGroup,
 }
 
-impl ViewportBoundsBindGroup {
+impl ViewportBoundsGPU {
     pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("viewport"),

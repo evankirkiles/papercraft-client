@@ -81,7 +81,7 @@ impl ToolSelectBoxProgram {
     ) {
         render_pass.set_pipeline(&self.pipeline);
         render_pass.set_vertex_buffer(0, ctx.shared.buffers.rect.slice(..));
-        render_pass.set_bind_group(2, &tool.bind_group, &[]);
+        tool.bind(render_pass);
         render_pass.draw(0..4, 0..1);
     }
 }

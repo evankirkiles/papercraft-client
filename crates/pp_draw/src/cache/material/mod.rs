@@ -28,6 +28,19 @@ impl MaterialUniform {
     fn new(piece: &pp_core::material::Material) -> Self {
         Self { base_color_factor: piece.base_color_factor }
     }
+
+    pub fn bind_group_layout_entry(binding: u32) -> wgpu::BindGroupLayoutEntry {
+        wgpu::BindGroupLayoutEntry {
+            binding,
+            count: None,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -37,6 +50,17 @@ pub struct MaterialGPU {
 }
 
 impl MaterialGPU {
+    pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
+        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("material"),
+            entries: &[
+                MaterialUniform::bind_group_layout_entry(0), // All material config
+                ImageGPU::bind_group_layout_entry(1),        // Diffuse texture: view
+                SamplerGPU::bind_group_layout_entry(2),      // Diffuse texture: sampler
+            ],
+        })
+    }
+
     pub fn new(
         ctx: &gpu::Context,
         mat: &Material,

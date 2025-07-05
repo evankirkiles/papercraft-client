@@ -13,7 +13,7 @@ impl TrisProgram {
         Self {
             pipeline: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("select.tris"),
-                layout: Some(&ctx.shared.pipeline_layouts.folding_overlays),
+                layout: Some(&ctx.shared.pipeline_layouts.mesh_overlays),
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: Some("vs_main"),

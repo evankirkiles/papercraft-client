@@ -19,7 +19,7 @@ impl SurfaceProgram {
         Self {
             pipeline: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("ink3.surface"),
-                layout: Some(&ctx.shared.pipeline_layouts.folding_surface),
+                layout: Some(&ctx.shared.pipeline_layouts.mesh_surface),
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: Some("vs_main"),

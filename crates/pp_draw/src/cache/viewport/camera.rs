@@ -1,6 +1,9 @@
 use std::mem;
 
-use pp_editor::{measures::Rect, viewport::camera::Camera};
+use pp_editor::{
+    measures::Rect,
+    viewport::{camera::Camera, ViewportBounds},
+};
 
 use crate::gpu::{self};
 
@@ -31,12 +34,12 @@ impl CameraUniform {
 }
 
 #[derive(Debug, Clone)]
-pub struct CameraBindGroup {
+pub struct CameraGPU {
     buf: gpu::UniformBuf,
     pub bind_group: wgpu::BindGroup,
 }
 
-impl CameraBindGroup {
+impl CameraGPU {
     pub fn new(ctx: &gpu::Context) -> Self {
         let buf = gpu::UniformBuf::new(ctx, "camera".to_string(), mem::size_of::<CameraUniform>());
         Self {
@@ -49,9 +52,9 @@ impl CameraBindGroup {
         }
     }
 
-    pub fn sync(&mut self, ctx: &gpu::Context, camera: &mut impl Camera, area: &Rect<f32>) {
-        if camera.is_dirty() {
-            self.buf.update(ctx, &[CameraUniform::new(camera, *area)]);
+    pub fn sync(&mut self, ctx: &gpu::Context, camera: &mut impl Camera, bounds: &ViewportBounds) {
+        if bounds.is_dirty || camera.is_dirty() {
+            self.buf.update(ctx, &[CameraUniform::new(camera, bounds.area)]);
             camera.set_dirty(false);
         }
     }

@@ -1,6 +1,8 @@
-use crate::cache::viewport::{
-    bounds::ViewportBoundsBindGroup, camera::CameraBindGroup, cutting::CuttingViewportGPU,
-    folding::FoldingViewportGPU,
+use crate::cache::{
+    material::MaterialGPU,
+    mesh::piece::PieceGPU,
+    tool::select_box::SelectBoxToolGPU,
+    viewport::{bounds::ViewportBoundsGPU, camera::CameraGPU},
 };
 
 /// Global ordering of bind groups, so shaders can refer to consistent bind
@@ -11,6 +13,7 @@ pub enum BindGroup {
     Camera,
     Piece,
     Material,
+    Tool,
 }
 
 impl BindGroup {
@@ -18,10 +21,18 @@ impl BindGroup {
         match self {
             BindGroup::Viewport => 0,
             BindGroup::Camera => 1,
+            // Tool Path
+            BindGroup::Tool => 2,
+            // Mesh path
             BindGroup::Piece => 2,
             BindGroup::Material => 3,
         }
     }
+}
+/// Each tool has its own uniform layout
+#[derive(Debug)]
+pub struct ToolBindGroupLayouts {
+    pub select_box: wgpu::BindGroupLayout,
 }
 
 /// Shared BindGroup layouts created at the start of the program, allowing
@@ -32,61 +43,19 @@ pub struct SharedBindGroupLayouts {
     pub camera: wgpu::BindGroupLayout,
     pub piece: wgpu::BindGroupLayout,
     pub material: wgpu::BindGroupLayout,
-    pub viewport_cutting: wgpu::BindGroupLayout,
-    pub viewport_folding: wgpu::BindGroupLayout,
+    pub tool: ToolBindGroupLayouts,
 }
 
 impl SharedBindGroupLayouts {
     pub fn new(device: &wgpu::Device) -> Self {
         Self {
-            viewport: ViewportBoundsBindGroup::create_bind_group_layout(device),
-            camera: CameraBindGroup::create_bind_group_layout(device),
-            viewport_cutting: CuttingViewportGPU::create_bind_group_layout(device),
-            viewport_folding: FoldingViewportGPU::create_bind_group_layout(device),
-            piece: device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("piece"),
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-            }),
-            material: device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("material"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 2,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
-            }),
+            viewport: ViewportBoundsGPU::create_bind_group_layout(device),
+            camera: CameraGPU::create_bind_group_layout(device),
+            piece: PieceGPU::create_bind_group_layout(device),
+            material: MaterialGPU::create_bind_group_layout(device),
+            tool: ToolBindGroupLayouts {
+                select_box: SelectBoxToolGPU::create_bind_group_layout(device),
+            },
         }
     }
 }
