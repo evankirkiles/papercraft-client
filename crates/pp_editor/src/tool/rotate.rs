@@ -11,13 +11,17 @@ pub struct RotateTool {
     /// The world position which the pieces will be rotated around.
     pub center_pos_world: cgmath::Point3<f32>,
     /// The screen position which we will measure rotations against.
-    pub center_pos_screen: cgmath::Point2<f32>,
-    /// The position of the mouse rotations will be relative to
+    pub center_pos: cgmath::Point2<f32>,
+    /// The beginning position of the tool
     pub start_pos: Option<cgmath::Point2<f32>>,
+    /// The position of the mouse rotations will be relative to
+    pub curr_pos: Option<cgmath::Point2<f32>>,
     /// Which pieces are being affected by this translation
     pub pieces: Vec<(MeshId, id::PieceId)>,
     /// The amount each piece is translated by
     pub transform: cgmath::Matrix4<f32>,
+    /// Whether or not the tool's internal state has changed
+    pub is_dirty: bool,
 }
 
 impl CuttingViewport {
@@ -31,56 +35,40 @@ impl CuttingViewport {
             return Err(ToolCreationError::NoSelection);
         };
 
-        // Calculate the average unfolded world position of the selected faces' vertices
-        let vert_pos: Vec<_> = pieces
-            .iter()
-            .copied()
-            .flat_map(|(m_id, p_id)| {
-                let mesh = &state.meshes[m_id];
-                mesh.iter_piece_faces_unfolded(p_id)
-                    .map(move |face| ((m_id, face.f), mesh[p_id].transform, face))
-            })
-            .filter(|(id, _, _)| state.selection.faces.contains(id))
-            .flat_map(|((m_id, _), piece_affine, item)| {
-                let mesh = &state.meshes[m_id];
-                mesh.iter_face_loops(item.f).map(move |l| {
-                    piece_affine.transform_point(
-                        item.affine.transform_point(cgmath::Point3::from(mesh[mesh[l].v].po)),
-                    )
-                })
-            })
-            .collect();
-        let count = vert_pos.len();
-        let vert_sum = vert_pos.into_iter().reduce(move |p_a, p_b| p_a.add_element_wise(p_b));
-        let Some(vert_sum) = vert_sum else { return Err(ToolCreationError::NoSelection) };
-        let center_pos_world = vert_sum / count as f32;
-
-        // Now, get the screen coordinates  of the center to determine our rotation axis
-        let view_proj = self.camera.view_proj(bounds.area.into());
-        let center_pos_ndc = view_proj.transform_point(center_pos_world);
-        let center_pos_screen =
-            bounds.area.ndc(cgmath::Point2::new(center_pos_ndc.x, center_pos_ndc.y)) / bounds.dpr;
+        // Get the center position of all the selected items
+        let (center_pos_world, center_pos_screen) =
+            self.get_center(state, bounds, &pieces).map_err(|()| ToolCreationError::NoSelection)?;
 
         Ok(RotateTool {
             center_pos_world,
-            center_pos_screen,
+            center_pos: center_pos_screen,
             start_pos: None,
+            curr_pos: None,
             pieces,
             transform: cgmath::Matrix4::identity(),
+            is_dirty: true,
         })
     }
 }
 
 impl RotateTool {
     pub fn update(&mut self, state: &mut pp_core::State, pos: Option<cgmath::Point2<f32>>) {
-        let (Some(start_pos), Some(pos)) = (self.start_pos, pos) else {
-            self.start_pos = pos;
+        self.curr_pos = pos;
+        self.is_dirty = true;
+        // Ensure that curr_pos has a value
+        let Some(pos) = self.curr_pos else {
+            return;
+        };
+
+        // Ensure that start pos has also been set
+        let Some(start_pos) = self.start_pos else {
+            self.start_pos = Some(pos);
             return;
         };
 
         // Calculate angle between the two mouse positions around the center pos
-        let from: cgmath::Vector2<_> = start_pos - self.center_pos_screen;
-        let to: cgmath::Vector2<_> = pos - self.center_pos_screen;
+        let from: cgmath::Vector2<_> = start_pos - self.center_pos;
+        let to: cgmath::Vector2<_> = pos - self.center_pos;
         let cross = from.x * to.y - from.y * to.x;
         let angle = Rad(cross.atan2(from.dot(to)));
 

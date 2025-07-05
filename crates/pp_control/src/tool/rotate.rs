@@ -14,7 +14,7 @@ impl EventHandler for pp_editor::tool::RotateTool {
             // On mouse move, rotate the piece accordingly
             event::UserEvent::Pointer(e) => match e {
                 PointerEvent::Exit => self.update(state, None),
-                PointerEvent::Move(pos) => self.update(state, Some(*pos)),
+                PointerEvent::Move(pos) => self.update(state, Some(*pos * ctx.surface_dpi)),
                 _ => (),
             },
             event::UserEvent::MouseInput(event::MouseInputEvent::Up(button)) => match button {

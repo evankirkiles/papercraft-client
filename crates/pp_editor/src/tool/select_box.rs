@@ -9,4 +9,13 @@ pub struct SelectBoxTool {
     pub end_pos: cgmath::Point2<f32>,
     /// The type of selection that will happen
     pub action: SelectionActionType,
+    /// Indicates the tool's state has changed
+    pub is_dirty: bool,
+}
+
+impl SelectBoxTool {
+    pub fn update(&mut self, pos: cgmath::Point2<f32>) {
+        self.end_pos = pos;
+        self.is_dirty = true;
+    }
 }

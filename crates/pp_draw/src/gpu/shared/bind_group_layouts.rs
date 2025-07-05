@@ -1,7 +1,7 @@
 use crate::cache::{
     material::MaterialGPU,
     mesh::piece::PieceGPU,
-    tool::select_box::SelectBoxToolGPU,
+    tool::{rotate::RotateToolGPU, select_box::SelectBoxToolGPU},
     viewport::{bounds::ViewportBoundsGPU, camera::CameraGPU},
 };
 
@@ -33,6 +33,7 @@ impl BindGroup {
 #[derive(Debug)]
 pub struct ToolBindGroupLayouts {
     pub select_box: wgpu::BindGroupLayout,
+    pub rotate: wgpu::BindGroupLayout,
 }
 
 /// Shared BindGroup layouts created at the start of the program, allowing
@@ -55,6 +56,7 @@ impl SharedBindGroupLayouts {
             material: MaterialGPU::create_bind_group_layout(device),
             tool: ToolBindGroupLayouts {
                 select_box: SelectBoxToolGPU::create_bind_group_layout(device),
+                rotate: RotateToolGPU::create_bind_group_layout(device),
             },
         }
     }

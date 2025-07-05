@@ -118,12 +118,14 @@ impl DrawCache {
             self.active_tool = None;
             return;
         };
-        match (&editor.active_tool, &mut self.active_tool) {
+        match (&mut editor.active_tool, &mut self.active_tool) {
             (Some(tool), Some(tool_gpu)) => match (tool, &mut tool_gpu.tool) {
                 // Map corresponding CPU-side tools to GPU-side tool resources
                 (Tool::SelectBox(tool), ToolGPU::SelectBox(tool_gpu)) => tool_gpu.sync(ctx, tool),
+                (Tool::Rotate(tool), ToolGPU::Rotate(tool_gpu)) => tool_gpu.sync(ctx, tool),
+                (Tool::Translate(tool), ToolGPU::Translate(tool_gpu)) => tool_gpu.sync(ctx, tool),
                 // If we didn't have the same type of tool, then reset the tool
-                _ => {
+                (tool, _) => {
                     let viewport = *viewport;
                     self.active_tool =
                         Some(ActiveToolGPU { viewport, tool: ToolGPU::new(ctx, tool) })

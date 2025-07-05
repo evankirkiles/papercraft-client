@@ -77,6 +77,7 @@ impl EventHandler for Editor {
                     } else {
                         SelectionActionType::Select
                     },
+                    is_dirty: true,
                 }))));
             }
             _ => {}

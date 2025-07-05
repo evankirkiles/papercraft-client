@@ -1,15 +1,15 @@
-use pp_editor::tool::SelectBoxTool;
+use pp_editor::tool::RotateTool;
 
 use crate::gpu::{self, shared::bind_group_layouts::BindGroup};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct SelectBoxToolUniform {
-    pub start_pos: [f32; 2],
-    pub end_pos: [f32; 2],
+pub struct RotateToolUniform {
+    pub center_pos: [f32; 2],
+    pub curr_pos: [f32; 2],
 }
 
-impl SelectBoxToolUniform {
+impl RotateToolUniform {
     pub fn bind_group_layout_entry(binding: u32) -> wgpu::BindGroupLayoutEntry {
         wgpu::BindGroupLayoutEntry {
             binding,
@@ -25,40 +25,40 @@ impl SelectBoxToolUniform {
 }
 
 #[derive(Debug, Clone)]
-pub struct SelectBoxToolGPU {
+pub struct RotateToolGPU {
     buf: gpu::UniformBuf,
     pub bind_group: wgpu::BindGroup,
 }
 
-impl SelectBoxToolGPU {
+impl RotateToolGPU {
     pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("tool.select_box"),
-            entries: &[SelectBoxToolUniform::bind_group_layout_entry(0)],
+            label: Some("tool.rotate"),
+            entries: &[RotateToolUniform::bind_group_layout_entry(0)],
         })
     }
 
-    pub fn new(ctx: &gpu::Context, _: &SelectBoxTool) -> Self {
+    pub fn new(ctx: &gpu::Context, _: &RotateTool) -> Self {
         let buf = gpu::UniformBuf::new(
             ctx,
-            "tool.select_box".to_string(),
-            std::mem::size_of::<SelectBoxToolUniform>(),
+            "tool.rotate".to_string(),
+            std::mem::size_of::<RotateToolUniform>(),
         );
         Self {
             bind_group: ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("tool.select_box"),
-                layout: &ctx.shared.bind_group_layouts.tool.select_box,
+                label: Some("tool.rotate"),
+                layout: &ctx.shared.bind_group_layouts.tool.rotate,
                 entries: &[wgpu::BindGroupEntry { binding: 0, resource: buf.binding_resource() }],
             }),
             buf,
         }
     }
 
-    pub fn sync(&mut self, ctx: &gpu::Context, tool: &mut SelectBoxTool) {
+    pub fn sync(&mut self, ctx: &gpu::Context, tool: &mut RotateTool) {
         if tool.is_dirty {
-            let uniform = SelectBoxToolUniform {
-                start_pos: tool.start_pos.into(),
-                end_pos: tool.end_pos.into(),
+            let uniform = RotateToolUniform {
+                center_pos: tool.center_pos.into(),
+                curr_pos: tool.curr_pos.unwrap_or(tool.center_pos).into(),
             };
             self.buf.update(ctx, &[uniform]);
             tool.is_dirty = false;

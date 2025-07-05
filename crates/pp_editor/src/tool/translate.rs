@@ -10,12 +10,16 @@ use super::ToolCreationError;
 pub struct TranslateTool {
     /// How many world units each pixel corresponds to
     pub units_per_pixel: f32,
+    /// The center position of the entire selection
+    pub center_pos: cgmath::Point2<f32>,
     /// The position of the mouse translations will be relative to
     pub start_pos: Option<cgmath::Point2<f32>>,
     /// Which pieces are being affected by this translation
     pub pieces: Vec<(MeshId, id::PieceId)>,
     /// The amount each piece is translated by
     pub transform: cgmath::Matrix4<f32>,
+    /// Whether or not the tool's internal state has changed
+    pub is_dirty: bool,
 }
 
 impl CuttingViewport {
@@ -28,11 +32,18 @@ impl CuttingViewport {
         if pieces.is_empty() {
             return Err(ToolCreationError::NoSelection);
         };
+
+        // Get the center position of all the selected items
+        let (_, center_pos) =
+            self.get_center(state, bounds, &pieces).map_err(|()| ToolCreationError::NoSelection)?;
+
         Ok(TranslateTool {
             pieces,
             units_per_pixel: bounds.dpr * 2.0 / bounds.area.height / self.camera.zoom,
+            center_pos,
             start_pos: None,
             transform: cgmath::Matrix4::identity(),
+            is_dirty: true,
         })
     }
 }

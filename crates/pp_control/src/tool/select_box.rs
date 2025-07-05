@@ -26,7 +26,7 @@ impl EventHandler for pp_editor::tool::SelectBoxTool {
         match event {
             // On mouse move, update the end pos
             event::UserEvent::Pointer(PointerEvent::Move(pos)) => {
-                self.end_pos = *pos * ctx.surface_dpi;
+                self.update(*pos * ctx.surface_dpi);
                 return Ok(event::EventHandleSuccess::stop_internal_propagation());
             }
             event::UserEvent::MouseInput(event::MouseInputEvent::Up(button)) => match button {

@@ -84,7 +84,7 @@ where
         let half = T::one() / two;
         cgmath::Point2::new(
             self.x + self.width * (half + ndc.x / two),
-            self.y + self.height * (half + ndc.y / two),
+            self.y + self.height * (half - ndc.y / two),
         )
     }
 

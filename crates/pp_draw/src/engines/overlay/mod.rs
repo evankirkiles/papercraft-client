@@ -1,17 +1,27 @@
+use tool_rotate::ToolRotateProgram;
 use tool_select_box::ToolSelectBoxProgram;
+use tool_translate::ToolTranslateProgram;
 
 use crate::{cache::tool::ToolGPU, gpu};
 
+pub mod tool_rotate;
 pub mod tool_select_box;
+pub mod tool_translate;
 
 #[derive(Debug)]
 pub struct OverlayEngine {
     tool_select_box: ToolSelectBoxProgram,
+    tool_rotate: ToolRotateProgram,
+    tool_translate: ToolTranslateProgram,
 }
 
 impl OverlayEngine {
     pub fn new(ctx: &gpu::Context) -> Self {
-        Self { tool_select_box: ToolSelectBoxProgram::new(ctx) }
+        Self {
+            tool_select_box: ToolSelectBoxProgram::new(ctx),
+            tool_rotate: ToolRotateProgram::new(ctx),
+            tool_translate: ToolTranslateProgram::new(ctx),
+        }
     }
 
     pub fn draw_tool(
@@ -22,6 +32,8 @@ impl OverlayEngine {
     ) {
         match tool {
             ToolGPU::SelectBox(tool) => self.tool_select_box.draw(ctx, render_pass, tool),
+            ToolGPU::Rotate(tool) => self.tool_rotate.draw(ctx, render_pass, tool),
+            ToolGPU::Translate(tool) => self.tool_translate.draw(ctx, render_pass, tool),
         }
     }
 }
