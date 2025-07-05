@@ -28,8 +28,8 @@ const ORTHO_MAX_ZOOM: f32 = 10.0;
 const ORTHO_MIN_ZOOM: f32 = 0.1;
 
 impl Camera for OrthographicCamera {
-    fn view_proj(&self, delta: Dimensions<f32>) -> cgmath::Matrix4<f32> {
-        let aspect = delta.width.max(1.0) / delta.height.max(1.0);
+    fn view_proj(&self, dims: Dimensions<f32>) -> cgmath::Matrix4<f32> {
+        let aspect = dims.width.max(1.0) / dims.height.max(1.0);
         let half_width = aspect / self.zoom;
         let half_height = 1.0 / self.zoom;
         let view = cgmath::Matrix4::from_translation(cgmath::Vector3::new(
@@ -43,6 +43,14 @@ impl Camera for OrthographicCamera {
 
     fn eye(&self) -> [f32; 4] {
         [self.eye.x, self.eye.y, 1.0, 0.0]
+    }
+
+    fn is_dirty(&self) -> bool {
+        self.is_dirty
+    }
+
+    fn set_dirty(&mut self, dirty: bool) {
+        self.is_dirty = dirty
     }
 }
 

@@ -47,6 +47,14 @@ impl Camera for PerspectiveCamera {
     fn eye(&self) -> [f32; 4] {
         [self.eye.x, self.eye.y, self.eye.z, 1.0]
     }
+
+    fn is_dirty(&self) -> bool {
+        self.is_dirty
+    }
+
+    fn set_dirty(&mut self, dirty: bool) {
+        self.is_dirty = dirty
+    }
 }
 
 const PERSP_SPEED_DOLLY: f32 = 0.05;

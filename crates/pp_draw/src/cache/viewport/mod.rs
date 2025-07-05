@@ -4,7 +4,8 @@ use pp_editor::viewport::{Viewport, ViewportContent};
 
 use crate::gpu;
 
-mod camera;
+pub mod bounds;
+pub mod camera;
 pub mod cutting;
 pub mod folding;
 

@@ -1,8 +1,9 @@
 use crate::gpu;
 use material::{image::ImageGPU, sampler::SamplerGPU, texture::TextureGPU, MaterialGPU};
 use pp_core::{ImageId, MaterialId, MeshId, SamplerId, TextureId};
-use pp_editor::ViewportId;
+use pp_editor::{tool::Tool, ViewportId};
 use slotmap::SecondaryMap;
+use tool::{ActiveToolGPU, ToolGPU};
 use viewport::{BindableViewport, ViewportGPU};
 
 pub(crate) use mesh::MeshGPU;
@@ -10,7 +11,7 @@ pub(crate) use mesh::MeshGPU;
 mod common;
 mod material;
 mod mesh;
-mod tool;
+pub mod tool;
 pub mod viewport;
 
 /// Represents the current state of all allocated GPU resources.
@@ -21,12 +22,18 @@ pub mod viewport;
 ///   2. For each DrawCache item (meshes.for_each), if it's not in the AppState, remove it
 #[derive(Debug)]
 pub(crate) struct DrawCache {
+    // State-specific GPU resources
     pub meshes: SecondaryMap<MeshId, MeshGPU>,
     pub materials: SecondaryMap<MaterialId, MaterialGPU>,
-    pub samplers: SecondaryMap<SamplerId, SamplerGPU>,
     pub textures: SecondaryMap<TextureId, TextureGPU>,
+    pub samplers: SecondaryMap<SamplerId, SamplerGPU>,
     pub images: SecondaryMap<ImageId, ImageGPU>,
+
+    // Editor-specific GPU resources
     pub viewports: SecondaryMap<ViewportId, ViewportGPU>,
+    pub active_tool: Option<ActiveToolGPU>,
+
+    /// Shared GPU resources
     pub common: common::CommonGPUResources,
 }
 
@@ -40,6 +47,7 @@ impl DrawCache {
             images: SecondaryMap::new(),
             viewports: SecondaryMap::new(),
             common: common::CommonGPUResources::new(ctx),
+            active_tool: None,
         }
     }
 
@@ -102,5 +110,31 @@ impl DrawCache {
                     .sync(ctx, viewport)
                     .expect("Viewport type changed!");
             });
+    }
+
+    /// Ensures that the active tool is synchronized with its current state
+    pub(crate) fn prepare_tool(&mut self, ctx: &gpu::Context, editor: &mut pp_editor::Editor) {
+        let Some(viewport) = &editor.active_viewport else {
+            self.active_tool = None;
+            return;
+        };
+        match (&editor.active_tool, &mut self.active_tool) {
+            (Some(tool), Some(tool_gpu)) => match (tool, &mut tool_gpu.tool) {
+                // Map corresponding CPU-side tools to GPU-side tool resources
+                (Tool::SelectBox(tool), ToolGPU::SelectBox(tool_gpu)) => tool_gpu.sync(ctx, tool),
+                // If we didn't have the same type of tool, then reset the tool
+                _ => {
+                    let viewport = *viewport;
+                    self.active_tool =
+                        Some(ActiveToolGPU { viewport, tool: ToolGPU::new(ctx, tool) })
+                }
+            },
+            (Some(tool), None) => {
+                let viewport = *viewport;
+                self.active_tool = Some(ActiveToolGPU { viewport, tool: ToolGPU::new(ctx, tool) })
+            }
+            (None, Some(_)) => self.active_tool = None,
+            (None, None) => {}
+        };
     }
 }

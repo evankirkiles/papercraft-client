@@ -57,11 +57,11 @@ impl Default for Editor {
                 is_dirty: true,
                 direction: windowing::SplitDirection::Horizontal,
                 first: ViewTreeNode::Viewport(viewports.insert(Viewport {
-                    bounds: ViewportBounds { area: dimensions.into(), dpr },
+                    bounds: ViewportBounds { area: dimensions.into(), dpr, is_dirty: true },
                     content: viewport::ViewportContent::Folding(Default::default()),
                 })),
                 second: ViewTreeNode::Viewport(viewports.insert(Viewport {
-                    bounds: ViewportBounds { area: dimensions.into(), dpr },
+                    bounds: ViewportBounds { area: dimensions.into(), dpr, is_dirty: true },
                     content: viewport::ViewportContent::Cutting(Default::default()),
                 })),
             })),
@@ -88,8 +88,11 @@ impl Editor {
         nodes.iter().for_each(|(area, node)| {
             if let windowing::ViewTreeNode::Viewport(v_id) = node {
                 let viewport = self.viewports.get_mut(*v_id).unwrap();
-                viewport.bounds.area = *area;
-                viewport.bounds.dpr = self.dpr;
+                if viewport.bounds.area != *area || viewport.bounds.dpr != self.dpr {
+                    viewport.bounds.area = *area;
+                    viewport.bounds.dpr = self.dpr;
+                    viewport.bounds.is_dirty = true;
+                }
             }
         })
     }

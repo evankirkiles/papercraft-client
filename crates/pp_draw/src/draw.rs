@@ -7,35 +7,37 @@ use crate::{
 };
 
 impl<'window> Renderer<'window> {
-    pub(crate) fn draw_for_folding(&self, settings: &Settings, render_pass: &mut wgpu::RenderPass) {
-        let Renderer { draw_cache, draw_engine, .. } = &self;
+    /// Draws the "folding" view of a viewport, plus any active tool in the viewport
+    pub(crate) fn draw_folding(&self, settings: &Settings, render_pass: &mut wgpu::RenderPass) {
+        let Renderer { draw_cache, engine_ink, .. } = &self;
         draw_cache.common.piece_identity.bind(render_pass);
         draw_cache.materials.iter().for_each(|(id, mat)| {
             mat.bind(render_pass);
             draw_cache.meshes.values().for_each(|mesh| {
-                draw_engine.draw_mesh_for_material(&self.ctx, render_pass, mesh, &id);
+                engine_ink.draw_mesh_for_material(&self.ctx, render_pass, mesh, &id);
             });
         });
         let xray_mode = false;
         draw_cache.meshes.values().for_each(|mesh| {
-            draw_engine.draw_mesh(&self.ctx, settings, render_pass, mesh, xray_mode);
+            engine_ink.draw_mesh(&self.ctx, settings, render_pass, mesh, xray_mode);
         });
         // Lastly, draw gizmos etc
-        draw_engine.draw_3d_overlays(&self.ctx, render_pass);
+        engine_ink.draw_3d_overlays(&self.ctx, render_pass);
     }
 
-    pub(crate) fn draw_for_cutting(&self, settings: &Settings, render_pass: &mut wgpu::RenderPass) {
-        let Renderer { draw_cache, draw_engine, ctx, .. } = &self;
+    /// Draws the view of a "cutting" viewport, plus any active tool in the viewport
+    pub(crate) fn draw_cutting(&self, settings: &Settings, render_pass: &mut wgpu::RenderPass) {
+        let Renderer { draw_cache, engine_ink, ctx, .. } = &self;
         draw_cache.materials.iter().for_each(|(id, mat)| {
             mat.bind(render_pass);
             draw_cache.meshes.values().for_each(|mesh| {
-                draw_engine.draw_piece_mesh_for_material(ctx, render_pass, mesh, &id);
+                engine_ink.draw_piece_mesh_for_material(ctx, render_pass, mesh, &id);
             });
         });
         draw_cache.meshes.values().for_each(|mesh| {
-            draw_engine.draw_piece_mesh(ctx, settings, render_pass, mesh);
+            engine_ink.draw_piece_mesh(ctx, settings, render_pass, mesh);
         });
-        draw_engine.draw_2d_overlays(ctx, render_pass);
+        engine_ink.draw_2d_overlays(ctx, render_pass);
     }
 }
 

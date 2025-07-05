@@ -1,10 +1,9 @@
-// Shared Camera uniform (2D or 3D)
-struct Camera { view_proj: mat4x4<f32>, eye: vec4<f32>, dimensions: vec2<f32> };
-@group(0) @binding(0) var<uniform> camera: Camera;
-
-// Per-piece uniform with piece-specific transforms
+struct Viewport { position: vec2<f32>, dimensions: vec2<f32> };
+@group(0) @binding(0) var<uniform> viewport: Viewport;
+struct Camera { view_proj: mat4x4<f32>, eye: vec4<f32> };
+@group(1) @binding(0) var<uniform> camera: Camera;
 struct Piece { affine: mat4x4<f32> };
-@group(1) @binding(0) var<uniform> piece: Piece;
+@group(2) @binding(0) var<uniform> piece: Piece;
 
 struct VertexInput {
   @location(0) offset: vec2<f32>,
@@ -78,15 +77,15 @@ fn _vs_clip_pos(in: VertexInput, _out: VertexOutput, size: f32) -> VertexOutput 
     // Find screen-space positions of each vertex
     var clip_v0 = camera.view_proj * piece.affine * vec4<f32>(v0, 1.0);
     var clip_v1 = camera.view_proj * piece.affine * vec4<f32>(v1, 1.0);
-    var screen_v0 = camera.dimensions * (0.5 * clip_v0.xy / clip_v0.w + 0.5);
-    var screen_v1 = camera.dimensions * (0.5 * clip_v1.xy / clip_v1.w + 0.5);
+    var screen_v0 = viewport.dimensions * (0.5 * clip_v0.xy / clip_v0.w + 0.5);
+    var screen_v1 = viewport.dimensions * (0.5 * clip_v1.xy / clip_v1.w + 0.5);
 
     // Expand into line segment
     var basis_x = screen_v1 - screen_v0;
     var basis_y = normalize(vec2<f32>(-basis_x.y, basis_x.x));
     var pt = screen_v0 + in.offset.x * basis_x + (0.5 - in.offset.y) * basis_y * size;
     var clip = mix(clip_v0, clip_v1, in.offset.x);
-    out.clip_position = vec4<f32>(clip.w * (2.0 * pt / camera.dimensions - 1.0), clip.z, clip.w);
+    out.clip_position = vec4<f32>(clip.w * (2.0 * pt / viewport.dimensions - 1.0), clip.z, clip.w);
 
     // Move thick lines offscreen if not cut or boundary
     if (size == LINE_WIDTH_THICK && !bool(in.flags & (FLAG_CUT | FLAG_BOUNDARY))) { 

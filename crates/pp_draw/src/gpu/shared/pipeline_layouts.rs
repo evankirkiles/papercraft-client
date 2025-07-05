@@ -1,4 +1,4 @@
-use super::bind_group_layouts::{self, SharedBindGroupLayouts};
+use super::bind_group_layouts::SharedBindGroupLayouts;
 
 /// Shared pipeline layouts to re-use to avoid needing to update bind group
 /// descriptions everywhere.
@@ -14,7 +14,8 @@ impl SharedPipelineLayouts {
             folding_overlays: device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("pipeline_3d"),
                 bind_group_layouts: &[
-                    &bind_group_layouts.viewport_folding,
+                    &bind_group_layouts.viewport,
+                    &bind_group_layouts.camera,
                     &bind_group_layouts.piece,
                 ],
                 push_constant_ranges: &[],
@@ -22,7 +23,8 @@ impl SharedPipelineLayouts {
             folding_surface: device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("surface"),
                 bind_group_layouts: &[
-                    &bind_group_layouts.viewport_folding,
+                    &bind_group_layouts.viewport,
+                    &bind_group_layouts.camera,
                     &bind_group_layouts.piece,
                     &bind_group_layouts.material,
                 ],

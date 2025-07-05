@@ -125,7 +125,6 @@ export default class PaperApp
 
   onmousedown(e: MouseEvent) {
     this.handle_mouse_button(e.button, PressedState.Pressed);
-    console.log(this.get_editor_snapshot());
   }
 
   onmouseup(e: MouseEvent) {

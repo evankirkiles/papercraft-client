@@ -38,6 +38,8 @@ pub struct ViewportBounds {
     pub area: Rect<f32>,
     /// The editor's DPR.
     pub dpr: f32,
+    /// Does this viewport bound's GPU representation need to be updated
+    pub is_dirty: bool,
 }
 
 /// A viewport represents a split of the window
@@ -46,6 +48,6 @@ pub struct Viewport {
     /// The actual calculated area of the viewport based on the current window size
     pub bounds: ViewportBounds,
     /// The interior state of the viewport
-    #[tsify(type = "Folding | Cutting")]
+    #[tsify(type = "\"Folding\" | \"Cutting\"")]
     pub content: ViewportContent,
 }

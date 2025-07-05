@@ -1,10 +1,14 @@
-use crate::cache::viewport::{cutting::CuttingViewportGPU, folding::FoldingViewportGPU};
+use crate::cache::viewport::{
+    bounds::ViewportBoundsBindGroup, camera::CameraBindGroup, cutting::CuttingViewportGPU,
+    folding::FoldingViewportGPU,
+};
 
 /// Global ordering of bind groups, so shaders can refer to consistent bind
 /// groups without conflict.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum BindGroup {
     Viewport,
+    Camera,
     Piece,
     Material,
 }
@@ -13,8 +17,9 @@ impl BindGroup {
     pub fn value(&self) -> u32 {
         match self {
             BindGroup::Viewport => 0,
-            BindGroup::Piece => 1,
-            BindGroup::Material => 2,
+            BindGroup::Camera => 1,
+            BindGroup::Piece => 2,
+            BindGroup::Material => 3,
         }
     }
 }
@@ -23,15 +28,19 @@ impl BindGroup {
 /// pipelines to re-use Bind Groups without creating wholly new layouts.
 #[derive(Debug)]
 pub struct SharedBindGroupLayouts {
-    pub viewport_cutting: wgpu::BindGroupLayout,
-    pub viewport_folding: wgpu::BindGroupLayout,
+    pub viewport: wgpu::BindGroupLayout,
+    pub camera: wgpu::BindGroupLayout,
     pub piece: wgpu::BindGroupLayout,
     pub material: wgpu::BindGroupLayout,
+    pub viewport_cutting: wgpu::BindGroupLayout,
+    pub viewport_folding: wgpu::BindGroupLayout,
 }
 
 impl SharedBindGroupLayouts {
     pub fn new(device: &wgpu::Device) -> Self {
         Self {
+            viewport: ViewportBoundsBindGroup::create_bind_group_layout(device),
+            camera: CameraBindGroup::create_bind_group_layout(device),
             viewport_cutting: CuttingViewportGPU::create_bind_group_layout(device),
             viewport_folding: FoldingViewportGPU::create_bind_group_layout(device),
             piece: device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {

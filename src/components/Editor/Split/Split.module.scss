@@ -3,9 +3,17 @@
 .container {
   display: flex;
   flex: 1;
+
+  &.vertical {
+    flex-direction: column;
+  }
 }
 
 .cell {
+  display: flex;
+  position: relative;
+  pointer-events: none;
+
   &:last-child {
     flex: 1;
   }
@@ -13,11 +21,18 @@
 
 .divider {
   position: relative;
+  background-color: theme.color("bg2");
   z-index: 1;
   width: 1px;
   height: 100%;
-  background-color: theme.color("bg2");
   cursor: col-resize;
+  pointer-events: all;
+
+  &.vertical {
+    width: 100%;
+    height: 1px;
+    cursor: row-resize;
+  }
 
   &:hover,
   &.active {

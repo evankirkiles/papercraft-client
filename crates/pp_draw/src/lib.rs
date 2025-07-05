@@ -22,7 +22,9 @@ pub struct Renderer<'window> {
     /// A storage manager for all updatable GPU resources (mesh, materials)
     draw_cache: cache::DrawCache,
     /// The core renderer for viewport content (2D and 3D)
-    draw_engine: engines::ink::InkEngine,
+    engine_ink: engines::ink::InkEngine,
+    /// Renderer for overlays, basically non-mesh things
+    engine_overlay: engines::overlay::OverlayEngine,
 }
 
 impl<'window> Renderer<'window> {
@@ -104,7 +106,8 @@ impl<'window> Renderer<'window> {
             select: select::SelectManager::new(&ctx),
             textures: RendererAttachmentTextures::create(&ctx),
             draw_cache: DrawCache::new(&ctx),
-            draw_engine: engines::ink::InkEngine::new(&ctx),
+            engine_ink: engines::ink::InkEngine::new(&ctx),
+            engine_overlay: engines::overlay::OverlayEngine::new(&ctx),
             ctx,
         }
     }
@@ -114,6 +117,7 @@ impl<'window> Renderer<'window> {
         self.draw_cache.prepare_meshes(&self.ctx, state);
         self.draw_cache.prepare_materials(&self.ctx, state);
         self.draw_cache.prepare_viewports(&self.ctx, editor);
+        self.draw_cache.prepare_tool(&self.ctx, editor);
     }
 
     /// Draws all of the renderables to the screen in each viewport
@@ -159,17 +163,18 @@ impl<'window> Renderer<'window> {
             });
 
             // Iterate the active viewports and render their corresponding items
-            self.draw_cache.viewports.iter().for_each(|(_, viewport)| {
+            self.draw_cache.viewports.iter().for_each(|(v_id, viewport)| {
                 use cache::viewport::ViewportGPU;
                 viewport.bind(&mut render_pass);
                 match viewport {
-                    ViewportGPU::Folding(_) => {
-                        self.draw_for_folding(&state.settings, &mut render_pass)
-                    }
-                    ViewportGPU::Cutting(_) => {
-                        self.draw_for_cutting(&state.settings, &mut render_pass)
-                    }
+                    ViewportGPU::Folding(_) => self.draw_folding(&state.settings, &mut render_pass),
+                    ViewportGPU::Cutting(_) => self.draw_cutting(&state.settings, &mut render_pass),
                 }
+                self.draw_cache.active_tool.as_ref().filter(|tool| tool.viewport == v_id).inspect(
+                    |tool| {
+                        self.engine_overlay.draw_tool(&self.ctx, &mut render_pass, &tool.tool);
+                    },
+                );
             });
         }
 

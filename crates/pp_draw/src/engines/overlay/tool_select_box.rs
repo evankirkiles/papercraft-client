@@ -1,21 +1,27 @@
-use crate::{cache::tool::select_box::SelectBoxToolGPU, gpu};
-
-use super::DepthBiasLayer;
+use crate::cache::tool::select_box::SelectBoxToolGPU;
+use crate::gpu;
 
 #[derive(Debug)]
-pub struct OverlayGridRectProgram {
+pub struct ToolSelectBoxProgram {
     pipeline: wgpu::RenderPipeline,
 }
 
-impl OverlayGridRectProgram {
-    pub fn new(ctx: &gpu::Context) -> Self {
-        let shader = ctx
-            .device
-            .create_shader_module(wgpu::include_wgsl!("../shaders/overlay_grid_rect.wgsl"));
+impl ToolSelectBoxProgram {
+    pub(super) fn new(ctx: &gpu::Context) -> Self {
+        let shader =
+            ctx.device.create_shader_module(wgpu::include_wgsl!("./shaders/tool_select_box.wgsl"));
         Self {
             pipeline: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("ink3.overlay_grid"),
-                layout: Some(&ctx.shared.pipeline_layouts.folding_overlays),
+                label: Some("tool.select_box"),
+                layout: Some(&ctx.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("tool.select_box"),
+                    bind_group_layouts: &[
+                        &ctx.shared.bind_group_layouts.viewport,
+                        &ctx.shared.bind_group_layouts.camera,
+                        &SelectBoxToolGPU::create_bind_group_layout(&ctx.device),
+                    ],
+                    push_constant_ranges: &[],
+                })),
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: Some("vs_main"),
@@ -49,32 +55,33 @@ impl OverlayGridRectProgram {
                     unclipped_depth: false,
                     conservative: false,
                 },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: gpu::Texture::DEPTH_FORMAT,
+                    depth_write_enabled: false,
+                    depth_compare: wgpu::CompareFunction::Always,
+                    stencil: wgpu::StencilState::default(),
+                    bias: Default::default(),
+                }),
                 multisample: wgpu::MultisampleState {
                     count: (&ctx.settings.msaa_level).into(),
                     mask: !0,
                     alpha_to_coverage_enabled: false,
                 },
-                depth_stencil: Some(wgpu::DepthStencilState {
-                    format: gpu::Texture::DEPTH_FORMAT,
-                    depth_write_enabled: false,
-                    depth_compare: wgpu::CompareFunction::LessEqual,
-                    stencil: wgpu::StencilState::default(),
-                    bias: wgpu::DepthBiasState {
-                        constant: DepthBiasLayer::BackgroundBottom as i32,
-                        slope_scale: 0.9,
-                        ..Default::default()
-                    },
-                }),
                 multiview: None,
                 cache: None,
             }),
         }
     }
 
-    /// Draws the grid (only done once)
-    pub(super) fn draw(&self, ctx: &gpu::Context, render_pass: &mut wgpu::RenderPass) {
+    pub(super) fn draw(
+        &self,
+        ctx: &gpu::Context,
+        render_pass: &mut wgpu::RenderPass,
+        tool: &SelectBoxToolGPU,
+    ) {
         render_pass.set_pipeline(&self.pipeline);
-        render_pass.set_vertex_buffer(0, ctx.buf_rect.slice(..));
+        render_pass.set_vertex_buffer(0, ctx.shared.buffers.rect.slice(..));
+        render_pass.set_bind_group(2, &tool.bind_group, &[]);
         render_pass.draw(0..4, 0..1);
     }
 }

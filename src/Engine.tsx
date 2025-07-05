@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "react-query";
-import Viewport from "./components/Viewport";
+import Viewport from "./components/Editor";
 import { EngineProvider } from "./contexts/EngineContext";
 import { useMemo } from "react";
 
