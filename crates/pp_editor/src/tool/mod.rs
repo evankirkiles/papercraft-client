@@ -29,3 +29,17 @@ pub enum Tool {
     Rotate(rotate::RotateTool),
     SelectBox(select_box::SelectBoxTool),
 }
+
+impl serde::Serialize for Tool {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let variant_name = match self {
+            Tool::Translate(_) => "Translate",
+            Tool::Rotate(_) => "Rotate",
+            Tool::SelectBox(_) => "SelectBox",
+        };
+        serializer.serialize_str(variant_name)
+    }
+}

@@ -10,6 +10,7 @@ pub(crate) use mesh::MeshGPU;
 mod common;
 mod material;
 mod mesh;
+mod tool;
 pub mod viewport;
 
 /// Represents the current state of all allocated GPU resources.

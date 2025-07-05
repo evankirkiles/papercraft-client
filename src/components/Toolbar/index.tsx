@@ -1,6 +1,6 @@
 import { useContext } from "react";
 import styles from "./styles.module.scss";
-import { useEngineContext } from "@/contexts/EngineContext";
+import { useEngine } from "@/contexts/EngineContext";
 
 export default function Toolbar() {
   return (

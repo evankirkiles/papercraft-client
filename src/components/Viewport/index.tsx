@@ -1,44 +1,28 @@
 import { useEffect, useRef } from "react";
-import { DraggableCore } from "react-draggable";
 import styles from "./styles.module.scss";
-import { useEngineContext } from "@/contexts/EngineContext";
+import { useEngine } from "@/contexts/EngineContext";
+import { useEditor } from "@/contexts/EditorContext";
+import Split from "./Split";
 
 const CANVAS_ID = "paperarium-engine";
 
 export default function Viewport() {
-  const { app } = useEngineContext();
+  const engine = useEngine();
+  const editor = useEditor();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!canvasRef.current || !app) return;
-    app.attach(canvasRef.current);
+    if (!canvasRef.current || !engine) return;
+    engine.attach(canvasRef.current);
     return () => {};
-  }, [app]);
+  }, [engine]);
+  console.log(editor);
 
   return (
     <section className={styles.container} aria-label="Viewport">
       <canvas className={styles.canvas} id={CANVAS_ID} ref={canvasRef} />
-      <DraggableCore
-        nodeRef={ref as React.RefObject<HTMLElement>}
-        onStart={() => {
-          canvasRef.current?.classList?.add(styles.inactive);
-          ref.current?.classList?.add(styles.active);
-        }}
-        onStop={() => {
-          canvasRef.current?.classList?.remove(styles.inactive);
-          ref.current?.classList?.remove(styles.active);
-        }}
-        onDrag={(e, data) => {
-          if (!ref.current) return;
-          const splitX = data.x;
-          const split = Math.max(0, Math.min(1, splitX / window.innerWidth));
-          ref.current.style.left = `${split * 100}%`;
-          app?.update_horizontal_split(split);
-          e.stopPropagation();
-        }}
-      >
-        <div className={styles.divider} ref={ref} />
-      </DraggableCore>
+      {editor && "Split" in editor.root_node && (
+        <Split id={editor.root_node.Split} />
+      )}
     </section>
   );
 }

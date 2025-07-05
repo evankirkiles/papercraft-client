@@ -10,7 +10,10 @@ edition = "2021"
 pp_core.workspace = true
 cgmath.workspace = true
 log.workspace = true
+serde.workspace = true
 slotmap.workspace = true
+tsify.workspace = true
+wasm-bindgen.workspace = true
 
 [build-dependencies]
 anyhow.workspace = true

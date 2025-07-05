@@ -1,10 +1,12 @@
+use serde::{Deserialize, Serialize};
+
 use crate::measures::Dimensions;
 
 use super::Camera;
 
 /// An orthographic camera, where objects are the same size regardless of their
 /// distance from the camera.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct OrthographicCamera {
     /// The position of the camera
     pub eye: cgmath::Point2<f32>,

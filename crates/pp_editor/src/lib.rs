@@ -1,6 +1,8 @@
 use cgmath::Point2;
 use measures::Dimensions;
+use serde::Serialize;
 use slotmap::{new_key_type, SlotMap};
+use tsify::Tsify;
 use viewport::{Viewport, ViewportBounds};
 use windowing::{Split, ViewTreeNode};
 
@@ -11,13 +13,15 @@ pub mod viewport;
 pub mod windowing;
 
 new_key_type! {
+    #[derive(Tsify)]
     pub struct ViewportId;
+    #[derive(Tsify)]
     pub struct SplitId;
 }
 
 /// Represents the entire state of the "core" editor, the client-side view and
 /// organization of any number of viewports.
-#[derive(Debug)]
+#[derive(Debug, Tsify, Serialize)]
 pub struct Editor {
     /// The window's full recursive tree layout, e.g. splits and viewports
     pub root_node: ViewTreeNode,
@@ -79,7 +83,7 @@ impl Editor {
     /// Walks the viewport tree and updates the stored sizes of any viewports
     /// whose dimensions have changed, marking them as needing re-layout. It
     /// also garbage collects any unreferenced viewports.
-    fn update(&mut self) {
+    pub fn update(&mut self) {
         let nodes: Vec<_> = self.iter_nodes().collect();
         nodes.iter().for_each(|(area, node)| {
             if let windowing::ViewTreeNode::Viewport(v_id) = node {

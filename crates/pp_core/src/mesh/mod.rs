@@ -3,7 +3,7 @@ use slotmap::{new_key_type, SlotMap};
 use stable_vec::StableVec;
 use std::ops;
 
-use crate::id::{EdgeId, FaceId, Id, LoopId, MeshId, PieceId, VertexId};
+use crate::id::{EdgeId, FaceId, Id, LoopId, PieceId, VertexId};
 
 pub mod edge;
 pub mod face;

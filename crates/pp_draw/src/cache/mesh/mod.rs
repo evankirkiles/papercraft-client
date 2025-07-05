@@ -5,7 +5,7 @@ use pp_core::id::{self, Id};
 use pp_core::mesh::{MaterialSlotId, Mesh, MeshElementType};
 use pp_core::select::SelectionState;
 use pp_core::{MaterialId, MeshId};
-use slotmap::{SecondaryMap, SlotMap};
+use slotmap::SecondaryMap;
 use std::collections::HashMap;
 use std::ops::Range;
 

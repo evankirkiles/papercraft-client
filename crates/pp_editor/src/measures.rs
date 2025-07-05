@@ -1,9 +1,9 @@
-use std::cmp::min;
-
-use cgmath::num_traits::{self, Num, Signed};
+use cgmath::num_traits::{self, Num};
+use serde::{Deserialize, Serialize};
+use tsify::Tsify;
 
 /// Dimensions for screen rects, like the viewport and select box areas
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, Tsify, Serialize, Deserialize)]
 pub struct Dimensions<T> {
     pub width: T,
     pub height: T,
@@ -33,7 +33,7 @@ where
 }
 
 /// An exact location on the screen, in pixels
-#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd, Tsify, Serialize, Deserialize)]
 pub struct Rect<T> {
     pub x: T,
     pub y: T,

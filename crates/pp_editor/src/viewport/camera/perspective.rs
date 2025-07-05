@@ -1,4 +1,5 @@
 use cgmath::{InnerSpace, MetricSpace};
+use serde::{Deserialize, Serialize};
 
 use crate::measures::Dimensions;
 
@@ -6,7 +7,7 @@ use super::Camera;
 
 /// A perspective camera, where objects further from the eye of the camera
 /// appear smaller. This camera is configured to orbit around a specific point
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct PerspectiveCamera {
     /// The actual location of the camera
     pub eye: cgmath::Point3<f32>,

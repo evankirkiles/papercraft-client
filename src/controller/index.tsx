@@ -1,4 +1,4 @@
-import { App, PressedState } from "@paper/core";
+import { App, Editor, PressedState } from "@paper/core";
 import { ModifierKeys } from "./modifiers";
 
 // TODO: Clean this up
@@ -25,6 +25,9 @@ export default class PaperApp
   private _canvas: HTMLCanvasElement | undefined;
   private abortController: AbortController | undefined;
   private modifiers = new ModifierKeys();
+
+  // The
+  public editor: Editor = super.get_editor_snapshot();
 
   /**
    * Attachs the app to an HTML Canvas.
@@ -122,6 +125,7 @@ export default class PaperApp
 
   onmousedown(e: MouseEvent) {
     this.handle_mouse_button(e.button, PressedState.Pressed);
+    console.log(this.get_editor_snapshot());
   }
 
   onmouseup(e: MouseEvent) {

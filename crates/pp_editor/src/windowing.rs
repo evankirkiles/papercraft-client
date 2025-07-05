@@ -1,16 +1,18 @@
+use serde::{Deserialize, Serialize};
 use slotmap::SlotMap;
+use tsify::Tsify;
 
 use crate::{measures::Rect, Editor, SplitId, ViewportId};
 
 /// An axis upon which the viewport can be split
-#[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd, Tsify, Serialize, Deserialize)]
 pub enum SplitDirection {
     #[default]
     Horizontal, // top/bottom
     Vertical, // left/right
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Tsify, Serialize, Deserialize)]
 pub struct Split {
     /// From 0-1, the ratio of the split
     pub ratio: f32,
@@ -26,7 +28,7 @@ pub struct Split {
 
 /// An atom in the window layout engine, either a split of two viewports or
 /// a viewport itself.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Tsify, Serialize, Deserialize)]
 pub enum ViewTreeNode {
     Viewport(ViewportId),
     Split(SplitId),

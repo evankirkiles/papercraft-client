@@ -1,9 +1,9 @@
-import { useEngineContext } from "@/contexts/EngineContext";
+import { useEngine } from "@/contexts/EngineContext";
 import styles from "./styles.module.scss";
 import { SelectionMode } from "@paper/core";
 
 export default function MainControls() {
-  const { app } = useEngineContext();
+  const engine = useEngine();
 
   return (
     <div className={styles.container} aria-label="Main Controls Panel">
@@ -26,7 +26,7 @@ export default function MainControls() {
       <div className={styles.control_small}>
         <select
           onChange={(e) => {
-            if (!app) return;
+            if (!engine) return;
             const mode = {
               verts: SelectionMode.Vert,
               edges: SelectionMode.Edge,
@@ -34,7 +34,7 @@ export default function MainControls() {
               pieces: SelectionMode.Piece,
             }[e.target.value];
             if (mode === undefined) return;
-            app.set_select_mode(mode);
+            engine.set_select_mode(mode);
           }}
         >
           <option value="verts">Verts</option>

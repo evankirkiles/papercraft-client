@@ -3,17 +3,26 @@ use event::{
     ExternalEventHandleSuccess, PressedState, UserEvent,
 };
 use keyboard::ModifierKeys;
-use pp_editor::measures::Dimensions;
+use pp_editor::{measures::Dimensions, SplitId};
 use pp_io::gltf::ImportGLTF;
+use slotmap::KeyData;
+use store::AppCallbacks;
 use wasm_bindgen::prelude::*;
 
 mod editor;
 mod event;
 mod keyboard;
+mod store;
 mod tool;
 mod viewport;
 
 use std::{cell::RefCell, ops::DerefMut, rc::Rc};
+
+#[wasm_bindgen(typescript_custom_section)]
+const SLOTMAP_TYPES: &'static str = r#"
+export type KeyData = { idx: number; version: number };
+export type SlotMap<T, U> = { value: U, version: number }[];
+"#;
 
 #[wasm_bindgen]
 #[derive(Debug, Default)]
@@ -26,6 +35,9 @@ pub struct App {
     renderer: Rc<RefCell<Option<pp_draw::Renderer<'static>>>>,
     /// The client-side state of the app
     editor: pp_editor::Editor,
+
+    /// Callbacks for synchronizing internal state with React state
+    callbacks: Rc<RefCell<AppCallbacks>>,
 
     /// A common event context used across all event handlers
     event_context: EventContext,
@@ -77,6 +89,11 @@ impl App {
         self.renderer.replace(None);
     }
 
+    /// Returns a snapshot of the editor's state
+    pub fn get_editor_snapshot(&self) -> Result<JsValue, JsValue> {
+        Ok(serde_wasm_bindgen::to_value(&self.editor)?)
+    }
+
     // ---- RENDER CYCLE -----
     // Functions called in a loop or in a global listener, relevant to the renderer.
 
@@ -116,12 +133,14 @@ impl App {
     // ---- HOOKS ----
     // Functions that can be invoked by JavaScript on user interaction with HTML.
 
-    pub fn update_horizontal_split(&mut self, frac: f32) {
-        self.state.borrow_mut().settings.viewport_split_x = frac;
-    }
-
-    pub fn update_vertical_split(&mut self, frac: f32) {
-        self.state.borrow_mut().settings.viewport_split_y = frac;
+    /// Updates the split ratio between two viewports
+    pub fn update_split(&mut self, id: u64, ratio: f32) {
+        let id: SplitId = KeyData::from_ffi(id).into();
+        if let Some(split) = self.editor.splits.get_mut(id) {
+            split.ratio = ratio;
+            split.is_dirty = true;
+            self.editor.update();
+        }
     }
 
     /// Sets the select mode of the application
