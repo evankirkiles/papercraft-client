@@ -33,13 +33,19 @@ impl EventHandler for pp_editor::tool::TranslateTool {
                 }
                 _ => (),
             },
-            // ESC also cancels the tool
-            event::UserEvent::KeyboardInput(event::KeyboardInputEvent::Down(
-                keyboard::Key::Named(keyboard::NamedKey::Escape),
-            )) => {
-                self.cancel(state);
-                return Ok(event::EventHandleSuccess::set_tool(None));
-            }
+            event::UserEvent::KeyboardInput(event::KeyboardInputEvent::Down(key)) => match key {
+                // ESC also cancels the tool
+                keyboard::Key::Named(keyboard::NamedKey::Escape) => {
+                    self.cancel(state);
+                    return Ok(event::EventHandleSuccess::set_tool(None));
+                }
+                keyboard::Key::Character(char) => match char.as_str() {
+                    "KeyX" => self.toggle_x_lock(state),
+                    "KeyY" => self.toggle_y_lock(state),
+                    _ => (),
+                },
+                _ => (),
+            },
             _ => (),
         };
         Ok(event::EventHandleSuccess::stop_propagation())

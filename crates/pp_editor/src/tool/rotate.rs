@@ -16,6 +16,7 @@ pub struct RotateTool {
     pub start_pos: Option<cgmath::Point2<f32>>,
     /// The position of the mouse rotations will be relative to
     pub curr_pos: Option<cgmath::Point2<f32>>,
+
     /// Which pieces are being affected by this translation
     pub pieces: Vec<(MeshId, id::PieceId)>,
     /// The amount each piece is translated by

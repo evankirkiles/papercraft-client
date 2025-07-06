@@ -7,7 +7,9 @@ repository = "https://github.com/evankirkiles/papercraft-client"
 edition = "2021"
 
 [dependencies]
+# Internal:
 pp_core.workspace = true
+# External:
 cgmath.workspace = true
 log.workspace = true
 serde.workspace = true

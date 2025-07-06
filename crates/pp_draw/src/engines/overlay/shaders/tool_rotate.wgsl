@@ -26,11 +26,10 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
     let dir = normalize(b - a);
     let perp = vec2<f32>(-dir.y, dir.x);
-    let width_ndc = LINE_WIDTH_THIN;
 
     // Compute vertex position in screen-space
     let along = mix(a, b, in.offset.x);
-    let offset = (in.offset.y - 0.5) * width_ndc * perp; // shift ±0.5px
+    let offset = (in.offset.y - 0.5) * LINE_WIDTH_THIN * perp; // shift ±0.5px
     let pos = along + offset;
     out.line_uv = in.offset.x;
 

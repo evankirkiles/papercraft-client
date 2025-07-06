@@ -1,11 +1,22 @@
-use pp_editor::tool::{RotateTool, TranslateTool};
+use bitflags::bitflags;
+use pp_editor::tool::{translate::TranslateAxisLock, TranslateTool};
 
 use crate::gpu::{self, shared::bind_group_layouts::BindGroup};
+bitflags! {
+    #[repr(C)]
+    #[derive(Debug, Copy, Clone)]
+    pub struct TranslateFlags: u32 {
+        const X_LOCKED = 1 << 0;
+        const Y_LOCKED = 1 << 1;
+    }
+}
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct TranslateToolUniform {
     pub center_pos: [f32; 2],
+    pub flags: u32,
+    pub padding: u32,
 }
 
 impl TranslateToolUniform {
@@ -55,7 +66,16 @@ impl TranslateToolGPU {
 
     pub fn sync(&mut self, ctx: &gpu::Context, tool: &mut TranslateTool) {
         if tool.is_dirty {
-            let uniform = TranslateToolUniform { center_pos: tool.center_pos.into() };
+            let uniform = TranslateToolUniform {
+                center_pos: tool.center_pos.into(),
+                flags: (match tool.axis_lock {
+                    Some(TranslateAxisLock::X) => TranslateFlags::X_LOCKED,
+                    Some(TranslateAxisLock::Y) => TranslateFlags::Y_LOCKED,
+                    None => TranslateFlags::empty(),
+                })
+                .bits(),
+                padding: 0,
+            };
             self.buf.update(ctx, &[uniform]);
             tool.is_dirty = false;
         }
