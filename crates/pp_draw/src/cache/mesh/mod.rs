@@ -366,7 +366,7 @@ impl MeshGPU {
         ctx: &gpu::Context,
         render_pass: &mut wgpu::RenderPass,
     ) {
-        render_pass.set_vertex_buffer(0, ctx.buf_rect.slice(..));
+        render_pass.set_vertex_buffer(0, ctx.shared.buffers.rect.slice(..));
         render_pass.set_vertex_buffer(1, self.vbo.pos.slice());
         render_pass.set_vertex_buffer(2, self.vbo.vert_flags.slice());
         render_pass.set_vertex_buffer(3, self.vbo.vert_idx.slice());
@@ -381,7 +381,7 @@ impl MeshGPU {
         if self.pieces.is_empty() {
             return;
         };
-        render_pass.set_vertex_buffer(0, ctx.buf_rect.slice(..));
+        render_pass.set_vertex_buffer(0, ctx.shared.buffers.rect.slice(..));
         render_pass.set_vertex_buffer(1, self.vbo_pieces.pos.slice());
         render_pass.set_vertex_buffer(2, self.vbo_pieces.vert_flags.slice());
         render_pass.set_vertex_buffer(3, self.vbo_pieces.vert_idx.slice());
@@ -442,7 +442,7 @@ impl MeshGPU {
         ctx: &gpu::Context,
         render_pass: &mut wgpu::RenderPass,
     ) {
-        render_pass.set_vertex_buffer(0, ctx.buf_rect.slice(..));
+        render_pass.set_vertex_buffer(0, ctx.shared.buffers.rect.slice(..));
         render_pass.set_vertex_buffer(1, self.vbo.edge_pos.slice());
         render_pass.set_vertex_buffer(2, self.vbo.edge_flags.slice());
         render_pass.set_vertex_buffer(3, self.vbo.edge_idx.slice());
@@ -457,7 +457,7 @@ impl MeshGPU {
         if self.pieces.is_empty() {
             return;
         };
-        render_pass.set_vertex_buffer(0, ctx.buf_rect.slice(..));
+        render_pass.set_vertex_buffer(0, ctx.shared.buffers.rect.slice(..));
         render_pass.set_vertex_buffer(1, self.vbo_pieces.edge_pos.slice());
         render_pass.set_vertex_buffer(2, self.vbo_pieces.edge_flags.slice());
         render_pass.set_vertex_buffer(3, self.vbo_pieces.edge_idx.slice());
@@ -538,7 +538,7 @@ impl MeshGPU {
         if self.pieces.is_empty() {
             return;
         };
-        render_pass.set_vertex_buffer(0, ctx.buf_rect.slice(..));
+        render_pass.set_vertex_buffer(0, ctx.shared.buffers.rect.slice(..));
         render_pass.set_vertex_buffer(1, self.vbo_pieces.edge_pos.slice());
         render_pass.set_vertex_buffer(2, self.vbo_pieces.edge_flap.slice());
         render_pass.set_vertex_buffer(3, self.vbo_pieces.edge_flags.slice());
@@ -557,7 +557,7 @@ impl MeshGPU {
         if self.pieces.is_empty() {
             return;
         };
-        render_pass.set_vertex_buffer(0, ctx.buf_rect_outline.slice(..));
+        render_pass.set_vertex_buffer(0, ctx.shared.buffers.rect_outline.slice(..));
         render_pass.set_vertex_buffer(1, self.vbo_pieces.edge_pos.slice());
         render_pass.set_vertex_buffer(2, self.vbo_pieces.edge_flap.slice());
         render_pass.set_vertex_buffer(3, self.vbo_pieces.edge_flags.slice());

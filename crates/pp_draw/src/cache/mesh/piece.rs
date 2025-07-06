@@ -1,7 +1,6 @@
-use std::{collections::HashMap, mem, ops::Range};
+use std::{mem, ops::Range};
 
 use cgmath::SquareMatrix;
-use pp_core::id;
 
 use crate::gpu::{self, shared::bind_group_layouts::BindGroup};
 
@@ -43,11 +42,8 @@ pub(crate) struct PieceGPU {
     buf: gpu::UniformBuf,
     pub bind_group: wgpu::BindGroup,
 
-    /// The range of elements in this piece in piecewise VBOs
+    /// The range of elements in this piece in non-material piecewise VBOs
     pub range: Range<u32>,
-    /// The range of elements in this piece in material-piecewise VBOs
-    /// A missing entry indicates that no face in this piece uses the given material.
-    pub mat_ranges: HashMap<id::MaterialId, Range<u32>>,
 }
 
 impl PieceGPU {
@@ -68,7 +64,6 @@ impl PieceGPU {
             }),
             buf,
             range: 0..0,
-            mat_ranges: HashMap::new(),
         }
     }
 
@@ -95,7 +90,6 @@ impl PieceGPU {
             }),
             buf,
             range: 0..0,
-            mat_ranges: HashMap::new(),
         }
     }
 }

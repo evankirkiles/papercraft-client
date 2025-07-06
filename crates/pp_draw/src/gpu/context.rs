@@ -1,42 +1,6 @@
 use pp_editor::measures::Dimensions;
-use wgpu::util::DeviceExt;
 
 use super::{settings::Settings, shared::SharedGPUResources};
-
-// Simple triangle strip quad
-const BUF_RECT_CONTENTS: [[f32; 2]; 4] = [[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]];
-// Simple outline of a rect, with each segment itself made of a quad. We could
-// compress this down to 14 verts by using miters and a triangle strip, but... whatever
-const BUF_RECT_OUTLINE_CONTENTS: [[f32; 2]; 24] = [
-    // segment 1
-    [0.0, 0.0],
-    [0.0, 1.0],
-    [1.0, 0.0],
-    [0.0, 1.0],
-    [1.0, 0.0],
-    [1.0, 1.0],
-    // segment 2
-    [0.0, 0.0],
-    [0.0, 1.0],
-    [1.0, 0.0],
-    [0.0, 1.0],
-    [1.0, 0.0],
-    [1.0, 1.0],
-    // segment 3
-    [0.0, 0.0],
-    [0.0, 1.0],
-    [1.0, 0.0],
-    [0.0, 1.0],
-    [1.0, 0.0],
-    [1.0, 1.0],
-    // segment 4
-    [0.0, 0.0],
-    [0.0, 1.0],
-    [1.0, 0.0],
-    [0.0, 1.0],
-    [1.0, 0.0],
-    [1.0, 1.0],
-];
 
 /// A GPU Context owns the resources connected to a Surface's lifetime. It is
 /// created when the Renderer is created and used to pass around shared
@@ -51,9 +15,6 @@ pub struct Context<'window> {
     pub clear_color: wgpu::Color,
     /// Common wgpu resources of various types for re-use across programs
     pub shared: SharedGPUResources,
-    /// Common buffers (e.g. rect)
-    pub buf_rect: wgpu::Buffer,
-    pub buf_rect_outline: wgpu::Buffer,
     /// Global configuration for draw calls
     pub settings: Settings,
 }
@@ -67,18 +28,8 @@ impl<'window> Context<'window> {
         clear_color: wgpu::Color,
     ) -> Self {
         let ctx = Context {
-            shared: SharedGPUResources::new(&device, &queue),
+            shared: SharedGPUResources::new(&device),
             settings: Settings::default(),
-            buf_rect: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("ctx.buf_rect"),
-                contents: bytemuck::bytes_of(&BUF_RECT_CONTENTS),
-                usage: wgpu::BufferUsages::VERTEX,
-            }),
-            buf_rect_outline: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("ctx.buf_rect"),
-                contents: bytemuck::bytes_of(&BUF_RECT_OUTLINE_CONTENTS),
-                usage: wgpu::BufferUsages::VERTEX,
-            }),
             view_format: config.view_formats[0],
             clear_color,
             device,

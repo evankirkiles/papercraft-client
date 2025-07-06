@@ -110,16 +110,6 @@ impl<Str: PartialEq<str>> PartialEq<&str> for Key<Str> {
         self == *rhs
     }
 }
-impl Key<CompactString> {
-    /// Convert `Key::Character(SmolStr)` to `Key::Character(&str)` so you can more easily match on
-    /// `Key`. All other variants remain unchanged.
-    pub fn as_ref(&self) -> Key<&str> {
-        match self {
-            Key::Named(a) => Key::Named(*a),
-            Key::Character(ch) => Key::Character(ch.as_str()),
-        }
-    }
-}
 
 impl Key {
     pub fn from_key_code(kav: &str) -> Self {

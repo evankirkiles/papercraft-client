@@ -1,4 +1,4 @@
-use pp_core::material::texture::{MinMagFilter, Sampler, Texture, WrappingMode};
+use pp_core::material::texture::{MinMagFilter, Sampler, WrappingMode};
 use wgpu::{AddressMode, FilterMode};
 
 use crate::gpu;

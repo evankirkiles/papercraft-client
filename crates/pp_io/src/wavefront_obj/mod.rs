@@ -19,16 +19,10 @@ pub fn import_obj() -> State {
             tobj::load_mtl_buf(&mut cursor.clone())
         },
     );
-    let (models, materials) = model.expect("Failed to load OBJ file");
-    let materials = materials.expect("Failed to load MTL file");
-
-    // Create each material
-    // for (i, m) in materials.iter().enumerate() {
-    //     let mut material = pp_core::material::Material::new();
-    // }
+    let (models, _) = model.expect("Failed to load OBJ file");
 
     // Create each mesh
-    for (i, m) in models.iter().enumerate() {
+    for m in models.iter() {
         let mut mesh = pp_core::mesh::Mesh::new(m.name.clone());
         let mesh_data = &m.mesh;
         let mut vertex_map = Vec::with_capacity(mesh_data.positions.len() / 3);
@@ -38,16 +32,6 @@ pub fn import_obj() -> State {
                 mesh_data.positions[3 * i + 1],
                 mesh_data.positions[3 * i + 2],
             ];
-
-            let normal = if !mesh_data.normals.is_empty() {
-                [
-                    mesh_data.normals[3 * i],
-                    mesh_data.normals[3 * i + 1],
-                    mesh_data.normals[3 * i + 2],
-                ]
-            } else {
-                [0.0, 0.0, 0.0]
-            };
 
             let vid = mesh.add_vertex(pos);
             vertex_map.push(vid);

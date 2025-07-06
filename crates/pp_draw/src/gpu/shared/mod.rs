@@ -14,7 +14,7 @@ pub struct SharedGPUResources {
 }
 
 impl SharedGPUResources {
-    pub fn new(device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
+    pub fn new(device: &wgpu::Device) -> Self {
         let bind_group_layouts = SharedBindGroupLayouts::new(device);
         let pipeline_layouts = SharedPipelineLayouts::new(device, &bind_group_layouts);
         Self { bind_group_layouts, pipeline_layouts, buffers: SharedBuffers::new(device) }

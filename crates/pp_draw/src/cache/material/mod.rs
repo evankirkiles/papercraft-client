@@ -25,9 +25,9 @@ impl Default for MaterialUniform {
 }
 
 impl MaterialUniform {
-    fn new(piece: &pp_core::material::Material) -> Self {
-        Self { base_color_factor: piece.base_color_factor }
-    }
+    // fn new(piece: &pp_core::material::Material) -> Self {
+    //     Self { base_color_factor: piece.base_color_factor }
+    // }
 
     pub fn bind_group_layout_entry(binding: u32) -> wgpu::BindGroupLayoutEntry {
         wgpu::BindGroupLayoutEntry {

@@ -74,7 +74,7 @@ impl OverlayGridCircleProgram {
     /// Draws the grid (only done once)
     pub(super) fn draw(&self, ctx: &gpu::Context, render_pass: &mut wgpu::RenderPass) {
         render_pass.set_pipeline(&self.pipeline);
-        render_pass.set_vertex_buffer(0, ctx.buf_rect.slice(..));
+        render_pass.set_vertex_buffer(0, ctx.shared.buffers.rect.slice(..));
         render_pass.draw(0..4, 0..1);
     }
 }

@@ -1,7 +1,7 @@
 use gltf::{self, Gltf};
 use ordered_float::OrderedFloat;
 use pp_core::{
-    id::{self, Id},
+    id::{self},
     material::{
         image::{Format, Image},
         texture::{MinMagFilter, Sampler, Texture, WrappingMode},
@@ -40,8 +40,8 @@ impl ImportGLTF for State {
             .document
             .images()
             .map(|image| {
-                let i = pp_core::id::ImageId::from_usize(image.index());
-                let image = &images[image.index()];
+                let i = image.index();
+                let image = &images[i];
                 // Map three-channel pixel data into four-channel pixel data (Alpha being 1)
                 let pixels = match image.format {
                     gltf::image::Format::R8G8B8 => {
@@ -83,7 +83,7 @@ impl ImportGLTF for State {
                     _ => image.pixels.clone(),
                 };
                 self.images.insert(Image {
-                    label: format!("{i:?}").as_str().into(),
+                    label: format!("Image{i:?}").as_str().into(),
                     pixels,
                     width: image.width,
                     height: image.height,
@@ -139,9 +139,9 @@ impl ImportGLTF for State {
             .document
             .textures()
             .map(|texture| {
-                let i = pp_core::id::TextureId::from_usize(texture.index());
+                let i = texture.index();
                 self.textures.insert(Texture {
-                    label: texture.name().unwrap_or(format!("{i:?}").as_str()).into(),
+                    label: texture.name().unwrap_or(format!("Tex{i:?}").as_str()).into(),
                     image: image_ids[texture.source().index()],
                     sampler: texture
                         .sampler()
@@ -156,11 +156,10 @@ impl ImportGLTF for State {
             .document
             .materials()
             .map(|material| {
-                let i =
-                    material.index().map(pp_core::id::MaterialId::from_usize).unwrap_or_default();
+                let i = material.index().unwrap_or_default();
                 let pbr_metallic_roughness = material.pbr_metallic_roughness();
                 self.materials.insert(Material {
-                    label: material.name().unwrap_or(format!("{i:?}").as_str()).into(),
+                    label: material.name().unwrap_or(format!("Material{i:?}").as_str()).into(),
                     base_color_texture: pbr_metallic_roughness
                         .base_color_texture()
                         .map(|info| texture_ids[info.texture().index()])
@@ -172,9 +171,9 @@ impl ImportGLTF for State {
             .collect();
 
         gltf.document.meshes().for_each(|mesh| {
-            let i = pp_core::id::MeshId::from_usize(mesh.index());
+            let i = mesh.index();
             let mut pp_mesh = pp_core::mesh::Mesh::new(
-                mesh.name().unwrap_or(format!("Mesh {i:?}").as_str()).into(),
+                mesh.name().unwrap_or(format!("Mesh{i:?}").as_str()).into(),
             );
             // This map keeps track of all the materials used in the mesh
             let mut material_slots: SlotMap<MaterialSlotId, MaterialSlot> = SlotMap::with_key();

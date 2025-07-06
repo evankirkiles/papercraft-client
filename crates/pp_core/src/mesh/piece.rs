@@ -42,7 +42,7 @@ impl Piece {
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum PieceCreationError {
-    PieceAlreadyExists,
+    // PieceAlreadyExists,
     CycleDetected,
 }
 

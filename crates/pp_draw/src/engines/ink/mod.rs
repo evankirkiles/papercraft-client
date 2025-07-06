@@ -1,4 +1,4 @@
-use pp_core::{id, settings::SelectionMode, MaterialId};
+use pp_core::{settings::SelectionMode, MaterialId};
 
 use crate::{cache, gpu};
 

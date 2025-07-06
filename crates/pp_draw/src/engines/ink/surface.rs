@@ -1,4 +1,3 @@
-use pp_core::id;
 use pp_core::MaterialId;
 
 use crate::cache;
@@ -67,16 +66,16 @@ impl SurfaceProgram {
         }
     }
 
-    /// Writes geometry draw commands for all the materials in a mesh
-    pub(super) fn draw_mesh(
-        &self,
-        ctx: &gpu::Context,
-        render_pass: &mut wgpu::RenderPass,
-        mesh: &cache::MeshGPU,
-    ) {
-        render_pass.set_pipeline(&self.pipeline);
-        mesh.draw_tris(ctx, render_pass);
-    }
+    // Writes geometry draw commands for all the materials in a mesh
+    // pub(super) fn draw_mesh(
+    //     &self,
+    //     ctx: &gpu::Context,
+    //     render_pass: &mut wgpu::RenderPass,
+    //     mesh: &cache::MeshGPU,
+    // ) {
+    //     render_pass.set_pipeline(&self.pipeline);
+    //     mesh.draw_tris(ctx, render_pass);
+    // }
 
     pub(super) fn draw_mesh_with_material(
         &self,

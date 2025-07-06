@@ -1,7 +1,7 @@
-use cgmath::{ElementWise, EuclideanSpace, InnerSpace, Matrix4, Rad, SquareMatrix, Transform};
+use cgmath::{EuclideanSpace, InnerSpace, Matrix4, Rad, SquareMatrix, Transform};
 use pp_core::{id, transform_pieces::TransformPiecesCommand, MeshId};
 
-use crate::viewport::{camera::Camera, cutting::CuttingViewport, ViewportBounds};
+use crate::viewport::{cutting::CuttingViewport, ViewportBounds};
 
 use super::ToolCreationError;
 

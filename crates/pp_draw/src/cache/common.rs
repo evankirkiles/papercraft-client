@@ -1,6 +1,6 @@
 use crate::gpu;
 
-use super::{material::texture::TextureGPU, mesh::piece::PieceGPU};
+use super::mesh::piece::PieceGPU;
 
 #[derive(Debug)]
 pub struct CommonGPUResources {
