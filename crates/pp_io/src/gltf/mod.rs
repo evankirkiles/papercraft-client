@@ -170,20 +170,17 @@ impl ImportGLTF for State {
             })
             .collect();
 
-        gltf.document.meshes().for_each(|mesh| {
-            let i = mesh.index();
-            let mut pp_mesh = pp_core::mesh::Mesh::new(
-                mesh.name().unwrap_or(format!("Mesh{i:?}").as_str()).into(),
-            );
-            // This map keeps track of all the materials used in the mesh
-            let mut material_slots: SlotMap<MaterialSlotId, MaterialSlot> = SlotMap::with_key();
-            let mut slot_materials: HashMap<MaterialId, MaterialSlotId> = HashMap::new();
-            let mut slot_materials_inv: SecondaryMap<MaterialSlotId, MaterialId> =
-                SecondaryMap::new();
+        // Import all GLTF meshes into a single mesh to join same-position vertices
+        let mut pp_mesh = pp_core::mesh::Mesh::new("ImportMesh".to_string());
+        // This map keeps track of all the materials used in the mesh
+        let mut material_slots: SlotMap<MaterialSlotId, MaterialSlot> = SlotMap::with_key();
+        let mut slot_materials: HashMap<MaterialId, MaterialSlotId> = HashMap::new();
+        let mut slot_materials_inv: SecondaryMap<MaterialSlotId, MaterialId> = SecondaryMap::new();
+        // Keep track of vertices keyed by their position, so we can preserve
+        // topology despite GLTF splitting meshes up based on material
+        let mut vertices: HashMap<VertPos, id::VertexId> = HashMap::new();
 
-            // Keep track of vertices keyed by their position, so we can preserve
-            // topology despite GLTF splitting meshes up based on material
-            let mut vertices: HashMap<VertPos, id::VertexId> = HashMap::new();
+        gltf.document.meshes().for_each(|mesh| {
             for primitive in mesh.primitives() {
                 let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
                 // Map GLTF vertices to mesh vertices by deduplicating on position
@@ -239,10 +236,9 @@ impl ImportGLTF for State {
                     });
                 };
             }
-
-            // Add the mesh to the scene state
-            self.add_mesh(pp_mesh, Some(slot_materials_inv));
         });
+        // Add the mesh to the scene state
+        self.add_mesh(pp_mesh, Some(slot_materials_inv));
 
         Ok(())
     }
