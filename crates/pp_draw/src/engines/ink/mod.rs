@@ -6,8 +6,6 @@ mod flaps;
 mod flaps_lines;
 mod lines;
 mod lines_cut;
-mod overlay_grid_circle;
-mod overlay_grid_rect;
 mod points;
 mod surface;
 mod tris;
@@ -36,10 +34,6 @@ pub struct InkEngine {
     surface: surface::SurfaceProgram,
     flaps: flaps::FlapsProgram,
     flaps_lines: flaps_lines::FlapsLinesProgram,
-
-    // Overlay draw programs
-    overlay_grid_sphere: overlay_grid_circle::OverlayGridCircleProgram,
-    overlay_grid_rect: overlay_grid_rect::OverlayGridRectProgram,
 }
 
 impl InkEngine {
@@ -52,17 +46,7 @@ impl InkEngine {
             surface: surface::SurfaceProgram::new(ctx),
             flaps: flaps::FlapsProgram::new(ctx),
             flaps_lines: flaps_lines::FlapsLinesProgram::new(ctx),
-            overlay_grid_sphere: overlay_grid_circle::OverlayGridCircleProgram::new(ctx),
-            overlay_grid_rect: overlay_grid_rect::OverlayGridRectProgram::new(ctx),
         }
-    }
-
-    pub fn draw_3d_overlays(&self, ctx: &gpu::Context, render_pass: &mut wgpu::RenderPass) {
-        self.overlay_grid_sphere.draw(ctx, render_pass);
-    }
-
-    pub fn draw_2d_overlays(&self, ctx: &gpu::Context, render_pass: &mut wgpu::RenderPass) {
-        self.overlay_grid_rect.draw(ctx, render_pass);
     }
 
     /// Draws only the parts of the mesh using the specified material

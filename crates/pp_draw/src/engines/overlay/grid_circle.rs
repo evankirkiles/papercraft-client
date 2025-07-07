@@ -1,21 +1,25 @@
-use crate::gpu;
-
-use super::DepthBiasLayer;
+use crate::{engines::ink::DepthBiasLayer, gpu};
 
 #[derive(Debug)]
-pub struct OverlayGridRectProgram {
+pub struct GridCircleProgram {
     pipeline: wgpu::RenderPipeline,
 }
 
-impl OverlayGridRectProgram {
-    pub fn new(ctx: &gpu::Context) -> Self {
-        let shader = ctx
-            .device
-            .create_shader_module(wgpu::include_wgsl!("../shaders/overlay_grid_rect.wgsl"));
+impl GridCircleProgram {
+    pub(super) fn new(ctx: &gpu::Context) -> Self {
+        let shader =
+            ctx.device.create_shader_module(wgpu::include_wgsl!("./shaders/grid_circle.wgsl"));
         Self {
             pipeline: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("ink3.overlay_grid"),
-                layout: Some(&ctx.shared.pipeline_layouts.mesh_overlays),
+                label: Some("overlay.grid_circle"),
+                layout: Some(&ctx.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("overlay.grid_circle"),
+                    bind_group_layouts: &[
+                        &ctx.shared.bind_group_layouts.viewport,
+                        &ctx.shared.bind_group_layouts.camera,
+                    ],
+                    push_constant_ranges: &[],
+                })),
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: Some("vs_main"),
@@ -72,7 +76,7 @@ impl OverlayGridRectProgram {
     }
 
     /// Draws the grid (only done once)
-    pub(super) fn draw(&self, ctx: &gpu::Context, render_pass: &mut wgpu::RenderPass) {
+    pub fn draw(&self, ctx: &gpu::Context, render_pass: &mut wgpu::RenderPass) {
         render_pass.set_pipeline(&self.pipeline);
         render_pass.set_vertex_buffer(0, ctx.shared.buffers.rect.slice(..));
         render_pass.draw(0..4, 0..1);

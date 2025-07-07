@@ -9,9 +9,9 @@ use crate::{
 impl<'window> Renderer<'window> {
     /// Draws the "folding" view of a viewport, plus any active tool in the viewport
     pub(crate) fn draw_folding(&self, settings: &Settings, render_pass: &mut wgpu::RenderPass) {
-        let Renderer { draw_cache, engine_ink, .. } = &self;
+        let Renderer { draw_cache, engine_ink, engine_overlay, .. } = &self;
+        engine_overlay.grid_circle.draw(&self.ctx, render_pass);
         draw_cache.common.piece_identity.bind(render_pass);
-        engine_ink.draw_3d_overlays(&self.ctx, render_pass);
         draw_cache.materials.iter().for_each(|(id, mat)| {
             mat.bind(render_pass);
             draw_cache.meshes.values().for_each(|mesh| {
@@ -28,7 +28,7 @@ impl<'window> Renderer<'window> {
     /// Draws the view of a "cutting" viewport, plus any active tool in the viewport
     pub(crate) fn draw_cutting(&self, settings: &Settings, render_pass: &mut wgpu::RenderPass) {
         let Renderer { draw_cache, engine_ink, engine_overlay, ctx, .. } = &self;
-        engine_ink.draw_2d_overlays(ctx, render_pass);
+        engine_overlay.grid_rect.draw(&self.ctx, render_pass);
         draw_cache.materials.iter().for_each(|(id, mat)| {
             mat.bind(render_pass);
             draw_cache.meshes.values().for_each(|mesh| {
@@ -43,7 +43,7 @@ impl<'window> Renderer<'window> {
 }
 
 impl SelectManager {
-    pub(crate) fn draw_for_folding(
+    pub(crate) fn draw_folding(
         &self,
         ctx: &gpu::Context,
         draw_cache: &cache::DrawCache,
@@ -57,7 +57,7 @@ impl SelectManager {
         });
     }
 
-    pub(crate) fn draw_for_cutting(
+    pub(crate) fn draw_cutting(
         &self,
         ctx: &gpu::Context,
         draw_cache: &cache::DrawCache,

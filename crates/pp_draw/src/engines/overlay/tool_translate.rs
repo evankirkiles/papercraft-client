@@ -19,7 +19,7 @@ impl ToolTranslateProgram {
                     bind_group_layouts: &[
                         &ctx.shared.bind_group_layouts.viewport,
                         &ctx.shared.bind_group_layouts.camera,
-                        &TranslateToolGPU::create_bind_group_layout(&ctx.device),
+                        &ctx.shared.bind_group_layouts.tool.translate,
                     ],
                     push_constant_ranges: &[],
                 })),

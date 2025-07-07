@@ -8,7 +8,8 @@ pub struct PointsProgram {
 
 impl PointsProgram {
     pub(super) fn new(ctx: &gpu::Context) -> Self {
-        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/points.wgsl"));
+        let shader =
+            ctx.device.create_shader_module(wgpu::include_wgsl!("../ink/shaders/points.wgsl"));
         Self {
             pipeline: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("select.points"),

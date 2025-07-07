@@ -9,7 +9,8 @@ pub struct LinesProgram {
 
 impl LinesProgram {
     pub(super) fn new(ctx: &gpu::Context) -> Self {
-        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/lines.wgsl"));
+        let shader =
+            ctx.device.create_shader_module(wgpu::include_wgsl!("../ink/shaders/lines.wgsl"));
         Self {
             pipeline: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("select.lines"),

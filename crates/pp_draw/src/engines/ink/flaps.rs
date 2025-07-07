@@ -10,7 +10,7 @@ pub(super) struct FlapsProgram {
 
 impl FlapsProgram {
     pub(super) fn new(ctx: &gpu::Context) -> Self {
-        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("../shaders/flaps.wgsl"));
+        let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("./shaders/flaps.wgsl"));
         Self {
             pipeline: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("ink3.flaps"),

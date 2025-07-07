@@ -215,10 +215,10 @@ impl SelectManager {
                 viewport.bind(&mut render_pass);
                 match viewport {
                     ViewportGPU::Folding(_) => {
-                        self.draw_for_folding(ctx, draw_cache, mask, &mut render_pass)
+                        self.draw_folding(ctx, draw_cache, mask, &mut render_pass)
                     }
                     ViewportGPU::Cutting(_) => {
-                        self.draw_for_cutting(ctx, draw_cache, mask, &mut render_pass)
+                        self.draw_cutting(ctx, draw_cache, mask, &mut render_pass)
                     }
                 }
             });
