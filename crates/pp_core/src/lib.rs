@@ -5,7 +5,9 @@ pub mod commands;
 pub mod cut;
 pub mod id;
 pub mod material;
+pub mod measures;
 pub mod mesh;
+pub mod print;
 pub mod select;
 pub mod settings;
 
@@ -17,6 +19,9 @@ new_key_type! {
     pub struct TextureId;
     pub struct ImageId;
     pub struct SamplerId;
+    pub struct PageId;
+    pub struct TextBoxId;
+    pub struct ImageBoxId;
 }
 
 /// IDs of default rendering items you can use for a given mesh
@@ -32,18 +37,25 @@ pub struct StateDefaults {
 /// mimics the structure of a GLTF file.
 #[derive(Debug)]
 pub struct State {
+    // Geometry-related entities
     pub meshes: SlotMap<MeshId, mesh::Mesh>,
     pub materials: SlotMap<MaterialId, material::Material>,
     pub textures: SlotMap<TextureId, material::texture::Texture>,
     pub samplers: SlotMap<SamplerId, material::texture::Sampler>,
     pub images: SlotMap<ImageId, material::image::Image>,
 
+    // Print-related entities
+    pub printing: print::PrintLayout,
+    pub text_boxes: SlotMap<TextBoxId, print::TextBox>,
+    pub image_boxes: SlotMap<ImageBoxId, print::ImageBox>,
+
+    /// Default entity IDs to use where providing an entity is optional
+    pub defaults: StateDefaults,
+
     /// A map from mesh material "slot"s to the actual materials used by them
     pub mesh_materials: SecondaryMap<MeshId, SecondaryMap<MaterialSlotId, MaterialId>>,
-
     pub selection: select::SelectionState,
     pub settings: settings::Settings,
-    pub defaults: StateDefaults,
 }
 
 impl Default for State {
@@ -74,15 +86,18 @@ impl Default for State {
         });
 
         Self {
-            meshes: Default::default(),
-            mesh_materials: Default::default(),
-            selection: Default::default(),
-            settings: Default::default(),
-            defaults: StateDefaults { material, texture, sampler, image },
             materials,
             textures,
             samplers,
             images,
+            meshes: Default::default(),
+            printing: Default::default(),
+            text_boxes: Default::default(),
+            image_boxes: Default::default(),
+            selection: Default::default(),
+            settings: Default::default(),
+            mesh_materials: Default::default(),
+            defaults: StateDefaults { material, texture, sampler, image },
         }
     }
 }

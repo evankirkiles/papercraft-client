@@ -1,4 +1,5 @@
-use pp_editor::{measures::Dimensions, tool};
+use pp_core::measures::Dimensions;
+use pp_editor::tool;
 use std::{cell::RefCell, rc::Rc};
 use wasm_bindgen::prelude::*;
 

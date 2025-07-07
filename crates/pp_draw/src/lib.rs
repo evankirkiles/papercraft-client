@@ -1,5 +1,5 @@
 use cache::{viewport::BindableViewport, DrawCache};
-use pp_editor::measures::Dimensions;
+use pp_core::measures::Dimensions;
 use select::{SelectionQueryArea, SelectionQueryResult};
 use std::iter;
 use wgpu::util::new_instance_with_webgpu_detection;
@@ -17,14 +17,17 @@ pub struct Renderer<'window> {
     ctx: gpu::Context<'window>,
     // Textures used as attachments in pipelines
     textures: RendererAttachmentTextures,
+
     /// Manages querying the GPU for pixels containing element indices to select
     select: select::SelectManager,
-    /// A storage manager for all updatable GPU resources (mesh, materials)
-    draw_cache: cache::DrawCache,
+
     /// The core renderer for viewport content (2D and 3D)
     engine_ink: engines::ink::InkEngine,
     /// Renderer for overlays, basically non-mesh things
     engine_overlay: engines::overlay::OverlayEngine,
+
+    /// The storage manager for all updatable GPU resources (mesh, materials)
+    draw_cache: cache::DrawCache,
 }
 
 impl<'window> Renderer<'window> {
@@ -118,6 +121,7 @@ impl<'window> Renderer<'window> {
         self.draw_cache.prepare_materials(&self.ctx, state);
         self.draw_cache.prepare_viewports(&self.ctx, editor);
         self.draw_cache.prepare_tool(&self.ctx, editor);
+        self.draw_cache.prepare_print(&self.ctx, state);
     }
 
     /// Draws all of the renderables to the screen in each viewport

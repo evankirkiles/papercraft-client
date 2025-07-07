@@ -1,15 +1,18 @@
+use page::PageProgram;
 use tool_rotate::ToolRotateProgram;
 use tool_select_box::ToolSelectBoxProgram;
 use tool_translate::ToolTranslateProgram;
 
 use crate::{cache::tool::ToolGPU, gpu};
 
+pub mod page;
 pub mod tool_rotate;
 pub mod tool_select_box;
 pub mod tool_translate;
 
 #[derive(Debug)]
 pub struct OverlayEngine {
+    pub page: PageProgram,
     tool_select_box: ToolSelectBoxProgram,
     tool_rotate: ToolRotateProgram,
     tool_translate: ToolTranslateProgram,
@@ -18,6 +21,7 @@ pub struct OverlayEngine {
 impl OverlayEngine {
     pub fn new(ctx: &gpu::Context) -> Self {
         Self {
+            page: PageProgram::new(ctx),
             tool_select_box: ToolSelectBoxProgram::new(ctx),
             tool_rotate: ToolRotateProgram::new(ctx),
             tool_translate: ToolTranslateProgram::new(ctx),

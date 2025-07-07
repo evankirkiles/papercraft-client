@@ -1,12 +1,11 @@
 use cgmath::Point2;
-use measures::Dimensions;
+use pp_core::measures::Dimensions;
 use serde::Serialize;
 use slotmap::{new_key_type, SlotMap};
 use tsify::Tsify;
 use viewport::{Viewport, ViewportBounds};
 use windowing::{Split, ViewTreeNode};
 
-pub mod measures;
 pub mod scene;
 pub mod tool;
 pub mod viewport;

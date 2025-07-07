@@ -40,8 +40,11 @@ impl EventHandler for pp_editor::tool::TranslateTool {
                     return Ok(event::EventHandleSuccess::set_tool(None));
                 }
                 keyboard::Key::Character(char) => match char.as_str() {
+                    // X: Toggle X axis lock
                     "KeyX" => self.toggle_x_lock(state),
+                    // Y: Toggle Y axis lock
                     "KeyY" => self.toggle_y_lock(state),
+                    // TODO: Space: Turn on "move" mode (move start_pos)
                     _ => (),
                 },
                 _ => (),

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::measures::Dimensions;
+use pp_core::measures::Dimensions;
 
 use super::Camera;
 
@@ -18,14 +18,14 @@ pub struct OrthographicCamera {
 
 impl Default for OrthographicCamera {
     fn default() -> Self {
-        Self { eye: (0.0, 0.0).into(), zoom: 0.5, is_dirty: true }
+        Self { eye: (4.0, -4.0).into(), zoom: 0.1, is_dirty: true }
     }
 }
 
 const ORTHO_SPEED_DOLLY: f32 = 0.03;
 const ORTHO_SPEED_PAN: f32 = 0.003;
 const ORTHO_MAX_ZOOM: f32 = 10.0;
-const ORTHO_MIN_ZOOM: f32 = 0.1;
+const ORTHO_MIN_ZOOM: f32 = 0.05;
 
 impl Camera for OrthographicCamera {
     fn view_proj(&self, dims: Dimensions<f32>) -> cgmath::Matrix4<f32> {

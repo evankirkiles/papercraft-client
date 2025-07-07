@@ -45,7 +45,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     } else if (bool(tool.flags & FLAG_Y_LOCKED)) {
       return vec4<f32>(0.0, 1.0, 0.0, 0.2);
     } else {
-      discard;
-      return vec4<f32>(0.0, 1.0, 0.0, 0.0);;
+      return vec4<f32>(0.0, 1.0, 0.0, 0.0);
     }
 }

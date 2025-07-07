@@ -1,7 +1,5 @@
-use pp_editor::{
-    measures::Rect,
-    viewport::{Viewport, ViewportContent},
-};
+use pp_core::measures::Rect;
+use pp_editor::viewport::{Viewport, ViewportContent};
 
 use crate::gpu::{self, shared::bind_group_layouts::BindGroup};
 

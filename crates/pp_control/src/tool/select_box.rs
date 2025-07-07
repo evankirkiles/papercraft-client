@@ -9,7 +9,7 @@ use pp_core::{
     MeshId,
 };
 use pp_draw::select::{self, PixelData, SelectionMask, SelectionQueryArea, SelectionQueryResult};
-use pp_editor::measures::Rect;
+use pp_core::measures::Rect;
 use slotmap::KeyData;
 
 use crate::{

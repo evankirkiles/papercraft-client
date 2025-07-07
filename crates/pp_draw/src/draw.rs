@@ -11,6 +11,7 @@ impl<'window> Renderer<'window> {
     pub(crate) fn draw_folding(&self, settings: &Settings, render_pass: &mut wgpu::RenderPass) {
         let Renderer { draw_cache, engine_ink, .. } = &self;
         draw_cache.common.piece_identity.bind(render_pass);
+        engine_ink.draw_3d_overlays(&self.ctx, render_pass);
         draw_cache.materials.iter().for_each(|(id, mat)| {
             mat.bind(render_pass);
             draw_cache.meshes.values().for_each(|mesh| {
@@ -21,13 +22,13 @@ impl<'window> Renderer<'window> {
         draw_cache.meshes.values().for_each(|mesh| {
             engine_ink.draw_mesh(&self.ctx, settings, render_pass, mesh, xray_mode);
         });
-        // Lastly, draw gizmos etc
-        engine_ink.draw_3d_overlays(&self.ctx, render_pass);
+        // self.draw_cutting(settings, render_pass);
     }
 
     /// Draws the view of a "cutting" viewport, plus any active tool in the viewport
     pub(crate) fn draw_cutting(&self, settings: &Settings, render_pass: &mut wgpu::RenderPass) {
-        let Renderer { draw_cache, engine_ink, ctx, .. } = &self;
+        let Renderer { draw_cache, engine_ink, engine_overlay, ctx, .. } = &self;
+        engine_ink.draw_2d_overlays(ctx, render_pass);
         draw_cache.materials.iter().for_each(|(id, mat)| {
             mat.bind(render_pass);
             draw_cache.meshes.values().for_each(|mesh| {
@@ -37,7 +38,7 @@ impl<'window> Renderer<'window> {
         draw_cache.meshes.values().for_each(|mesh| {
             engine_ink.draw_piece_mesh(ctx, settings, render_pass, mesh);
         });
-        engine_ink.draw_2d_overlays(ctx, render_pass);
+        engine_overlay.page.draw(ctx, render_pass, &draw_cache.printing);
     }
 }
 

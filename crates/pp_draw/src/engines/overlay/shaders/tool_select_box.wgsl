@@ -43,7 +43,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // Check if the fragment is near an edge (border)
     let inside = all(in.local_pos >= min_pos) && all(in.local_pos <= max_pos);
-
     let near_left   = abs(in.local_pos.x - min_pos.x) < border_thickness;
     let near_right  = abs(in.local_pos.x - max_pos.x) < border_thickness;
     let near_top    = abs(in.local_pos.y - min_pos.y) < border_thickness;

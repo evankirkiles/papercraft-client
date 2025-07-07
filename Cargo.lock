@@ -980,9 +980,11 @@ dependencies = [
  "image",
  "itertools",
  "log",
+ "serde",
  "slotmap",
  "stable-vec",
  "tobj",
+ "tsify",
  "wasm-bindgen",
 ]
 

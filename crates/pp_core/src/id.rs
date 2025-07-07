@@ -85,7 +85,7 @@ macro_rules! make_handle_type {
     }
 }
 
-// Mesh-specific handles
+// Mesh-specific handles, which are all stored in StableVecs
 make_handle_type! { FaceId = "F"; }
 make_handle_type! { EdgeId = "E"; }
 make_handle_type! { VertexId = "V"; }

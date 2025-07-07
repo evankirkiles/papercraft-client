@@ -2,7 +2,8 @@ use serde::{Deserialize, Serialize};
 use slotmap::SlotMap;
 use tsify::Tsify;
 
-use crate::{measures::Rect, Editor, SplitId, ViewportId};
+use crate::{Editor, SplitId, ViewportId};
+use pp_core::measures::Rect;
 
 /// An axis upon which the viewport can be split
 #[derive(Debug, Default, Copy, Clone, PartialEq, PartialOrd, Tsify, Serialize, Deserialize)]

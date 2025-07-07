@@ -1,7 +1,7 @@
 use serde::Serialize;
 use tsify::Tsify;
 
-use crate::measures::Rect;
+use pp_core::measures::Rect;
 
 pub mod camera;
 pub mod cutting;

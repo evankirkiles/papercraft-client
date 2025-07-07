@@ -1,4 +1,4 @@
-use pp_editor::measures::Dimensions;
+use pp_core::measures::Dimensions;
 
 use super::{settings::Settings, shared::SharedGPUResources};
 

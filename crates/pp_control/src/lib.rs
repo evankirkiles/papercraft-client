@@ -3,7 +3,8 @@ use event::{
     ExternalEventHandleSuccess, PressedState, UserEvent,
 };
 use keyboard::ModifierKeys;
-use pp_editor::{measures::Dimensions, SplitId};
+use pp_core::measures::Dimensions;
+use pp_editor::SplitId;
 use pp_io::gltf::ImportGLTF;
 use slotmap::KeyData;
 use store::AppCallbacks;

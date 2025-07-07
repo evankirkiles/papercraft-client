@@ -1,6 +1,6 @@
 use bitflags::bitflags;
 use cgmath::Point2;
-use pp_editor::measures::Rect;
+use pp_core::measures::Rect;
 use std::fmt::Debug;
 use std::{cell::RefCell, iter, ops::Deref, rc::Rc};
 

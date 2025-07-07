@@ -6,7 +6,7 @@ pub use rotate::RotateTool;
 pub use select_box::SelectBoxTool;
 pub use translate::TranslateTool;
 
-use crate::measures::Dimensions;
+use pp_core::measures::Dimensions;
 
 /// An error indicating a tool could not be created.
 #[derive(Debug, Clone, Copy)]

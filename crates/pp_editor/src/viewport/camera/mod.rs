@@ -1,4 +1,4 @@
-use crate::measures::Dimensions;
+use pp_core::measures::Dimensions;
 
 pub mod orthographic;
 pub mod perspective;

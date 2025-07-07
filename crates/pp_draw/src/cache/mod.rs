@@ -2,6 +2,7 @@ use crate::gpu;
 use material::{image::ImageGPU, sampler::SamplerGPU, texture::TextureGPU, MaterialGPU};
 use pp_core::{ImageId, MaterialId, MeshId, SamplerId, TextureId};
 use pp_editor::{tool::Tool, ViewportId};
+use print::PrintLayoutGPU;
 use slotmap::SecondaryMap;
 use tool::{ActiveToolGPU, ToolGPU};
 use viewport::{BindableViewport, ViewportGPU};
@@ -11,6 +12,7 @@ pub(crate) use mesh::MeshGPU;
 mod common;
 pub mod material;
 pub mod mesh;
+pub mod print;
 pub mod tool;
 pub mod viewport;
 
@@ -28,6 +30,9 @@ pub(crate) struct DrawCache {
     pub textures: SecondaryMap<TextureId, TextureGPU>,
     pub samplers: SecondaryMap<SamplerId, SamplerGPU>,
     pub images: SecondaryMap<ImageId, ImageGPU>,
+
+    // Print GPU resources
+    pub printing: PrintLayoutGPU,
 
     // Editor-specific GPU resources
     pub viewports: SecondaryMap<ViewportId, ViewportGPU>,
@@ -47,6 +52,7 @@ impl DrawCache {
             images: SecondaryMap::new(),
             viewports: SecondaryMap::new(),
             common: common::CommonGPUResources::new(ctx),
+            printing: PrintLayoutGPU::new(ctx),
             active_tool: None,
         }
     }
@@ -138,5 +144,10 @@ impl DrawCache {
             (None, Some(_)) => self.active_tool = None,
             (None, None) => {}
         };
+    }
+
+    /// Ensures that all print things have been synchronized
+    pub(crate) fn prepare_print(&mut self, ctx: &gpu::Context, state: &mut pp_core::State) {
+        self.printing.prepare(ctx, &mut state.printing);
     }
 }

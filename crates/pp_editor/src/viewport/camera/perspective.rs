@@ -1,7 +1,7 @@
 use cgmath::{InnerSpace, MetricSpace};
 use serde::{Deserialize, Serialize};
 
-use crate::measures::Dimensions;
+use pp_core::measures::Dimensions;
 
 use super::Camera;
 

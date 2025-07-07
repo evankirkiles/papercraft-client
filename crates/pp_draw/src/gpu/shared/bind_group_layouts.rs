@@ -1,7 +1,8 @@
 use crate::cache::{
     material::MaterialGPU,
     mesh::piece::PieceGPU,
-    tool::{rotate::RotateToolGPU, select_box::SelectBoxToolGPU},
+    print::PrintLayoutGPU,
+    tool::{rotate::RotateToolGPU, select_box::SelectBoxToolGPU, translate::TranslateToolGPU},
     viewport::{bounds::ViewportBoundsGPU, camera::CameraGPU},
 };
 
@@ -12,6 +13,7 @@ pub enum BindGroup {
     Viewport,
     Camera,
     Piece,
+    PrintLayout,
     Material,
     Tool,
 }
@@ -26,6 +28,8 @@ impl BindGroup {
             // Mesh path
             BindGroup::Piece => 2,
             BindGroup::Material => 3,
+            // Print path
+            BindGroup::PrintLayout => 2,
         }
     }
 }
@@ -34,6 +38,7 @@ impl BindGroup {
 pub struct ToolBindGroupLayouts {
     pub select_box: wgpu::BindGroupLayout,
     pub rotate: wgpu::BindGroupLayout,
+    pub translate: wgpu::BindGroupLayout,
 }
 
 /// Shared BindGroup layouts created at the start of the program, allowing
@@ -44,6 +49,7 @@ pub struct SharedBindGroupLayouts {
     pub camera: wgpu::BindGroupLayout,
     pub piece: wgpu::BindGroupLayout,
     pub material: wgpu::BindGroupLayout,
+    pub print_layout: wgpu::BindGroupLayout,
     pub tool: ToolBindGroupLayouts,
 }
 
@@ -54,9 +60,11 @@ impl SharedBindGroupLayouts {
             camera: CameraGPU::create_bind_group_layout(device),
             piece: PieceGPU::create_bind_group_layout(device),
             material: MaterialGPU::create_bind_group_layout(device),
+            print_layout: PrintLayoutGPU::create_bind_group_layout(device),
             tool: ToolBindGroupLayouts {
                 select_box: SelectBoxToolGPU::create_bind_group_layout(device),
                 rotate: RotateToolGPU::create_bind_group_layout(device),
+                translate: TranslateToolGPU::create_bind_group_layout(device),
             },
         }
     }

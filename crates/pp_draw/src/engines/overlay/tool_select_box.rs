@@ -18,7 +18,7 @@ impl ToolSelectBoxProgram {
                     bind_group_layouts: &[
                         &ctx.shared.bind_group_layouts.viewport,
                         &ctx.shared.bind_group_layouts.camera,
-                        &SelectBoxToolGPU::create_bind_group_layout(&ctx.device),
+                        &ctx.shared.bind_group_layouts.tool.select_box,
                     ],
                     push_constant_ranges: &[],
                 })),

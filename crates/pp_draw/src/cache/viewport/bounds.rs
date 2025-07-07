@@ -1,9 +1,7 @@
 use std::mem;
 
-use pp_editor::{
-    measures::Rect,
-    viewport::{Viewport, ViewportBounds},
-};
+use pp_core::measures::Rect;
+use pp_editor::viewport::{Viewport, ViewportBounds};
 
 use crate::gpu;
 
