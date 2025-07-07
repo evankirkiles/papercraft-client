@@ -56,7 +56,7 @@ impl Default for PrintLayout {
     fn default() -> Self {
         let mut pages = SlotMap::with_key();
         pages.insert(Page { pos: cgmath::Point2 { x: 0.0, y: 0.0 }, label: None });
-        pages.insert(Page { pos: cgmath::Point2 { x: 1.05, y: 0.0 }, label: None });
+        // pages.insert(Page { pos: cgmath::Point2 { x: 1.05, y: 0.0 }, label: None });
         Self {
             page_size: Default::default(),
             page_margin_start: cgmath::Point2 { x: 0.5, y: 0.5 },
