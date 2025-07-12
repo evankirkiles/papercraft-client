@@ -26,6 +26,10 @@ struct VertexOutput {
 const MAX_FLAP_HEIGHT: f32 = 0.05;
 const FLAP_LINE_WIDTH: f32 = 2.0;
 
+// Colors
+const COLOR_ACTIVE: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
+const COLOR_SELECTED: vec3<f32> = vec3<f32>(1.0, 0.5, 0.0);
+
 // Edge flags
 const E_FLAG_SELECTED: u32 = (u32(1) << 0);
 const E_FLAG_ACTIVE: u32 = (u32(1) << 1);
@@ -75,7 +79,7 @@ fn _vs_color(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     // Color the flap (each vertex) based on its select status. Nonexistent
     // flaps should be clipped out already, but just in case...
     if (bool(in.flags & E_FLAG_SELECTED)) { 
-      out.color = mix(out.color, vec4<f32>(1.0, 0.5, 0.0, 1.0), 0.5); 
+      out.color = mix(out.color, vec4<f32>(COLOR_SELECTED, 1.0), 0.5); 
     }
 
     // Add the edge index for the selection engine
@@ -90,7 +94,7 @@ fn _vs_color_edge(in: VertexInput, _out: VertexOutput) -> VertexOutput {
 
     // Color the flap (each vertex) based on its select status
     if (bool(in.flags & E_FLAG_SELECTED)) { 
-      out.color = vec4<f32>(1.0, 0.5, 0.0, 1.0); 
+      out.color = vec4<f32>(COLOR_SELECTED, 1.0); 
     }
 
     // Add the edge index for the selection engine

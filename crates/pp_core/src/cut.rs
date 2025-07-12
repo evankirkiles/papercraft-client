@@ -107,7 +107,9 @@ impl State {
                 // starting from either piece.
                 (None, None) => {
                     let _ = mesh.create_piece(f_a, history.and_then(|h| h.p_a));
-                    let _ = mesh.create_piece(f_b, history.and_then(|h| h.p_b));
+                    if mesh[f_b].p.is_none() {
+                        let _ = mesh.create_piece(f_b, history.and_then(|h| h.p_b));
+                    }
                 }
                 // "Cut" between different pieces isn't possible, that edge is always cut
                 _ => {}

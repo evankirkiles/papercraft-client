@@ -19,6 +19,12 @@ struct VertexOutput {
     @location(2) @interpolate(flat) select_idx: vec4<u32>
 };
 
+// Colors (opaque for overlays)
+const COLOR_ACTIVE: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
+const COLOR_SELECTED: vec3<f32> = vec3<f32>(1.0, 0.5, 0.0);
+const COLOR_BOUNDARY: vec3<f32> = vec3<f32>(0.0, 0.0, 1.0);
+const COLOR_CUT: vec3<f32> = vec3<f32>(1.0, 0.0, 0.0);
+
 // Line width
 const LINE_WIDTH_THIN: f32 = 1.5;
 const LINE_WIDTH_THICK: f32 = 5.0;
@@ -38,12 +44,12 @@ fn _vs_color(in: VertexInput, _out: VertexOutput) -> VertexOutput {
 
     // Color the line (each vertex) based on its select status
     if (bool(in.flags & FLAG_ACTIVE)) { 
-      out.color = vec4<f32>(1.0, 1.0, 1.0, 1.0); 
+      out.color = vec4<f32>(COLOR_ACTIVE, 1.0); 
     } else if (bool(in.flags & FLAG_SELECTED)) { 
-      out.color = vec4<f32>(1.0, 0.5, 0.0, 1.0); 
+      out.color = vec4<f32>(COLOR_SELECTED, 1.0);
     } else if ((in.offset.x == 0 && bool(in.flags & FLAG_V0_SELECTED)) || 
        (in.offset.x == 1 && bool(in.flags & FLAG_V1_SELECTED))) {
-      out.color = vec4<f32>(1.0, 0.5, 0.0, 1.0);
+      out.color = vec4<f32>(COLOR_SELECTED, 1.0);
     }
 
     // Add the edge index for the selection engine
@@ -58,9 +64,9 @@ fn _vs_color_thick(in: VertexInput, _out: VertexOutput) -> VertexOutput {
 
     // Color the line based on input flags
     if (bool(in.flags & FLAG_BOUNDARY)) {
-      out.color = vec4<f32>(0.0, 0.0, 1.0, 1.0); 
+      out.color = vec4<f32>(COLOR_BOUNDARY, 1.0);
     } else if (bool(in.flags & FLAG_CUT)) { 
-      out.color = vec4<f32>(1.0, 0.0, 0.0, 1.0); 
+      out.color = vec4<f32>(COLOR_CUT, 1.0);
     }
 
     return out;

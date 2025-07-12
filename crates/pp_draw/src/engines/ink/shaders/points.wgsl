@@ -23,6 +23,10 @@ struct VertexOutput {
 // Point size (width in pixels of sides of vertex dot squares)
 const POINT_SIZE: f32 = 14.0;
 
+// Colors
+const COLOR_ACTIVE: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
+const COLOR_SELECTED: vec3<f32> = vec3<f32>(1.0, 0.5, 0.0);
+
 // Vertex flags
 const FLAG_SELECTED: u32 = (u32(1) << 0);
 const FLAG_ACTIVE: u32 = (u32(1) << 1);
@@ -34,9 +38,9 @@ fn _vs_color(in: VertexInput, _out: VertexOutput) -> VertexOutput {
 
     // Color each vertex based on its select status
     if (bool(in.flags & FLAG_ACTIVE)) {
-      out.color = vec4<f32>(1.0, 1.0, 1.0, 1.0);
+      out.color = vec4<f32>(COLOR_ACTIVE, 1.0);
     } else if (bool(in.flags & FLAG_SELECTED)) {
-      out.color = vec4<f32>(1.0, 0.5, 0.0, 1.0);
+      out.color = vec4<f32>(COLOR_SELECTED, 1.0);
     }
 
     // Forward through selection index

@@ -18,6 +18,10 @@ struct VertexOutput {
     @location(1) @interpolate(flat) select_idx: vec4<u32>
 };
 
+// Colors
+const COLOR_ACTIVE: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
+const COLOR_SELECTED: vec3<f32> = vec3<f32>(1.0, 0.5, 0.0);
+
 // Face flags (these are supplied per-vertex)
 const FLAG_SELECTED: u32 = (u32(1) << 2);
 const FLAG_ACTIVE: u32 = (u32(1) << 3);
@@ -29,9 +33,9 @@ fn _vs_color(in: VertexInput, _out: VertexOutput) -> VertexOutput {
 
     // Color the line (each vertex) based on its select status
     if (bool(in.flags & FLAG_ACTIVE)) { 
-      out.color = vec4<f32>(1.0, 1.0, 1.0, 0.2); 
+      out.color = vec4<f32>(COLOR_ACTIVE, 0.2); 
     } else if (bool(in.flags & FLAG_SELECTED)) { 
-      out.color = vec4<f32>(1.0, 0.5, 0.0, 0.2); 
+      out.color = vec4<f32>(COLOR_SELECTED, 0.2); 
     }
 
     // Add the edge index for the selection engine
