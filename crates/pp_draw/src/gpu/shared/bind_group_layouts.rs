@@ -2,16 +2,17 @@ use crate::cache::{
     material::MaterialGPU,
     mesh::piece::PieceGPU,
     print::PrintLayoutGPU,
+    settings::SettingsGPU,
     tool::{rotate::RotateToolGPU, select_box::SelectBoxToolGPU, translate::TranslateToolGPU},
-    viewport::{bounds::ViewportBoundsGPU, camera::CameraGPU},
+    viewport::ViewportGPU,
 };
 
 /// Global ordering of bind groups, so shaders can refer to consistent bind
 /// groups without conflict.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum BindGroup {
+    Settings,
     Viewport,
-    Camera,
     Piece,
     PrintLayout,
     Material,
@@ -21,13 +22,13 @@ pub enum BindGroup {
 impl BindGroup {
     pub fn value(&self) -> u32 {
         match self {
-            BindGroup::Viewport => 0,
-            BindGroup::Camera => 1,
-            // Tool Path
-            BindGroup::Tool => 2,
+            BindGroup::Settings => 0,
+            BindGroup::Viewport => 1,
             // Mesh path
             BindGroup::Piece => 2,
             BindGroup::Material => 3,
+            // Tool Path
+            BindGroup::Tool => 2,
             // Print path
             BindGroup::PrintLayout => 2,
         }
@@ -45,8 +46,8 @@ pub struct ToolBindGroupLayouts {
 /// pipelines to re-use Bind Groups without creating wholly new layouts.
 #[derive(Debug)]
 pub struct SharedBindGroupLayouts {
+    pub settings: wgpu::BindGroupLayout,
     pub viewport: wgpu::BindGroupLayout,
-    pub camera: wgpu::BindGroupLayout,
     pub piece: wgpu::BindGroupLayout,
     pub material: wgpu::BindGroupLayout,
     pub print_layout: wgpu::BindGroupLayout,
@@ -56,8 +57,8 @@ pub struct SharedBindGroupLayouts {
 impl SharedBindGroupLayouts {
     pub fn new(device: &wgpu::Device) -> Self {
         Self {
-            viewport: ViewportBoundsGPU::create_bind_group_layout(device),
-            camera: CameraGPU::create_bind_group_layout(device),
+            settings: SettingsGPU::create_bind_group_layout(device),
+            viewport: ViewportGPU::create_bind_group_layout(device),
             piece: PieceGPU::create_bind_group_layout(device),
             material: MaterialGPU::create_bind_group_layout(device),
             print_layout: PrintLayoutGPU::create_bind_group_layout(device),

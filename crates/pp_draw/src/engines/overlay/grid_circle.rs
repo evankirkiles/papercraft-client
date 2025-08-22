@@ -15,8 +15,8 @@ impl GridCircleProgram {
                 layout: Some(&ctx.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("overlay.grid_circle"),
                     bind_group_layouts: &[
+                        &ctx.shared.bind_group_layouts.settings,
                         &ctx.shared.bind_group_layouts.viewport,
-                        &ctx.shared.bind_group_layouts.camera,
                     ],
                     push_constant_ranges: &[],
                 })),

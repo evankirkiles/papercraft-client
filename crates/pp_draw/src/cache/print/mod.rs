@@ -4,14 +4,15 @@ use pp_core::print::{Page, PrintLayout};
 
 use crate::gpu::{self, shared::bind_group_layouts::BindGroup};
 
+/// Defines rendering resources for "pages", the surfaces where pieces are placed.
 #[derive(Debug)]
 pub struct PrintLayoutGPU {
     buf: gpu::UniformBuf,
     bind_group: wgpu::BindGroup,
-
     /// Page-specific information
     pub pages: gpu::VertBuf,
 }
+
 impl PrintLayoutGPU {
     pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -75,9 +76,7 @@ impl PrintLayoutUniform {
             padding: [0.0, 0.0],
         }
     }
-}
 
-impl PrintLayoutUniform {
     pub fn bind_group_layout_entry(binding: u32) -> wgpu::BindGroupLayoutEntry {
         wgpu::BindGroupLayoutEntry {
             binding,

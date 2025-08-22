@@ -11,11 +11,25 @@ use super::{bounds::ViewportBoundsGPU, camera::CameraGPU, BindableViewport, View
 pub struct CuttingViewportGPU {
     viewport: ViewportBoundsGPU,
     camera: CameraGPU,
+    bind_group: wgpu::BindGroup,
 }
 
 impl CuttingViewportGPU {
     pub fn new(ctx: &gpu::Context) -> Self {
-        Self { viewport: ViewportBoundsGPU::new(ctx), camera: CameraGPU::new(ctx) }
+        let viewport = ViewportBoundsGPU::new(ctx);
+        let camera = CameraGPU::new(ctx);
+        Self {
+            bind_group: ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("viewport_cutting"),
+                layout: &ctx.shared.bind_group_layouts.viewport,
+                entries: &[
+                    wgpu::BindGroupEntry { binding: 0, resource: viewport.buf.binding_resource() },
+                    wgpu::BindGroupEntry { binding: 1, resource: camera.buf.binding_resource() },
+                ],
+            }),
+            viewport,
+            camera,
+        }
     }
 }
 
@@ -36,7 +50,6 @@ impl BindableViewport for CuttingViewportGPU {
     fn bind(&self, render_pass: &mut wgpu::RenderPass) {
         let Rect { x, y, width, height } = self.viewport.area;
         render_pass.set_viewport(x, y, width, height, 0.0, 1.0);
-        render_pass.set_bind_group(BindGroup::Viewport.value(), &self.viewport.bind_group, &[]);
-        render_pass.set_bind_group(BindGroup::Camera.value(), &self.camera.bind_group, &[]);
+        render_pass.set_bind_group(BindGroup::Viewport.value(), &self.bind_group, &[]);
     }
 }

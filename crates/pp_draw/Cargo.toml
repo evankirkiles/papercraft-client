@@ -15,6 +15,7 @@ bitflags.workspace = true
 bytemuck.workspace = true
 cfg-if.workspace = true
 cgmath.workspace = true
+hex_color.workspace = true
 log.workspace = true
 paste.workspace = true
 wgpu.workspace = true

@@ -14,24 +14,26 @@ impl ViewportEventHandler for CuttingViewport {
         ctx: &crate::EventContext,
         ev: &crate::UserEvent,
         bounds: &ViewportBounds,
-    ) -> Result<crate::event::EventHandleSuccess, crate::event::EventHandleError> {
+    ) -> Option<Result<crate::event::EventHandleSuccess, crate::event::EventHandleError>> {
         match ev {
             UserEvent::KeyboardInput(event::KeyboardInputEvent::Down(
                 keyboard::Key::Character(char),
             )) => match char.as_str() {
                 // G: Translate
                 "KeyG" => {
-                    return self
-                        .create_tool_translate(&ctx.state.borrow(), bounds)
-                        .map(|tool| EventHandleSuccess::set_tool(Some(Tool::Translate(tool))))
-                        .map_err(|_| EventHandleError::default());
+                    return Some(
+                        self.create_tool_translate(&ctx.state.borrow(), bounds)
+                            .map(|tool| EventHandleSuccess::set_tool(Some(Tool::Translate(tool))))
+                            .map_err(|_| EventHandleError::default()),
+                    );
                 }
                 // R: Rotate
                 "KeyR" => {
-                    return self
-                        .create_tool_rotate(&ctx.state.borrow(), bounds)
-                        .map(|tool| EventHandleSuccess::set_tool(Some(Tool::Rotate(tool))))
-                        .map_err(|_| EventHandleError::default());
+                    return Some(
+                        self.create_tool_rotate(&ctx.state.borrow(), bounds)
+                            .map(|tool| EventHandleSuccess::set_tool(Some(Tool::Rotate(tool))))
+                            .map_err(|_| EventHandleError::default()),
+                    );
                 }
                 _ => {}
             },
@@ -44,6 +46,6 @@ impl ViewportEventHandler for CuttingViewport {
             }
             _ => {}
         };
-        Ok(Default::default())
+        None
     }
 }

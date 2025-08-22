@@ -1,8 +1,8 @@
 use pp_editor::viewport::{Viewport, ViewportBounds};
 
 use crate::{
-    event::{EventHandleError, EventHandleSuccess},
-    EventContext, EventHandler, UserEvent,
+    event::{self, EventHandleError, EventHandleSuccess},
+    keyboard, EventContext, EventHandler, UserEvent,
 };
 
 pub mod cutting;
@@ -16,7 +16,7 @@ pub(crate) trait ViewportEventHandler {
         ctx: &EventContext,
         ev: &UserEvent,
         bounds: &ViewportBounds,
-    ) -> Result<EventHandleSuccess, EventHandleError>;
+    ) -> Option<Result<EventHandleSuccess, EventHandleError>>;
 }
 
 impl EventHandler for Viewport {
@@ -24,11 +24,27 @@ impl EventHandler for Viewport {
         &mut self,
         ctx: &crate::EventContext,
         ev: &crate::UserEvent,
-    ) -> Result<crate::event::EventHandleSuccess, crate::event::EventHandleError> {
+    ) -> Option<Result<crate::event::EventHandleSuccess, crate::event::EventHandleError>> {
         use pp_editor::viewport::ViewportContent;
-        match &mut self.content {
+        let res = match &mut self.content {
             ViewportContent::Folding(vp) => vp.handle_event(ctx, ev, &self.bounds),
             ViewportContent::Cutting(vp) => vp.handle_event(ctx, ev, &self.bounds),
+        };
+        if res.is_some() {
+            return res;
         }
+
+        // Common event handling for ALL viewports
+        match ev {
+            UserEvent::KeyboardInput(event::KeyboardInputEvent::Down(
+                keyboard::Key::Character(char),
+            )) => match char.as_str() {
+                // W: Toggle preview mode
+                "KeyW" => {}
+                _ => (),
+            },
+            _ => (),
+        }
+        None
     }
 }

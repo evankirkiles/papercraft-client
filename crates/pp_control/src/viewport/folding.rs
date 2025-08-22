@@ -11,7 +11,7 @@ impl ViewportEventHandler for FoldingViewport {
         ctx: &crate::EventContext,
         ev: &crate::UserEvent,
         _: &ViewportBounds,
-    ) -> Result<crate::event::EventHandleSuccess, crate::event::EventHandleError> {
+    ) -> Option<Result<crate::event::EventHandleSuccess, crate::event::EventHandleError>> {
         use event::UserEvent;
         match ev {
             // UserEvent::KeyboardInput(event::KeyboardInputEvent::Down(key)) => match key {
@@ -37,13 +37,13 @@ impl ViewportEventHandler for FoldingViewport {
                             piece.elem_dirty = true;
                         });
                     });
-                    return Ok(event::EventHandleSuccess::stop_propagation());
+                    return Some(Ok(event::EventHandleSuccess::stop_propagation()));
                 } else {
                     self.camera.orbit(delta);
                 }
             }
             _ => {}
         };
-        Ok(Default::default())
+        None
     }
 }

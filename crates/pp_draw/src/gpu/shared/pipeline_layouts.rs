@@ -14,8 +14,8 @@ impl SharedPipelineLayouts {
             mesh_surface: device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("mesh_surface"),
                 bind_group_layouts: &[
+                    &bind_group_layouts.settings,
                     &bind_group_layouts.viewport,
-                    &bind_group_layouts.camera,
                     &bind_group_layouts.piece,
                     &bind_group_layouts.material,
                 ],
@@ -24,8 +24,8 @@ impl SharedPipelineLayouts {
             mesh_overlays: device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("mesh_overlays"),
                 bind_group_layouts: &[
+                    &bind_group_layouts.settings,
                     &bind_group_layouts.viewport,
-                    &bind_group_layouts.camera,
                     &bind_group_layouts.piece,
                 ],
                 push_constant_ranges: &[],

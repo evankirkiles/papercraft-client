@@ -1,3 +1,5 @@
+use bounds::ViewportBoundsUniform;
+use camera::CameraUniform;
 use cutting::CuttingViewportGPU;
 use folding::FoldingViewportGPU;
 use pp_editor::viewport::{Viewport, ViewportContent};
@@ -23,6 +25,16 @@ pub enum ViewportGPU {
 }
 
 impl ViewportGPU {
+    pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
+        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("viewport"),
+            entries: &[
+                ViewportBoundsUniform::bind_group_layout_entry(0),
+                CameraUniform::bind_group_layout_entry(1),
+            ],
+        })
+    }
+
     pub fn new(ctx: &gpu::Context, viewport: &Viewport) -> Self {
         match viewport.content {
             ViewportContent::Folding(_) => ViewportGPU::Folding(FoldingViewportGPU::new(ctx)),
@@ -37,6 +49,7 @@ pub trait BindableViewport {
         ctx: &gpu::Context,
         viewport: &mut Viewport,
     ) -> Result<(), ViewportSyncError>;
+
     fn bind(&self, render_pass: &mut wgpu::RenderPass);
 }
 

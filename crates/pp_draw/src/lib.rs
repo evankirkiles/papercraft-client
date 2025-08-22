@@ -17,6 +17,8 @@ pub struct Renderer<'window> {
     ctx: gpu::Context<'window>,
     // Textures used as attachments in pipelines
     textures: RendererAttachmentTextures,
+    /// The storage manager for all updatable GPU resources (mesh, materials)
+    draw_cache: cache::DrawCache,
 
     /// Manages querying the GPU for pixels containing element indices to select
     select: select::SelectManager,
@@ -25,9 +27,6 @@ pub struct Renderer<'window> {
     engine_ink: engines::ink::InkEngine,
     /// Renderer for overlays, basically non-mesh things
     engine_overlay: engines::overlay::OverlayEngine,
-
-    /// The storage manager for all updatable GPU resources (mesh, materials)
-    draw_cache: cache::DrawCache,
 }
 
 impl<'window> Renderer<'window> {
@@ -119,9 +118,10 @@ impl<'window> Renderer<'window> {
     pub fn prepare(&mut self, state: &mut pp_core::State, editor: &mut pp_editor::Editor) {
         self.draw_cache.prepare_meshes(&self.ctx, state);
         self.draw_cache.prepare_materials(&self.ctx, state);
+        self.draw_cache.prepare_print(&self.ctx, state);
+        self.draw_cache.prepare_settings(&self.ctx, editor);
         self.draw_cache.prepare_viewports(&self.ctx, editor);
         self.draw_cache.prepare_tool(&self.ctx, editor);
-        self.draw_cache.prepare_print(&self.ctx, state);
     }
 
     /// Draws all of the renderables to the screen in each viewport
@@ -167,6 +167,7 @@ impl<'window> Renderer<'window> {
             });
 
             // Iterate the active viewports and render their corresponding items
+            self.draw_cache.settings.bind(&mut render_pass);
             self.draw_cache.viewports.iter().for_each(|(v_id, viewport)| {
                 use cache::viewport::ViewportGPU;
                 viewport.bind(&mut render_pass);

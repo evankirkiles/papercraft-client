@@ -1,7 +1,20 @@
+struct ThemeSizes { line_width: f32, line_width_thick: f32, point_size: f32 };
+struct ThemeColors { 
+  background: vec4<f32>,
+  grid: vec4<f32>,
+  grid_axis_x: vec4<f32>,
+  grid_axis_y: vec4<f32>,
+  element_active: vec4<f32>,
+  element_selected: vec4<f32>,
+  edge_cut: vec4<f32>,
+  edge_boundary: vec4<f32>,
+};
+struct Theme { sizes: ThemeSizes, colors: ThemeColors };
+@group(0) @binding(0) var<uniform> theme: Theme;
 struct Viewport { position: vec2<f32>, dimensions: vec2<f32> };
-@group(0) @binding(0) var<uniform> viewport: Viewport;
 struct Camera { view_proj: mat4x4<f32>, eye: vec4<f32> };
-@group(1) @binding(0) var<uniform> camera: Camera;
+@group(1) @binding(0) var<uniform> viewport: Viewport;
+@group(1) @binding(1) var<uniform> camera: Camera;
 struct Piece { affine: mat4x4<f32> };
 @group(2) @binding(0) var<uniform> piece: Piece;
 
@@ -24,11 +37,6 @@ struct VertexOutput {
 
 // Rendering constants (to move to uniform)
 const MAX_FLAP_HEIGHT: f32 = 0.05;
-const FLAP_LINE_WIDTH: f32 = 2.0;
-
-// Colors
-const COLOR_ACTIVE: vec3<f32> = vec3<f32>(1.0, 1.0, 1.0);
-const COLOR_SELECTED: vec3<f32> = vec3<f32>(1.0, 0.5, 0.0);
 
 // Edge flags
 const E_FLAG_SELECTED: u32 = (u32(1) << 0);
@@ -79,7 +87,7 @@ fn _vs_color(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     // Color the flap (each vertex) based on its select status. Nonexistent
     // flaps should be clipped out already, but just in case...
     if (bool(in.flags & E_FLAG_SELECTED)) { 
-      out.color = mix(out.color, vec4<f32>(COLOR_SELECTED, 1.0), 0.5); 
+      out.color = mix(out.color, theme.colors.element_selected, 0.5); 
     }
 
     // Add the edge index for the selection engine
@@ -94,7 +102,7 @@ fn _vs_color_edge(in: VertexInput, _out: VertexOutput) -> VertexOutput {
 
     // Color the flap (each vertex) based on its select status
     if (bool(in.flags & E_FLAG_SELECTED)) { 
-      out.color = vec4<f32>(COLOR_SELECTED, 1.0); 
+      out.color = theme.colors.element_selected; 
     }
 
     // Add the edge index for the selection engine
@@ -151,7 +159,7 @@ fn _vs_clip_pos_edge(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     // Expand into line segment
     var basis_x = screen_v1 - screen_v0;
     var basis_y = normalize(vec2<f32>(-basis_x.y, basis_x.x));
-    var pt = screen_v0 + in.offset.x * basis_x + (0.5 - in.offset.y) * basis_y * FLAP_LINE_WIDTH;
+    var pt = screen_v0 + in.offset.x * basis_x + (0.5 - in.offset.y) * basis_y * theme.sizes.line_width;
     var clip = mix(clip_v0, clip_v1, in.offset.x);
     out.clip_position = vec4<f32>(clip.w * (2.0 * pt / viewport.dimensions - 1.0), clip.z, clip.w);
 

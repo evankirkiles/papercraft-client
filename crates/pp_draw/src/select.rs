@@ -210,6 +210,7 @@ impl SelectManager {
             // Set the scissor for the active viewport so we don't rasterize
             // any unnecessary pixels, just the ones which we'll check for selection.
             render_pass.set_scissor_rect(rect.x, rect.y, rect.width, rect.height);
+            draw_cache.settings.bind(&mut render_pass);
             draw_cache.viewports.iter().for_each(|(_, viewport)| {
                 use cache::viewport::ViewportGPU;
                 viewport.bind(&mut render_pass);

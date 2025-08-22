@@ -1,7 +1,20 @@
+struct ThemeSizes { line_width: f32, line_width_thick: f32, point_size: f32 };
+struct ThemeColors { 
+  background: vec4<f32>,
+  grid: vec4<f32>,
+  grid_axis_x: vec4<f32>,
+  grid_axis_y: vec4<f32>,
+  element_active: vec4<f32>,
+  element_selected: vec4<f32>,
+  edge_cut: vec4<f32>,
+  edge_boundary: vec4<f32>,
+};
+struct Theme { sizes: ThemeSizes, colors: ThemeColors };
+@group(0) @binding(0) var<uniform> theme: Theme;
 struct Viewport { position: vec2<f32>, dimensions: vec2<f32> };
-@group(0) @binding(0) var<uniform> viewport: Viewport;
 struct Camera { view_proj: mat4x4<f32>, eye: vec4<f32> };
-@group(1) @binding(0) var<uniform> camera: Camera;
+@group(1) @binding(0) var<uniform> viewport: Viewport;
+@group(1) @binding(1) var<uniform> camera: Camera;
 struct ToolRotate { center_pos: vec2<f32>, curr_pos: vec2<f32> };
 @group(2) @binding(0) var<uniform> tool: ToolRotate;
 

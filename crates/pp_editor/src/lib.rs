@@ -1,12 +1,14 @@
 use cgmath::Point2;
 use pp_core::measures::Dimensions;
 use serde::Serialize;
+use settings::Settings;
 use slotmap::{new_key_type, SlotMap};
 use tsify::Tsify;
 use viewport::{Viewport, ViewportBounds};
 use windowing::{Split, ViewTreeNode};
 
 pub mod scene;
+pub mod settings;
 pub mod tool;
 pub mod viewport;
 pub mod windowing;
@@ -22,6 +24,9 @@ new_key_type! {
 /// organization of any number of viewports.
 #[derive(Debug, Tsify, Serialize)]
 pub struct Editor {
+    /// The current user-specific configuration of the editor
+    pub settings: Settings,
+
     /// The window's full recursive tree layout, e.g. splits and viewports
     pub root_node: ViewTreeNode,
     /// Cuts where a node is split into separate viewports
@@ -34,6 +39,8 @@ pub struct Editor {
     /// The current viewport, where input events are sent
     pub active_viewport: Option<ViewportId>,
 
+    /// Is this editor in "presentation" mode?
+    pub is_presentation: bool,
     /// The current dimensions of this editor
     pub dimensions: Dimensions<f32>,
     /// The DPI of this editor
@@ -51,6 +58,8 @@ impl Default for Editor {
             dimensions,
             active_tool: None,
             active_viewport: None,
+            is_presentation: false,
+            settings: Default::default(),
             root_node: ViewTreeNode::Split(splits.insert(Split {
                 ratio: 0.5,
                 is_dirty: true,

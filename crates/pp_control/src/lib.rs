@@ -50,9 +50,9 @@ pub struct App {
 impl App {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        let state = Rc::new(RefCell::new(pp_core::State::with_cube()));
-        // let state = Rc::new(RefCell::new(pp_core::State::default()));
-        // state.borrow_mut().import_gltf().expect("Failed to import GLTF");
+        // let state = Rc::new(RefCell::new(pp_core::State::with_cube()));
+        let state = Rc::new(RefCell::new(pp_core::State::default()));
+        state.borrow_mut().import_gltf().expect("Failed to import GLTF");
         let history = Rc::new(RefCell::new(pp_core::CommandStack::default()));
         let renderer = Rc::new(RefCell::<Option<pp_draw::Renderer<'static>>>::new(None));
         Self {
@@ -158,21 +158,22 @@ impl App {
         ev: &UserEvent,
     ) -> Result<ExternalEventHandleSuccess, ExternalEventHandleError> {
         // 1. If a tool is active, it gets all input until canceled
-        let res = self.editor.active_tool.as_mut().map(|t| t.handle_event(&self.event_context, ev));
+        let res =
+            self.editor.active_tool.as_mut().and_then(|t| t.handle_event(&self.event_context, ev));
         if let Some(result) = res.and_then(|res| self.process_event(res)) {
             return result;
         }
 
         // 2. Otherwise, pass input into the viewport
         let viewport = self.editor.active_viewport.and_then(|v| self.editor.viewports.get_mut(v));
-        let res = viewport.map(|viewport| viewport.handle_event(&self.event_context, ev));
+        let res = viewport.and_then(|viewport| viewport.handle_event(&self.event_context, ev));
         if let Some(result) = res.and_then(|res| self.process_event(res)) {
             return result;
         }
 
         // 3. If no viewport-specific functionality, pass to the editor itself
         let res = self.editor.handle_event(&self.event_context, ev);
-        if let Some(result) = self.process_event(res) {
+        if let Some(result) = res.and_then(|res| self.process_event(res)) {
             return result;
         }
 

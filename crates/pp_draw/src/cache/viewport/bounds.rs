@@ -37,32 +37,18 @@ impl ViewportBoundsUniform {
 #[derive(Debug, Clone)]
 pub struct ViewportBoundsGPU {
     pub area: Rect<f32>,
-    buf: gpu::UniformBuf,
-    pub bind_group: wgpu::BindGroup,
+    pub buf: gpu::UniformBuf,
 }
 
 impl ViewportBoundsGPU {
-    pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
-        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("viewport"),
-            entries: &[ViewportBoundsUniform::bind_group_layout_entry(0)],
-        })
-    }
-
     pub fn new(ctx: &gpu::Context) -> Self {
-        let buf = gpu::UniformBuf::new(
-            ctx,
-            "viewport".to_string(),
-            mem::size_of::<ViewportBoundsUniform>(),
-        );
         Self {
             area: Rect::default(),
-            bind_group: ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("viewport"),
-                layout: &ctx.shared.bind_group_layouts.viewport,
-                entries: &[wgpu::BindGroupEntry { binding: 0, resource: buf.binding_resource() }],
-            }),
-            buf,
+            buf: gpu::UniformBuf::new(
+                ctx,
+                "viewport_bounds".to_string(),
+                mem::size_of::<ViewportBoundsUniform>(),
+            ),
         }
     }
 

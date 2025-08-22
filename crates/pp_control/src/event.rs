@@ -109,7 +109,7 @@ pub(crate) trait EventHandler {
         &mut self,
         ctx: &EventContext,
         ev: &UserEvent,
-    ) -> Result<EventHandleSuccess, EventHandleError>;
+    ) -> Option<Result<EventHandleSuccess, EventHandleError>>;
 }
 
 /// This is the internal event success type, which can be intercepted by the

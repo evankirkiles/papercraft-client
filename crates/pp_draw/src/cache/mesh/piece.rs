@@ -40,7 +40,7 @@ impl PieceUniform {
 #[derive(Debug)]
 pub(crate) struct PieceGPU {
     buf: gpu::UniformBuf,
-    pub bind_group: wgpu::BindGroup,
+    bind_group: wgpu::BindGroup,
 
     /// The range of elements in this piece in non-material piecewise VBOs
     pub range: Range<u32>,

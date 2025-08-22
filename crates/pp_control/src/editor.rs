@@ -17,7 +17,7 @@ impl EventHandler for Editor {
         &mut self,
         ctx: &crate::EventContext,
         event: &crate::UserEvent,
-    ) -> Result<crate::event::EventHandleSuccess, crate::event::EventHandleError> {
+    ) -> Option<Result<crate::event::EventHandleSuccess, crate::event::EventHandleError>> {
         match event {
             // Select / cut keybinds
             event::UserEvent::KeyboardInput(event::KeyboardInputEvent::Down(
@@ -69,19 +69,21 @@ impl EventHandler for Editor {
             event::UserEvent::MouseInput(event::MouseInputEvent::Down(
                 event::MouseButton::Left,
             )) => {
-                return Ok(EventHandleSuccess::set_tool(Some(Tool::SelectBox(SelectBoxTool {
-                    start_pos: ctx.last_mouse_pos.unwrap() * ctx.surface_dpi,
-                    end_pos: ctx.last_mouse_pos.unwrap() * ctx.surface_dpi,
-                    action: if ctx.modifiers.shift_pressed() {
-                        SelectionActionType::Invert
-                    } else {
-                        SelectionActionType::Select
+                return Some(Ok(EventHandleSuccess::set_tool(Some(Tool::SelectBox(
+                    SelectBoxTool {
+                        start_pos: ctx.last_mouse_pos.unwrap() * ctx.surface_dpi,
+                        end_pos: ctx.last_mouse_pos.unwrap() * ctx.surface_dpi,
+                        action: if ctx.modifiers.shift_pressed() {
+                            SelectionActionType::Invert
+                        } else {
+                            SelectionActionType::Select
+                        },
+                        is_dirty: true,
                     },
-                    is_dirty: true,
-                }))));
+                )))));
             }
             _ => {}
         };
-        Ok(Default::default())
+        None
     }
 }

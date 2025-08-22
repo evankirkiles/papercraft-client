@@ -11,7 +11,7 @@ impl EventHandler for Tool {
         &mut self,
         ctx: &crate::EventContext,
         ev: &crate::UserEvent,
-    ) -> Result<crate::event::EventHandleSuccess, crate::event::EventHandleError> {
+    ) -> Option<Result<crate::event::EventHandleSuccess, crate::event::EventHandleError>> {
         match self {
             Tool::Translate(tool) => tool.handle_event(ctx, ev),
             Tool::Rotate(tool) => tool.handle_event(ctx, ev),

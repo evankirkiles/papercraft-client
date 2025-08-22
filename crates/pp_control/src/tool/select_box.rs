@@ -1,6 +1,7 @@
 use std::ops::DerefMut;
 
 use cgmath::{MetricSpace, Point2};
+use pp_core::measures::Rect;
 use pp_core::{
     id::{self, Id},
     select::SelectionActionType,
@@ -9,7 +10,6 @@ use pp_core::{
     MeshId,
 };
 use pp_draw::select::{self, PixelData, SelectionMask, SelectionQueryArea, SelectionQueryResult};
-use pp_core::measures::Rect;
 use slotmap::KeyData;
 
 use crate::{
@@ -22,12 +22,12 @@ impl EventHandler for pp_editor::tool::SelectBoxTool {
         &mut self,
         ctx: &crate::EventContext,
         event: &crate::UserEvent,
-    ) -> Result<event::EventHandleSuccess, event::EventHandleError> {
+    ) -> Option<Result<event::EventHandleSuccess, event::EventHandleError>> {
         match event {
             // On mouse move, update the end pos
             event::UserEvent::Pointer(PointerEvent::Move(pos)) => {
                 self.update(*pos * ctx.surface_dpi);
-                return Ok(event::EventHandleSuccess::stop_internal_propagation());
+                return Some(Ok(event::EventHandleSuccess::stop_internal_propagation()));
             }
             event::UserEvent::MouseInput(event::MouseInputEvent::Up(button)) => match button {
                 // LMB "accepts" the tool changes, removing the translate tool and
@@ -38,11 +38,11 @@ impl EventHandler for pp_editor::tool::SelectBoxTool {
                     } else {
                         let _ = self.select_multiple(ctx);
                     }
-                    return Ok(event::EventHandleSuccess::set_tool(None));
+                    return Some(Ok(event::EventHandleSuccess::set_tool(None)));
                 }
                 // RMB: Cancel
                 MouseButton::Right => {
-                    return Ok(event::EventHandleSuccess::set_tool(None));
+                    return Some(Ok(event::EventHandleSuccess::set_tool(None)));
                 }
                 _ => {}
             },
@@ -50,11 +50,11 @@ impl EventHandler for pp_editor::tool::SelectBoxTool {
             event::UserEvent::KeyboardInput(event::KeyboardInputEvent::Down(
                 keyboard::Key::Named(keyboard::NamedKey::Escape),
             )) => {
-                return Ok(event::EventHandleSuccess::set_tool(None));
+                return Some(Ok(event::EventHandleSuccess::set_tool(None)));
             }
             _ => {}
         };
-        Ok(event::EventHandleSuccess::stop_internal_propagation())
+        Some(Ok(event::EventHandleSuccess::stop_internal_propagation()))
     }
 }
 

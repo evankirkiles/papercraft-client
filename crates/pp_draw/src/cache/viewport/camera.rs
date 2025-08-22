@@ -33,20 +33,13 @@ impl CameraUniform {
 
 #[derive(Debug, Clone)]
 pub struct CameraGPU {
-    buf: gpu::UniformBuf,
-    pub bind_group: wgpu::BindGroup,
+    pub buf: gpu::UniformBuf,
 }
 
 impl CameraGPU {
     pub fn new(ctx: &gpu::Context) -> Self {
-        let buf = gpu::UniformBuf::new(ctx, "camera".to_string(), mem::size_of::<CameraUniform>());
         Self {
-            bind_group: ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("camera"),
-                layout: &ctx.shared.bind_group_layouts.camera,
-                entries: &[wgpu::BindGroupEntry { binding: 0, resource: buf.binding_resource() }],
-            }),
-            buf,
+            buf: gpu::UniformBuf::new(ctx, "camera".to_string(), mem::size_of::<CameraUniform>()),
         }
     }
 
@@ -55,12 +48,5 @@ impl CameraGPU {
             self.buf.update(ctx, &[CameraUniform::new(camera, bounds.area)]);
             camera.set_dirty(false);
         }
-    }
-
-    pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
-        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("camera"),
-            entries: &[CameraUniform::bind_group_layout_entry(0)],
-        })
     }
 }

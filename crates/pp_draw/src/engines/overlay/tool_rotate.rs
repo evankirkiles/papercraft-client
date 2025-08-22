@@ -16,8 +16,8 @@ impl ToolRotateProgram {
                 layout: Some(&ctx.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("tool.rotate"),
                     bind_group_layouts: &[
+                        &ctx.shared.bind_group_layouts.settings,
                         &ctx.shared.bind_group_layouts.viewport,
-                        &ctx.shared.bind_group_layouts.camera,
                         &ctx.shared.bind_group_layouts.tool.rotate,
                     ],
                     push_constant_ranges: &[],

@@ -11,6 +11,7 @@ edition = "2021"
 pp_core.workspace = true
 # External:
 cgmath.workspace = true
+hex_color.workspace = true
 log.workspace = true
 serde.workspace = true
 slotmap.workspace = true

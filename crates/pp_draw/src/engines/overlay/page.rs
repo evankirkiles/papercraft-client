@@ -47,8 +47,8 @@ impl PageProgram {
         let layout = ctx.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("page"),
             bind_group_layouts: &[
+                &ctx.shared.bind_group_layouts.settings,
                 &ctx.shared.bind_group_layouts.viewport,
-                &ctx.shared.bind_group_layouts.camera,
                 &ctx.shared.bind_group_layouts.print_layout,
             ],
             push_constant_ranges: &[],

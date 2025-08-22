@@ -17,8 +17,8 @@ impl ToolTranslateProgram {
                 layout: Some(&ctx.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("tool.translate"),
                     bind_group_layouts: &[
+                        &ctx.shared.bind_group_layouts.settings,
                         &ctx.shared.bind_group_layouts.viewport,
-                        &ctx.shared.bind_group_layouts.camera,
                         &ctx.shared.bind_group_layouts.tool.translate,
                     ],
                     push_constant_ranges: &[],

@@ -3,6 +3,7 @@ use material::{image::ImageGPU, sampler::SamplerGPU, texture::TextureGPU, Materi
 use pp_core::{ImageId, MaterialId, MeshId, SamplerId, TextureId};
 use pp_editor::{tool::Tool, ViewportId};
 use print::PrintLayoutGPU;
+use settings::SettingsGPU;
 use slotmap::SecondaryMap;
 use tool::{ActiveToolGPU, ToolGPU};
 use viewport::{BindableViewport, ViewportGPU};
@@ -13,6 +14,7 @@ mod common;
 pub mod material;
 pub mod mesh;
 pub mod print;
+pub mod settings;
 pub mod tool;
 pub mod viewport;
 
@@ -24,6 +26,10 @@ pub mod viewport;
 ///   2. For each DrawCache item (meshes.for_each), if it's not in the AppState, remove it
 #[derive(Debug)]
 pub(crate) struct DrawCache {
+    /// Shared GPU resources
+    pub common: common::CommonGPUResources,
+    pub settings: SettingsGPU,
+
     // State-specific GPU resources
     pub meshes: SecondaryMap<MeshId, MeshGPU>,
     pub materials: SecondaryMap<MaterialId, MaterialGPU>,
@@ -37,21 +43,19 @@ pub(crate) struct DrawCache {
     // Editor-specific GPU resources
     pub viewports: SecondaryMap<ViewportId, ViewportGPU>,
     pub active_tool: Option<ActiveToolGPU>,
-
-    /// Shared GPU resources
-    pub common: common::CommonGPUResources,
 }
 
 impl DrawCache {
     pub(crate) fn new(ctx: &gpu::Context) -> Self {
         Self {
+            settings: SettingsGPU::new(ctx),
+            common: common::CommonGPUResources::new(ctx),
             meshes: SecondaryMap::new(),
             materials: SecondaryMap::new(),
             samplers: SecondaryMap::new(),
             textures: SecondaryMap::new(),
             images: SecondaryMap::new(),
             viewports: SecondaryMap::new(),
-            common: common::CommonGPUResources::new(ctx),
             printing: PrintLayoutGPU::new(ctx),
             active_tool: None,
         }
@@ -149,5 +153,9 @@ impl DrawCache {
     /// Ensures that all print things have been synchronized
     pub(crate) fn prepare_print(&mut self, ctx: &gpu::Context, state: &mut pp_core::State) {
         self.printing.prepare(ctx, &mut state.printing);
+    }
+
+    pub(crate) fn prepare_settings(&mut self, ctx: &gpu::Context, editor: &mut pp_editor::Editor) {
+        self.settings.prepare(ctx, &mut editor.settings);
     }
 }

@@ -8,7 +8,7 @@ impl EventHandler for pp_editor::tool::TranslateTool {
         &mut self,
         ctx: &event::EventContext,
         event: &event::UserEvent,
-    ) -> Result<event::EventHandleSuccess, event::EventHandleError> {
+    ) -> Option<Result<event::EventHandleSuccess, event::EventHandleError>> {
         let state = &mut ctx.state.borrow_mut();
         match event {
             // On mouse move, translate the piece accordingly
@@ -24,12 +24,12 @@ impl EventHandler for pp_editor::tool::TranslateTool {
                     ctx.history
                         .borrow_mut()
                         .add(pp_core::CommandType::TransformPieces(self.clone().into()));
-                    return Ok(event::EventHandleSuccess::set_tool(None));
+                    return Some(Ok(event::EventHandleSuccess::set_tool(None)));
                 }
                 // RMB cancels the tool
                 MouseButton::Right => {
                     self.cancel(state);
-                    return Ok(event::EventHandleSuccess::set_tool(None));
+                    return Some(Ok(event::EventHandleSuccess::set_tool(None)));
                 }
                 _ => (),
             },
@@ -37,7 +37,7 @@ impl EventHandler for pp_editor::tool::TranslateTool {
                 // ESC also cancels the tool
                 keyboard::Key::Named(keyboard::NamedKey::Escape) => {
                     self.cancel(state);
-                    return Ok(event::EventHandleSuccess::set_tool(None));
+                    return Some(Ok(event::EventHandleSuccess::set_tool(None)));
                 }
                 keyboard::Key::Character(char) => match char.as_str() {
                     // X: Toggle X axis lock
@@ -51,6 +51,6 @@ impl EventHandler for pp_editor::tool::TranslateTool {
             },
             _ => (),
         };
-        Ok(event::EventHandleSuccess::stop_propagation())
+        Some(Ok(event::EventHandleSuccess::stop_propagation()))
     }
 }
