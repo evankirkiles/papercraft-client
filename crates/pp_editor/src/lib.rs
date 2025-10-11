@@ -39,6 +39,8 @@ pub struct Editor {
     /// The current viewport, where input events are sent
     pub active_viewport: Option<ViewportId>,
 
+    /// Is this editor in "x-ray" mode?
+    pub is_xray: bool,
     /// Is this editor in "presentation" mode?
     pub is_presentation: bool,
     /// The current dimensions of this editor
@@ -58,6 +60,7 @@ impl Default for Editor {
             dimensions,
             active_tool: None,
             active_viewport: None,
+            is_xray: false,
             is_presentation: false,
             settings: Default::default(),
             root_node: ViewTreeNode::Split(splits.insert(Split {

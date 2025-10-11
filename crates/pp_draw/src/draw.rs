@@ -18,9 +18,8 @@ impl<'window> Renderer<'window> {
                 engine_ink.draw_mesh_for_material(&self.ctx, render_pass, mesh, &id);
             });
         });
-        let xray_mode = false;
         draw_cache.meshes.values().for_each(|mesh| {
-            engine_ink.draw_mesh(&self.ctx, settings, render_pass, mesh, xray_mode);
+            engine_ink.draw_mesh(&self.ctx, settings, render_pass, mesh, settings.is_xray);
         });
         self.draw_cutting(settings, render_pass);
     }

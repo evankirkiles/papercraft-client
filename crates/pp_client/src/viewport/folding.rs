@@ -1,7 +1,7 @@
 use pp_core::mesh::MeshElementType;
 use pp_editor::viewport::{folding::FoldingViewport, ViewportBounds};
 
-use crate::event;
+use crate::{event, keyboard};
 
 use super::ViewportEventHandler;
 
@@ -14,13 +14,14 @@ impl ViewportEventHandler for FoldingViewport {
     ) -> Option<Result<crate::event::EventHandleSuccess, crate::event::EventHandleError>> {
         use event::UserEvent;
         match ev {
-            // UserEvent::KeyboardInput(event::KeyboardInputEvent::Down(key)) => match key {
-            //     keyboard::Key::Named(keyboard::NamedKey::Tab) => {
-            //         let mut state = ctx.state.borrow_mut();
-            //         state.viewport_3d.xray_mode = !state.viewport_3d.xray_mode;
-            //     }
-            //     _ => (),
-            // },
+            UserEvent::KeyboardInput(event::KeyboardInputEvent::Down(key)) => match key {
+                keyboard::Key::Named(keyboard::NamedKey::Tab) => {
+                    let mut state = ctx.state.borrow_mut();
+                    state.settings.is_xray = !state.settings.is_xray;
+                    return Some(Ok(event::EventHandleSuccess::stop_propagation()));
+                }
+                _ => (),
+            },
             UserEvent::MouseWheel { delta } => {
                 let mut state = ctx.state.borrow_mut();
                 if ctx.modifiers.shift_pressed() {

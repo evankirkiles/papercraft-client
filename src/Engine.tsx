@@ -4,10 +4,11 @@ import { EngineProvider } from "./contexts/EngineContext";
 import { useMemo } from "react";
 
 import styles from "./Engine.module.scss";
-import SidePanel from "./components/SidePanel";
 import MainControls from "./components/MainControls";
 import Stats from "./components/Stats";
 import { EditorProvider } from "./contexts/EditorContext";
+// import Toolbar from "./components/Toolbar";
+// import SidePanel from "./components/SidePanel";
 
 export function Engine() {
   const client = useMemo(() => new QueryClient(), []);
@@ -22,7 +23,7 @@ export function Engine() {
               <MainControls />
               <Stats />
               {/* <Toolbar /> */}
-              <SidePanel />
+              {/* <SidePanel /> */}
             </div>
           </main>
         </EditorProvider>

@@ -12,7 +12,7 @@ version = "0.0.1"
 
 [workspace.dependencies]
 # Internal:
-pp_control = { path = "crates/pp_control", version = "0.0.1" }
+pp_client = { path = "crates/pp_client", version = "0.0.1" }
 pp_core = { path = "crates/pp_core", version = "0.0.1" }
 pp_draw = { path = "crates/pp_draw", version = "0.0.1" }
 pp_editor = { path = "crates/pp_editor", version = "0.0.1" }

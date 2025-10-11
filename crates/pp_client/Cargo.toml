@@ -1,5 +1,5 @@
 [package]
-name = "pp_control"
+name = "pp_client"
 description = "A controller that manages the model, view, and UI interaction."
 readme = "README.md"
 authors.workspace = true

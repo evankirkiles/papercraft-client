@@ -18,7 +18,7 @@
     }
   },
   "scripts": {
-    "wasm": "wasm-pack build ./crates/pp_control --target web --out-name index --out-dir ../../src/rs",
+    "wasm": "wasm-pack build ./crates/pp_client --target web --out-name index --out-dir ../../src/rs",
     "wasm:postprocess": "sh ./scripts/postprocess-wasm-js.sh",
     "dev": "pnpm wasm --dev && vite",
     "start": "pnpm wasm && vite",
@@ -34,7 +34,7 @@
   "packageManager": "pnpm@8.9.0+sha256.8f5264ad1d100da11a6add6bb8a94c6f1e913f9e9261b2a551fabefad2ec0fec",
   "dependencies": {
     "classnames": "^2.5.1",
-    "pp_control": "link:./crates/pp_control/pkg",
+    "pp_client": "link:./crates/pp_client/pkg",
     "react-draggable": "^4.4.6",
     "react-query": "^3.39.3"
   },

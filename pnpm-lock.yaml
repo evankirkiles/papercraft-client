@@ -11,9 +11,9 @@ importers:
       classnames:
         specifier: ^2.5.1
         version: 2.5.1
-      pp_control:
-        specifier: link:./crates/pp_control/pkg
-        version: link:crates/pp_control/pkg
+      pp_client:
+        specifier: link:./crates/pp_client/pkg
+        version: link:crates/pp_client/pkg
       react-draggable:
         specifier: ^4.4.6
         version: 4.4.6(react-dom@19.0.0)(react@19.0.0)
@@ -109,9 +109,9 @@ importers:
         specifier: ^0.13.1
         version: 0.13.1
 
-  crates/pp_control/pkg: {}
+  crates/pp_client/pkg: {}
 
-  crates/pp_control2/pkg: {}
+  crates/pp_client2/pkg: {}
 
 packages:
 

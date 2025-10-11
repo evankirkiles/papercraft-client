@@ -23,28 +23,79 @@ export default function MainControls() {
           />
         </svg>
       </button>
-      <div className={styles.control_small}>
-        <select
+      <div className={styles.select_mode_group}>
+        <input
+          type="radio"
+          id="verts"
+          name="select_mode"
+          value="verts"
+          className={styles.select_mode_radio}
+          defaultChecked
+          onChange={() => engine?.set_select_mode(SelectionMode.Vert)}
+        />
+        <label htmlFor="verts" className={styles.select_mode_label}>
+          <svg className={styles.select_mode_icon} viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="3" fill="currentColor" />
+          </svg>
+        </label>
+        <input
+          type="radio"
+          id="edges"
+          name="select_mode"
+          value="edges"
+          className={styles.select_mode_radio}
+          onChange={() => engine?.set_select_mode(SelectionMode.Edge)}
+        />
+        <label htmlFor="edges" className={styles.select_mode_label}>
+          <svg className={styles.select_mode_icon} viewBox="0 0 24 24">
+            <line
+              x1="4"
+              y1="12"
+              x2="20"
+              y2="12"
+              stroke="currentColor"
+              strokeWidth="3"
+            />
+          </svg>
+        </label>
+
+        <input
+          type="radio"
+          id="faces"
+          name="select_mode"
+          value="faces"
+          className={styles.select_mode_radio}
           onChange={(e) => {
             if (!engine) return;
-            const mode = {
-              verts: SelectionMode.Vert,
-              edges: SelectionMode.Edge,
-              faces: SelectionMode.Face,
-              pieces: SelectionMode.Piece,
-            }[e.target.value];
-            if (mode === undefined) return;
-            engine.set_select_mode(mode);
+            engine.set_select_mode(SelectionMode.Face);
           }}
-        >
-          <option value="verts">Verts</option>
-          <option value="edges">Edges</option>
-          <option value="faces">Faces</option>
-          <option value="pieces">Pieces</option>
-        </select>
+        />
+        <label htmlFor="faces" className={styles.select_mode_label}>
+          <svg className={styles.select_mode_icon} viewBox="0 0 24 24">
+            <polygon points="12,2 22,20 2,20" fill="currentColor" />
+          </svg>
+        </label>
+
+        <input
+          type="radio"
+          id="pieces"
+          name="select_mode"
+          value="pieces"
+          className={styles.select_mode_radio}
+          onChange={(e) => {
+            if (!engine) return;
+            engine.set_select_mode(SelectionMode.Piece);
+          }}
+        />
+        <label htmlFor="pieces" className={styles.select_mode_label}>
+          <svg className={styles.select_mode_icon} viewBox="0 0 24 24">
+            <rect x="3" y="3" width="8" height="8" fill="currentColor" />
+            <rect x="13" y="3" width="8" height="8" fill="currentColor" />
+            <rect x="3" y="13" width="8" height="8" fill="currentColor" />
+            <rect x="13" y="13" width="8" height="8" fill="currentColor" />
+          </svg>
+        </label>
       </div>
-      <div className={styles.control_small}></div>
-      <div className={styles.control_small}></div>
     </div>
   );
 }
