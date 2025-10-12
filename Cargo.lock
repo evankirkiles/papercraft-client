@@ -1055,14 +1055,19 @@ dependencies = [
 name = "pp_import"
 version = "0.0.1"
 dependencies = [
+ "anyhow",
+ "gltf",
+ "gltf-json",
  "pp_core",
  "pp_save",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
 name = "pp_save"
 version = "0.0.1"
 dependencies = [
+ "anyhow",
  "base64 0.22.1",
  "bytemuck",
  "gltf",
@@ -1073,6 +1078,7 @@ dependencies = [
  "serde",
  "serde_json",
  "slotmap",
+ "thiserror 2.0.17",
 ]
 
 [[package]]

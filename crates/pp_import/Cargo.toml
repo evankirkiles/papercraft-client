@@ -16,3 +16,9 @@ crate-type = ["cdylib", "rlib"] # Support both WASM and Native compilation
 # Internal:
 pp_core.workspace = true
 pp_save.workspace = true
+
+# External:
+anyhow.workspace = true
+gltf.workspace = true
+gltf-json.workspace = true
+thiserror.workspace = true

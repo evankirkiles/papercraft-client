@@ -5,7 +5,6 @@ use event::{
 use keyboard::ModifierKeys;
 use pp_core::measures::Dimensions;
 use pp_editor::SplitId;
-use pp_io::gltf::ImportGLTF;
 use slotmap::KeyData;
 use store::AppCallbacks;
 use wasm_bindgen::prelude::*;
@@ -51,8 +50,6 @@ impl App {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         let state = Rc::new(RefCell::new(pp_core::State::with_cube()));
-        // let state = Rc::new(RefCell::new(pp_core::State::default()));
-        // state.borrow_mut().import_gltf().expect("Failed to import GLTF");
         let history = Rc::new(RefCell::new(pp_core::CommandStack::default()));
         let renderer = Rc::new(RefCell::<Option<pp_draw::Renderer<'static>>>::new(None));
         Self {

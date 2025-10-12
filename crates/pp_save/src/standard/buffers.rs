@@ -1,11 +1,22 @@
-use gltf_json as json;
 use gltf_json::validation::Checked;
+use gltf_json::{self as json, Value};
 
 /// Helper for building GLTF buffers, buffer views, and accessors
 pub struct GltfBufferBuilder {
     buffer: Vec<u8>,
     buffer_views: Vec<json::buffer::View>,
     accessors: Vec<json::Accessor>,
+}
+
+// Options to pass ino the accessor generators.
+#[derive(Debug, Clone)]
+pub struct AccessorOptions {
+    pub normalized: bool,
+    pub component_type: Checked<json::accessor::GenericComponentType>,
+    pub type_: Checked<json::accessor::Type>,
+    pub target: Option<Checked<json::buffer::Target>>,
+    pub min: Option<gltf_json::Value>,
+    pub max: Option<gltf_json::Value>,
 }
 
 impl GltfBufferBuilder {
@@ -57,23 +68,20 @@ impl GltfBufferBuilder {
     pub fn add_accessor<T: bytemuck::Pod>(
         &mut self,
         data: &[T],
-        component_type: Checked<json::accessor::GenericComponentType>,
-        type_: Checked<json::accessor::Type>,
-        target: Option<Checked<json::buffer::Target>>,
-        normalized: bool,
+        options: AccessorOptions,
     ) -> json::Index<json::Accessor> {
         let bytes = bytemuck::cast_slice(data);
-        let buffer_view = self.add_buffer_view(bytes, target, None);
+        let buffer_view = self.add_buffer_view(bytes, options.target, None);
 
         let accessor = json::Accessor {
             buffer_view: Some(buffer_view),
-            byte_offset: Some((0 as u64).into()),
+            byte_offset: Some(0_u64.into()),
             count: (data.len() as u64).into(),
-            component_type,
-            type_,
-            min: None,
-            max: None,
-            normalized,
+            component_type: options.component_type,
+            min: options.min,
+            max: options.max,
+            normalized: options.normalized,
+            type_: options.type_,
             sparse: None,
             name: None,
             extensions: Default::default(),
@@ -104,4 +112,38 @@ impl GltfBufferBuilder {
 
 fn base64_encode(data: &[u8]) -> String {
     base64::Engine::encode(&base64::engine::general_purpose::STANDARD, data)
+}
+
+// ========== LOAD FUNCTIONS ==========
+
+use crate::load::LoadError;
+
+/// Reads typed data from a GLTF accessor
+pub fn read_accessor<T: bytemuck::Pod + Copy>(
+    buffers: &[gltf::buffer::Data],
+    accessor: &gltf::Accessor,
+) -> Result<Vec<T>, LoadError> {
+    let buffer_view = accessor.view().ok_or(LoadError::Unknown)?;
+    let offset = buffer_view.offset() + accessor.offset();
+    let count = accessor.count();
+    let stride = buffer_view.stride().unwrap_or(std::mem::size_of::<T>());
+
+    let buffer = buffers.get(buffer_view.buffer().index()).ok_or(LoadError::Unknown)?;
+    let mut result = Vec::with_capacity(count);
+
+    if stride == std::mem::size_of::<T>() {
+        // Tightly packed, can read directly
+        let end = offset + count * std::mem::size_of::<T>();
+        let slice = &buffer[offset..end];
+        result.extend_from_slice(bytemuck::cast_slice(slice));
+    } else {
+        // Strided data, need to read element by element
+        for i in 0..count {
+            let elem_offset = offset + i * stride;
+            let elem_bytes = &buffer[elem_offset..elem_offset + std::mem::size_of::<T>()];
+            result.push(*bytemuck::from_bytes(elem_bytes));
+        }
+    }
+
+    Ok(result)
 }

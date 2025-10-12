@@ -1,10 +1,11 @@
 use pp_core::State;
-use pp_save::save::Saveable;
+use pp_import::gltf::GlbSupport;
+use pp_save::{load::Loadable, save::Saveable, SaveFile};
 
-fn main() {
-    // Create a simple state with a cube
-    let mut state = State::with_cube();
-    // state.import_gltf().expect("Failed to import GLTF");
+fn main() -> anyhow::Result<()> {
+    // Import a simple GLB
+    let file = SaveFile::from_glb(include_bytes!("./assets/Link.glb"))?;
+    let mut state = State::load(file)?;
 
     // Export to PPR format
     match state.save() {
@@ -13,5 +14,7 @@ fn main() {
             Err(e) => eprintln!("Failed to serialize to JSON: {}", e),
         },
         Err(_) => eprintln!("Failed to export PPR document"),
-    }
+    };
+
+    Ok(())
 }
