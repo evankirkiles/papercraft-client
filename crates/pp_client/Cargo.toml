@@ -14,7 +14,7 @@ crate-type = ["cdylib", "rlib"] # Support both WASM and Native compilation
 
 [dependencies]
 # Internal:
-pp_io.workspace = true
+pp_save.workspace = true
 pp_core.workspace = true
 pp_draw.workspace = true
 pp_editor.workspace = true

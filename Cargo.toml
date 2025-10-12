@@ -16,10 +16,13 @@ pp_client = { path = "crates/pp_client", version = "0.0.1" }
 pp_core = { path = "crates/pp_core", version = "0.0.1" }
 pp_draw = { path = "crates/pp_draw", version = "0.0.1" }
 pp_editor = { path = "crates/pp_editor", version = "0.0.1" }
-pp_io = { path = "crates/pp_io", version = "0.0.1" }
+pp_export = { path = "crates/pp_export", version = "0.0.1" }
+pp_import = { path = "crates/pp_import", version = "0.0.1" }
+pp_save = { path = "crates/pp_save", version = "0.0.1" }
 
 # External:
 anyhow = "1.0"
+base64 = "0.22"
 bitflags = "2.6.0"
 bytemuck = { version = "1.19", features = ["derive"] }
 cfg-if = "1"
@@ -31,6 +34,7 @@ fs_extra = "1.3.0"
 futures = "0.3.31"
 glob = "0.3.1"
 gltf = { version = "1.4", features = ["import"] }
+gltf-json = { version = "1.4.1", features = ["extras"] }
 hex_color = { version = "3.0.0", features = ["serde"] }
 image = { version = "0.25", default-features = false, features = [
   "png",
@@ -44,6 +48,7 @@ pollster = "0.4.0"
 raw-window-handle = "0.6.2"
 tobj = { version = "4.0", default-features = false, features = ["async"] }
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 serde-wasm-bindgen = "0.6.5"
 slotmap = { version = "1.0.7", features = ["serde"] }
 stable-vec = "0.4.1"

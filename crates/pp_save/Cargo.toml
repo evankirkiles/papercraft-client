@@ -1,0 +1,28 @@
+[package]
+name = "pp_save"
+description = "The paperarium save file format."
+readme = "README.md"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"] # Support both WASM and Native compilation
+
+[dependencies]
+# Internal:
+pp_core.workspace = true
+
+# External:
+base64.workspace = true
+bytemuck.workspace = true
+gltf.workspace = true
+gltf-json.workspace = true
+image.workspace = true
+ordered-float.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+slotmap.workspace = true
