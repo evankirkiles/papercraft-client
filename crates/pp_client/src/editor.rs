@@ -69,23 +69,16 @@ impl EventHandler for Editor {
                 "KeyS" => {
                     if ctx.modifiers.super_pressed() {
                         // CMD+S: Save state as GLB file download
-                        match ctx.state.borrow().save() {
-                            Ok(save_file) => match save_file.to_binary() {
-                                Ok(glb_data) => {
-                                    if let Err(e) = trigger_download(&glb_data, "workspace.glb") {
-                                        log::error!("Failed to trigger download: {:?}", e);
-                                    } else {
-                                        log::info!("Workspace saved successfully");
-                                    }
-                                }
-                                Err(e) => {
-                                    log::error!("Failed to convert save file to GLB: {:?}", e);
-                                }
-                            },
-                            Err(e) => {
-                                log::error!("Failed to save state: {:?}", e);
-                            }
-                        }
+                        let _ = ctx
+                            .state
+                            .borrow()
+                            .save()
+                            .and_then(|save_file| save_file.to_binary())
+                            .inspect_err(|e| log::error!("Failed to save state: {:?}", e))
+                            .inspect(|glb_data| {
+                                let _ = trigger_download(glb_data, "workspace.glb");
+                            });
+                        return Some(Ok(event::EventHandleSuccess::stop_propagation()));
                     } else {
                         // S: Mark edge as cut
                         ctx.history.borrow_mut().add(pp_core::CommandType::CutEdges(
