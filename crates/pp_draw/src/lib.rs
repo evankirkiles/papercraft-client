@@ -14,7 +14,7 @@ pub mod select;
 #[derive(Debug)]
 pub struct Renderer<'window> {
     /// Common context shared for all GPU operations (device, surface)
-    ctx: gpu::Context<'window>,
+    pub ctx: gpu::Context<'window>,
     // Textures used as attachments in pipelines
     textures: RendererAttachmentTextures,
     /// The storage manager for all updatable GPU resources (mesh, materials)

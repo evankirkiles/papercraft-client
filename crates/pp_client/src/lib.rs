@@ -49,9 +49,7 @@ pub struct App {
 impl App {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        let cursor = Cursor::new(include_bytes!("../../pp_save/examples/assets/link2.glb"));
-        let save = SaveFile::from_reader(cursor).unwrap();
-        let state = Rc::new(RefCell::new(pp_core::State::load(save).unwrap()));
+        let state = Rc::new(RefCell::new(pp_core::State::default()));
         let history = Rc::new(RefCell::new(pp_core::CommandStack::default()));
         let renderer = Rc::new(RefCell::<Option<pp_draw::Renderer<'static>>>::new(None));
         Self {
@@ -66,6 +64,19 @@ impl App {
             renderer,
             ..Default::default()
         }
+    }
+
+    /// Reloads the app from the uncompressed bytes of a save file. Note that
+    /// the `renderer`'s resources are untouched - these will be automatically
+    /// synchronized with the new `state`.
+    pub fn load_save(&mut self, bytes: &[u8]) -> Result<(), JsError> {
+        let save_file = SaveFile::from_reader(Cursor::new(bytes))
+            .map_err(|_| JsError::new("Failed to load save file."))?;
+        let state = pp_core::State::load(save_file)?;
+        self.state.replace(state);
+        self.history.replace(pp_core::CommandStack::default());
+        self.editor.reset();
+        Ok(())
     }
 
     /// Attaches the Rust app to a canvas in the DOM. This allocates all the

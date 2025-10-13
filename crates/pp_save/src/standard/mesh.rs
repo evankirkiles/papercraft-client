@@ -185,7 +185,7 @@ pub fn save_mesh(
     gltf_json::mesh::Mesh {
         name: Some(mesh.label.clone()),
         primitives,
-        weights: None,
+        weights: Default::default(),
         extensions: Default::default(),
         extras: serde_json::to_string(&MeshExtras {
             papercraft: Some(PapercraftMeshExtra { cuts, pieces }),
@@ -329,35 +329,32 @@ pub fn load_mesh(
     };
 
     // 1. Load cuts and apply them to real edges in the model. Do *not* use our
-    // internal functions which also create pieces / edges.
+    // internal functions which also create pieces / edges - we'll do that manually.
     crate::extra::cut::load_cuts(accessors, buffers, extras.cuts).iter().for_each(|cut| {
-        let (Some(&v0_id), Some(&v1_id)) = (
+        if let (Some(&v0_id), Some(&v1_id)) = (
             gltf_index_to_vertex_id.get(&cut.vertices[0]),
             gltf_index_to_vertex_id.get(&cut.vertices[1]),
-        ) else {
-            return;
+        ) {
+            if let Some(e_id) = pp_mesh.query_edge(v0_id, v1_id) {
+                pp_mesh.edges[e_id.to_usize()].cut =
+                    Some(EdgeCut { flap_position: cut.flap_position });
+                pp_mesh.elem_dirty |= pp_core::mesh::MeshElementType::EDGES;
+            };
         };
-        let Some(e_id) = pp_mesh.query_edge(v0_id, v1_id) else {
-            return;
-        };
-        pp_mesh.edges[e_id.to_usize()].cut = Some(EdgeCut { flap_position: cut.flap_position });
-        pp_mesh.elem_dirty |= pp_core::mesh::MeshElementType::EDGES;
     });
 
-    // 2. Load pieces and use them to propagate consistent pieces IDs to faces in
-    // the mesh.
+    // 2. Load pieces based on face IDs - we need to be able to consistently
+    // refer to pieces such that we can load in their transforms / metadata.
     crate::extra::piece::load_pieces(accessors, buffers, extras.pieces).iter().for_each(
         |piece_data| {
-            // Map GLTF face index to face ID
-            if let Some(&f_id) = gltf_index_to_face_id.get(&piece_data.face_index) {
-                // Try to create a piece from this face
-                if let Ok(p_id) = pp_mesh.create_piece(f_id, None) {
-                    // Set the transformation matrix
-                    pp_mesh[p_id].transform = piece_data.transform;
-                    pp_mesh[p_id].elem_dirty = true;
-                    pp_mesh.elem_dirty |= pp_core::mesh::MeshElementType::PIECES;
-                }
-            }
+            if let Some(p_id) = gltf_index_to_face_id
+                .get(&piece_data.face_index)
+                .and_then(|f_id| pp_mesh.create_piece(*f_id, None).ok())
+            {
+                pp_mesh[p_id].transform = piece_data.transform;
+                pp_mesh[p_id].elem_dirty = true;
+                pp_mesh.elem_dirty |= pp_core::mesh::MeshElementType::PIECES;
+            };
         },
     );
 

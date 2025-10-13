@@ -83,6 +83,11 @@ impl Default for Editor {
 }
 
 impl Editor {
+    /// Resets the editor state
+    pub fn reset(&mut self) {
+        self.active_tool = None;
+    }
+
     /// Resizes the editor state, re-computing the dimensions of all nested viewports
     /// based on the new size of the editor.
     pub fn resize(&mut self, dims: &Dimensions<f32>, dpr: f32) {
