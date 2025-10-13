@@ -41,7 +41,7 @@ impl Piece {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum PieceCreationError {
+pub enum PieceCreationError {
     // PieceAlreadyExists,
     CycleDetected,
 }
@@ -50,7 +50,7 @@ impl super::Mesh {
     /// Tries to create a new piece from all the faces connected to a given face
     /// If you provide a `p_id`, then no new piece is created and all faces are
     /// assigned to the provided `p_id`.
-    pub(crate) fn create_piece(
+    pub fn create_piece(
         &mut self,
         f_id: id::FaceId,
         p_id: Option<PieceId>,

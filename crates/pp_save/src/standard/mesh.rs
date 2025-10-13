@@ -1,15 +1,19 @@
+use gltf::{buffer::Data, Accessor, Semantic};
+use ordered_float::OrderedFloat;
 use pp_core::{
-    id::{FaceId, VertexId},
-    mesh::Mesh,
+    id::{self, FaceId, Id, VertexId},
+    mesh::{edge::EdgeCut, face::FaceDescriptor, matslot::MaterialSlot, MaterialSlotId, Mesh},
+    MaterialId,
 };
 use serde_json::value::RawValue;
-use slotmap::SecondaryMap;
+use slotmap::{SecondaryMap, SlotMap};
 use std::collections::{BTreeMap, HashMap};
 
 use crate::{
     extra::{
         self, cut::SerializableCut, piece::SerializablePiece, MeshExtras, PapercraftMeshExtra,
     },
+    load::LoadError,
     standard::buffers::{AccessorOptions, GltfBufferBuilder},
 };
 
@@ -160,7 +164,7 @@ pub fn save_mesh(
             .filter(|(_, e)| e.cut.is_some())
             .map(|(_, e)| SerializableCut {
                 vertices: [*v_indices.get(&e.v[0]).unwrap(), *v_indices.get(&e.v[1]).unwrap()],
-                flap_position: extra::cut::FlapPosition::FirstFace,
+                flap_position: e.cut.unwrap().flap_position,
             })
             .collect(),
     );
@@ -189,4 +193,173 @@ pub fn save_mesh(
         .ok()
         .and_then(|str| RawValue::from_string(str).ok()),
     }
+}
+
+#[derive(Eq, Hash, PartialEq)]
+struct VertPos([OrderedFloat<f32>; 3]);
+
+impl From<[f32; 3]> for VertPos {
+    fn from(value: [f32; 3]) -> Self {
+        Self([value[0].into(), value[1].into(), value[2].into()])
+    }
+}
+
+/// Loads a mesh into runtime memory from its GLTF representation.
+pub fn load_mesh(
+    mesh: &gltf::mesh::Mesh,
+    accessors: &[Accessor],
+    buffers: &[Data],
+    material_ids: &[MaterialId],
+) -> anyhow::Result<(pp_core::mesh::Mesh, SecondaryMap<MaterialSlotId, MaterialId>), LoadError> {
+    let mut pp_mesh = pp_core::mesh::Mesh::new(
+        mesh.name().map(|e| e.to_string()).unwrap_or_else(|| "ImportedMesh".to_string()),
+    );
+    let mut vertices: HashMap<VertPos, id::VertexId> = HashMap::new();
+    let mut material_slots: SlotMap<MaterialSlotId, MaterialSlot> = SlotMap::with_key();
+    let mut slot_materials: HashMap<MaterialId, MaterialSlotId> = HashMap::new();
+    let mut slot_materials_inv: SecondaryMap<MaterialSlotId, MaterialId> = SecondaryMap::new();
+
+    // Build mappings from GLTF buffer indices to our runtime IDs
+    // Key: GLTF buffer index, Value: our vertex/face ID
+    let mut gltf_index_to_vertex_id: HashMap<u32, id::VertexId> = HashMap::new();
+    let mut gltf_index_to_face_id: HashMap<u32, id::FaceId> = HashMap::new();
+
+    // Primitive corresponds to a set of faces with the same material
+    for (prim_i, primitive) in mesh.primitives().enumerate() {
+        use crate::standard::buffers;
+        let attrs: HashMap<_, _> = primitive.attributes().collect();
+
+        // Read vertex attributes from the buffers
+        let pos_acc = attrs.get(&Semantic::Positions).ok_or(LoadError::Unknown)?;
+        let positions = buffers::read_accessor::<[f32; 3]>(buffers, pos_acc)?;
+
+        // Read indices - GLTF supports u8, u16, or u32 indices
+        let ind_acc = primitive.indices().ok_or(LoadError::Unknown)?;
+        let indices: Vec<u32> = match ind_acc.data_type() {
+            gltf::accessor::DataType::U8 => buffers::read_accessor::<u8>(buffers, &ind_acc)?
+                .into_iter()
+                .map(|i| i as u32)
+                .collect(),
+            gltf::accessor::DataType::U16 => buffers::read_accessor::<u16>(buffers, &ind_acc)?
+                .into_iter()
+                .map(|i| i as u32)
+                .collect(),
+            gltf::accessor::DataType::U32 => buffers::read_accessor::<u32>(buffers, &ind_acc)?,
+            _ => return Err(LoadError::Unknown),
+        };
+
+        // Normals and UVs are not strictly required like position / indices
+        let normals = attrs
+            .get(&Semantic::Normals)
+            .and_then(|accessor| buffers::read_accessor::<[f32; 3]>(buffers, accessor).ok());
+        let uvs = attrs
+            .get(&Semantic::TexCoords(0))
+            .and_then(|accessor| buffers::read_accessor::<[f32; 2]>(buffers, accessor).ok());
+
+        // Transform positions from GLTF (Y-up) back to internal (Z-up) coordinate system,
+        // and deduplicate the vertices on their positions within the mesh itself. This
+        // allows us to reconstruct adjacencies instead of treating all tris distinctly.
+        // Note that we preserve the per-vertex normals / UVs by applying that data
+        // to our BMesh `loops`.
+        let v_ids: Vec<_> = positions
+            .iter()
+            .enumerate()
+            .map(|(gltf_idx, pos)| {
+                let transformed = [pos[0], -pos[2], pos[1]];
+                let v_id = *vertices
+                    .entry(transformed.into())
+                    .or_insert_with(|| pp_mesh.add_vertex(transformed));
+
+                // Store mapping from GLTF buffer index to vertex ID
+                gltf_index_to_vertex_id.insert(gltf_idx as u32, v_id);
+                v_id
+            })
+            .collect();
+
+        // Create a bidirectional map between material "slots" and "materials",
+        // so we can re-use materials across meshes. Might remove this in the future.
+        let material_slot = primitive.material().index().and_then(|mat_idx| {
+            material_ids.get(mat_idx).map(|m_id| {
+                *slot_materials.entry(*m_id).or_insert_with(|| {
+                    let slot = material_slots
+                        .insert(MaterialSlot { label: format!("Material{}", prim_i) });
+                    slot_materials_inv.insert(slot, *m_id);
+                    slot
+                })
+            })
+        });
+
+        // Create our adjacency map of tris from the indices by adding primitives
+        // as faces.
+        for i in (0..indices.len()).step_by(3) {
+            let idx = [indices[i] as usize, indices[i + 1] as usize, indices[i + 2] as usize];
+            let f_id = pp_mesh.add_face(
+                &[v_ids[idx[0]], v_ids[idx[1]], v_ids[idx[2]]],
+                &FaceDescriptor {
+                    m: material_slot,
+                    uvs: uvs.as_ref().map(|uvs| [uvs[idx[0]], uvs[idx[1]], uvs[idx[2]]]).as_ref(),
+                    nos: normals
+                        .as_ref()
+                        .map(|no| {
+                            [
+                                [no[idx[0]][0], -no[idx[0]][2], no[idx[0]][1]],
+                                [no[idx[1]][0], -no[idx[1]][2], no[idx[1]][1]],
+                                [no[idx[2]][0], -no[idx[2]][2], no[idx[2]][1]],
+                            ]
+                        })
+                        .as_ref(),
+                },
+            );
+
+            // Store mapping from GLTF buffer index to face ID
+            // Use the first vertex's index as the face's index
+            gltf_index_to_face_id.insert(indices[i], f_id);
+        }
+    }
+
+    // Now we have our base geometry loaded in. It's time to load in all the cuts
+    // and pieces contained in the mesh.
+    let Some(extras) = mesh
+        .extras()
+        .clone()
+        .and_then(|extras| serde_json::from_str::<crate::extra::MeshExtras>(extras.get()).ok())
+        .and_then(|extras| extras.papercraft)
+    else {
+        return Ok((pp_mesh, slot_materials_inv));
+    };
+
+    // 1. Load cuts and apply them to real edges in the model. Do *not* use our
+    // internal functions which also create pieces / edges.
+    crate::extra::cut::load_cuts(accessors, buffers, extras.cuts).iter().for_each(|cut| {
+        let (Some(&v0_id), Some(&v1_id)) = (
+            gltf_index_to_vertex_id.get(&cut.vertices[0]),
+            gltf_index_to_vertex_id.get(&cut.vertices[1]),
+        ) else {
+            return;
+        };
+        let Some(e_id) = pp_mesh.query_edge(v0_id, v1_id) else {
+            return;
+        };
+        pp_mesh.edges[e_id.to_usize()].cut = Some(EdgeCut { flap_position: cut.flap_position });
+        pp_mesh.elem_dirty |= pp_core::mesh::MeshElementType::EDGES;
+    });
+
+    // 2. Load pieces and use them to propagate consistent pieces IDs to faces in
+    // the mesh.
+    crate::extra::piece::load_pieces(accessors, buffers, extras.pieces).iter().for_each(
+        |piece_data| {
+            // Map GLTF face index to face ID
+            if let Some(&f_id) = gltf_index_to_face_id.get(&piece_data.face_index) {
+                // Try to create a piece from this face
+                if let Ok(p_id) = pp_mesh.create_piece(f_id, None) {
+                    // Set the transformation matrix
+                    pp_mesh[p_id].transform = piece_data.transform;
+                    pp_mesh[p_id].elem_dirty = true;
+                    pp_mesh.elem_dirty |= pp_core::mesh::MeshElementType::PIECES;
+                }
+            }
+        },
+    );
+
+    Ok((pp_mesh, slot_materials_inv))
 }

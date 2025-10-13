@@ -2,7 +2,11 @@ use std::collections::HashMap;
 
 use crate::{
     id::{self},
-    mesh::{self, edge::EdgeCut, MeshElementType},
+    mesh::{
+        self,
+        edge::{EdgeCut, FlapPosition},
+        MeshElementType,
+    },
     MeshId, State,
 };
 
@@ -83,9 +87,10 @@ impl State {
         let f_b = mesh[l_b].f;
 
         // Perform the cut, placing the flap on the non-selected face or l_a by default
-        mesh[*e_id].cut = should_be_cut.then_some(
-            history.and_then(|h| h.cut).unwrap_or(mesh::edge::EdgeCut { l_flap: Some(l_a) }),
-        );
+        mesh[*e_id].cut =
+            should_be_cut.then_some(history.and_then(|h| h.cut).unwrap_or(mesh::edge::EdgeCut {
+                flap_position: mesh::edge::FlapPosition::FirstFace,
+            }));
         mesh.elem_dirty |= MeshElementType::EDGES;
 
         // Now, we need to update any pieces affected by the cut / join.
@@ -143,18 +148,21 @@ impl State {
     /// Swaps the edge's flap to the other face
     pub fn swap_edge_flap(&mut self, id: &(MeshId, id::EdgeId)) {
         let mesh = self.meshes.get_mut(id.0).unwrap();
-        let new_l = mesh[id.1].cut.and_then(|c| c.l_flap).map(|l_flap| mesh[l_flap].radial_next);
         if let Some(cut) = mesh[id.1].cut.as_mut() {
-            cut.l_flap = new_l;
+            cut.flap_position = match cut.flap_position {
+                FlapPosition::FirstFace => FlapPosition::SecondFace,
+                FlapPosition::SecondFace => FlapPosition::FirstFace,
+                _ => cut.flap_position,
+            };
         }
         mesh.elem_dirty |= MeshElementType::FLAPS;
     }
 
     /// Sets / clears the edge's flap
-    pub fn set_edge_flap(&mut self, id: &(MeshId, id::EdgeId), l_flap: Option<id::LoopId>) {
+    pub fn set_edge_flap(&mut self, id: &(MeshId, id::EdgeId), flap_position: FlapPosition) {
         let mesh = self.meshes.get_mut(id.0).unwrap();
         if let Some(cut) = mesh[id.1].cut.as_mut() {
-            cut.l_flap = l_flap;
+            cut.flap_position = flap_position;
         }
         mesh.elem_dirty |= MeshElementType::FLAPS;
     }

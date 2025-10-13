@@ -3,6 +3,7 @@ use gltf_json::{
     accessor::{self, ComponentType, GenericComponentType},
     Index,
 };
+use pp_core::mesh::edge::FlapPosition;
 use serde::{Deserialize, Serialize};
 
 use crate::standard::buffers::{self, AccessorOptions, GltfBufferBuilder};
@@ -24,39 +25,6 @@ pub struct SerializableCut {
     pub vertices: [u32; 2],
     /// The face index that has the flap (if any)
     pub flap_position: FlapPosition,
-}
-
-#[repr(u8)]
-#[derive(Clone, Default, Debug, Deserialize, Serialize)]
-pub enum FlapPosition {
-    #[default]
-    FirstFace,
-    SecondFace,
-    BothFaces,
-    None,
-}
-
-impl From<u8> for FlapPosition {
-    fn from(value: u8) -> Self {
-        match value {
-            0 => Self::FirstFace,
-            1 => Self::SecondFace,
-            2 => Self::BothFaces,
-            3 => Self::None,
-            _ => Self::FirstFace,
-        }
-    }
-}
-
-impl Into<u8> for FlapPosition {
-    fn into(self) -> u8 {
-        match self {
-            Self::FirstFace => 0,
-            Self::SecondFace => 1,
-            Self::BothFaces => 2,
-            Self::None => 3,
-        }
-    }
 }
 
 /// Builds the GLTF accessors that encode "cut"s into a GLTF file's buffers
@@ -102,8 +70,8 @@ pub fn save_cuts(
 
 /// Reads edge "cut"s from a GLTF file's buffers
 pub fn load_cuts(
-    accessors: &Vec<Accessor>,
-    buffers: &Vec<Data>,
+    accessors: &[Accessor],
+    buffers: &[Data],
     cuts: CutPrimitiveAttributes,
 ) -> Vec<SerializableCut> {
     let Some(vertices) = accessors

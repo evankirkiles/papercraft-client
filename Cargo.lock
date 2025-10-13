@@ -968,6 +968,7 @@ dependencies = [
  "console_log",
  "futures",
  "glob",
+ "js-sys",
  "log",
  "paste",
  "pp_core",

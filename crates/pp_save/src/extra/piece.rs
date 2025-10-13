@@ -34,19 +34,12 @@ pub fn save_pieces(
     use gltf_json::validation::Checked::Valid;
     use gltf_json::{accessor, buffer};
 
-    let mut face_indices = Vec::with_capacity(pieces.len());
-    let mut transforms = Vec::with_capacity(pieces.len());
-
+    // Decompose all of the mesh's pieces into serializable components
+    let mut face_indices = Vec::<u32>::with_capacity(pieces.len());
+    let mut transforms = Vec::<[[f32; 4]; 4]>::with_capacity(pieces.len());
     pieces.iter().for_each(|piece| {
         face_indices.push(piece.face_index);
-
-        // Convert cgmath::Matrix4 to flat array (column-major order)
-        let m = &piece.transform;
-        let transform_array: [f32; 16] = [
-            m.x.x, m.x.y, m.x.z, m.x.w, m.y.x, m.y.y, m.y.z, m.y.w, m.z.x, m.z.y, m.z.z, m.z.w,
-            m.w.x, m.w.y, m.w.z, m.w.w,
-        ];
-        transforms.push(transform_array);
+        transforms.push(piece.transform.into());
     });
 
     PiecePrimitiveAttributes {
@@ -77,8 +70,8 @@ pub fn save_pieces(
 
 /// Reads piece data from a GLTF file's buffers
 pub fn load_pieces(
-    accessors: &Vec<Accessor>,
-    buffers: &Vec<Data>,
+    accessors: &[Accessor],
+    buffers: &[Data],
     pieces: PiecePrimitiveAttributes,
 ) -> Vec<SerializablePiece> {
     let Some(face_indices) = accessors
@@ -90,7 +83,7 @@ pub fn load_pieces(
 
     let Some(transforms) = accessors
         .get(pieces.transform.value())
-        .and_then(|accessor| buffers::read_accessor::<[f32; 16]>(buffers, accessor).ok())
+        .and_then(|accessor| buffers::read_accessor::<[[f32; 4]; 4]>(buffers, accessor).ok())
     else {
         return Vec::new();
     };
@@ -98,15 +91,9 @@ pub fn load_pieces(
     face_indices
         .into_iter()
         .zip(transforms)
-        .map(|(face_index, transform_array)| {
-            // Convert flat array back to cgmath::Matrix4 (column-major)
-            let t = transform_array;
-            let transform = cgmath::Matrix4::new(
-                t[0], t[4], t[8], t[12], t[1], t[5], t[9], t[13], t[2], t[6], t[10], t[14], t[3],
-                t[7], t[11], t[15],
-            );
-
-            SerializablePiece { face_index, transform }
+        .map(|(face_index, t)| SerializablePiece {
+            face_index,
+            transform: cgmath::Matrix4::from(t),
         })
         .collect()
 }

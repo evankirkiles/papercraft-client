@@ -38,4 +38,22 @@ impl SaveFile {
     ) -> std::result::Result<std::string::String, gltf_json::Error> {
         self.0.as_json().to_string_pretty()
     }
+
+    fn to_glb(&'_ self) -> anyhow::Result<gltf::binary::Glb<'_>> {
+        use std::borrow::Cow;
+        Ok(gltf::binary::Glb {
+            header: gltf::binary::Header {
+                magic: *b"glTF",
+                version: 2,
+                length: 0, // Will be calculated by to_writer
+            },
+            json: Cow::Owned(self.0.as_json().to_string()?.into_bytes()),
+            bin: self.0.blob.as_ref().map(|blob| Cow::Borrowed(blob.as_slice())),
+        })
+    }
+
+    /// Exports the save file as a GLB binary blob
+    pub fn to_binary(&self) -> anyhow::Result<Vec<u8>> {
+        Ok(self.to_glb()?.to_vec()?)
+    }
 }

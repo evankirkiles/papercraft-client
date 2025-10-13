@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::id::{self, Id};
 
 /// An edge, formed by two vertices.
@@ -80,7 +82,7 @@ impl super::Mesh {
     }
 
     /// Returns the edge between the supplied vertices, or `None`.
-    fn query_edge(&self, v_a: id::VertexId, v_b: id::VertexId) -> Option<id::EdgeId> {
+    pub fn query_edge(&self, v_a: id::VertexId, v_b: id::VertexId) -> Option<id::EdgeId> {
         if v_a == v_b {
             return None;
         }
@@ -120,11 +122,44 @@ impl DiskLink {
     }
 }
 
+#[repr(u8)]
+#[derive(Clone, Copy, Default, Debug, Deserialize, Serialize)]
+pub enum FlapPosition {
+    #[default]
+    FirstFace,
+    SecondFace,
+    BothFaces,
+    None,
+}
+
+impl From<u8> for FlapPosition {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => Self::FirstFace,
+            1 => Self::SecondFace,
+            2 => Self::BothFaces,
+            3 => Self::None,
+            _ => Self::FirstFace,
+        }
+    }
+}
+
+impl From<FlapPosition> for u8 {
+    fn from(val: FlapPosition) -> Self {
+        match val {
+            FlapPosition::FirstFace => 0,
+            FlapPosition::SecondFace => 1,
+            FlapPosition::BothFaces => 2,
+            FlapPosition::None => 3,
+        }
+    }
+}
+
 // State of an edge's cut
 #[derive(Debug, Clone, Copy)]
 pub struct EdgeCut {
     /// Which loop / face the flap extends to
-    pub l_flap: Option<id::LoopId>,
+    pub flap_position: FlapPosition,
 }
 
 // --- Section: Radial Cycle ---

@@ -20,10 +20,17 @@ pp_draw.workspace = true
 pp_editor.workspace = true
 # External:
 bitflags.workspace = true
-web-sys = { version = "0.3", features = ["HtmlCanvasElement", "console"] }
+web-sys = { version = "0.3", features = [
+  "HtmlCanvasElement",
+  "HtmlAnchorElement",
+  "console",
+  "Blob",
+  "Url",
+] }
 cfg-if.workspace = true
 log.workspace = true
 futures.workspace = true
+js-sys.workspace = true
 compact_str = "0.9.0"
 console_error_panic_hook = { workspace = true }
 console_log.workspace = true

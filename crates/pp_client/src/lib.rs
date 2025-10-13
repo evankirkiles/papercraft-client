@@ -49,7 +49,7 @@ pub struct App {
 impl App {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        let cursor = Cursor::new(include_bytes!("../../pp_import/examples/assets/Link.glb"));
+        let cursor = Cursor::new(include_bytes!("../../pp_save/examples/assets/link2.glb"));
         let save = SaveFile::from_reader(cursor).unwrap();
         let state = Rc::new(RefCell::new(pp_core::State::load(save).unwrap()));
         let history = Rc::new(RefCell::new(pp_core::CommandStack::default()));

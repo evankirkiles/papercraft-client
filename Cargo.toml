@@ -41,6 +41,7 @@ image = { version = "0.25", default-features = false, features = [
   "jpeg",
 ] }
 itertools = "0.14.0"
+js-sys = "0.3.81"
 log = "0.4.22"
 ordered-float = { version = "5.0", default-features = false }
 paste = "1.0.15"

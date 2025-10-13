@@ -123,7 +123,6 @@ impl Saveable for pp_core::State {
                     extensions: Default::default(),
                     extras: Default::default(),
                 }],
-                // extras: Some(Box::new(3)),
                 meshes: gltf_meshes,
                 nodes: gltf_nodes,
                 samplers: gltf_samplers,
