@@ -79,18 +79,15 @@ impl Saveable for pp_core::State {
         }
 
         // Step 5: Save mesh geometries
+        let mut mesh_map = HashMap::new();
         let mut gltf_meshes = Vec::new();
         for (mesh_id, mesh) in self.meshes.iter() {
             let materials = self.mesh_materials.get(mesh_id).cloned().unwrap_or_default();
-            let primitives =
+            let gltf_mesh =
                 standard::mesh::save_mesh(mesh, &materials, &material_map, &mut gltf_builder);
-            gltf_meshes.push(gltf_json::Mesh {
-                name: Some(mesh.label.clone()),
-                primitives,
-                weights: None,
-                extensions: Default::default(),
-                extras: Default::default(),
-            });
+            let idx = gltf_json::Index::<u32>::new(gltf_meshes.len() as u32);
+            gltf_meshes.push(gltf_mesh);
+            mesh_map.insert(mesh_id, idx);
         }
 
         // Step 6: Create a scene with all meshes as nodes
@@ -111,12 +108,6 @@ impl Saveable for pp_core::State {
                 weights: None,
             });
         }
-
-        // Section 2: GLTF Papercraft Extra
-
-        // Step 1: Save cuts
-
-        // Step 2: Save pieces
 
         // Build final buffers, buffer views, and accessors
         let (buffers, buffer_views, accessors) = gltf_builder.build();

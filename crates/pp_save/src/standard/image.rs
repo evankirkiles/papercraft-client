@@ -17,12 +17,71 @@ pub fn save_image(image: &Image) -> gltf_json::Image {
     }
 }
 
-pub fn load_image(image: &gltf::Image, index: usize) -> Image {
-    // For now, create a placeholder - full implementation would decode the data URI
-    // TODO: Decode base64 data URI and parse PNG
+pub fn load_image(gltf_image: &gltf::Image, buffers: &[gltf::buffer::Data], index: usize) -> Image {
+    // Get the image data from the GLTF image source
+    let image_data = match gltf_image.source() {
+        gltf::image::Source::View { view, mime_type: _ } => {
+            // Image is stored in a buffer view
+            let buffer = &buffers[view.buffer().index()];
+            let start = view.offset();
+            let end = start + view.length();
+            &buffer[start..end]
+        }
+        gltf::image::Source::Uri { uri, mime_type: _ } => {
+            // For data URIs, parse the base64 data
+            if let Some(base64_data) = uri
+                .strip_prefix("data:image/png;base64,")
+                .or_else(|| uri.strip_prefix("data:image/jpeg;base64,"))
+            {
+                // Decode base64 - we'll need to allocate here
+                match base64::Engine::decode(
+                    &base64::engine::general_purpose::STANDARD,
+                    base64_data,
+                ) {
+                    Ok(decoded) => {
+                        // We need a static reference, so we'll process immediately
+                        return decode_image_data(&decoded, gltf_image.name(), index);
+                    }
+                    Err(_) => {
+                        // Failed to decode, return placeholder
+                        return create_placeholder_image(gltf_image.name(), index);
+                    }
+                }
+            } else {
+                // External file reference - not supported yet, return placeholder
+                return create_placeholder_image(gltf_image.name(), index);
+            }
+        }
+    };
+
+    decode_image_data(image_data, gltf_image.name(), index)
+}
+
+fn decode_image_data(data: &[u8], name: Option<&str>, index: usize) -> Image {
+    // Try to decode the image
+    let img = match image::load_from_memory(data) {
+        Ok(img) => img,
+        Err(_) => return create_placeholder_image(name, index),
+    };
+
+    // Convert to RGBA8 for consistency
+    let rgba = img.to_rgba8();
+    let (width, height) = rgba.dimensions();
+
     Image {
-        label: image.name().map(|e| e.to_string()).unwrap_or_else(|| format!("Image{}", index)),
-        pixels: vec![255u8; 4], // Placeholder: 1x1 white pixel
+        label: name.map(|s| s.to_string()).unwrap_or_else(|| format!("Image{}", index)),
+        pixels: rgba.into_raw(),
+        width,
+        height,
+        format: Format::R8G8B8A8,
+    }
+}
+
+fn create_placeholder_image(name: Option<&str>, index: usize) -> Image {
+    // Create a 1x1 white pixel as placeholder
+    Image {
+        label: name.map(|s| s.to_string()).unwrap_or_else(|| format!("Image{}", index)),
+        pixels: vec![255u8; 4],
         width: 1,
         height: 1,
         format: Format::R8G8B8A8,

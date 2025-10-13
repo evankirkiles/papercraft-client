@@ -1070,6 +1070,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "bytemuck",
+ "cgmath",
  "gltf",
  "gltf-json",
  "image",

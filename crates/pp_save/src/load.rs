@@ -46,7 +46,9 @@ impl Loadable for pp_core::State {
         let image_ids: Vec<_> = gltf
             .images()
             .enumerate()
-            .map(|(i, gltf_image)| state.images.insert(standard::image::load_image(&gltf_image, i)))
+            .map(|(i, gltf_image)| {
+                state.images.insert(standard::image::load_image(&gltf_image, &buffers, i))
+            })
             .collect();
 
         // Step 2: Load samplers
@@ -92,7 +94,7 @@ impl Loadable for pp_core::State {
             })
             .collect();
 
-        // Step 5: Load meshes
+        // Step 5+: Load meshes
         for mesh in gltf.meshes() {
             let mut pp_mesh = pp_core::mesh::Mesh::new(
                 mesh.name().map(|e| e.to_string()).unwrap_or_else(|| "ImportedMesh".to_string()),
@@ -206,10 +208,10 @@ impl Loadable for pp_core::State {
             // Add mesh from the GLTF to the state we're building
             let mesh_id = state.meshes.insert(pp_mesh);
             state.mesh_materials.insert(mesh_id, slot_materials_inv);
-        }
 
-        // Step 6: Load cuts and pieces from extras
-        // TODO: Extract from root.extras when GLTF extension is implemented
+            // Step 6: Load cuts and pieces from extras for this mesh
+            if let Some(extras) = mesh.extras() {};
+        }
 
         Ok(state)
     }

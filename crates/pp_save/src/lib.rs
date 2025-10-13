@@ -12,21 +12,12 @@ pub mod save;
 pub struct SaveFile(gltf::Gltf);
 
 impl SaveFile {
-    pub fn to_json_string(&self) -> std::result::Result<std::string::String, gltf_json::Error> {
-        self.0.as_json().to_string()
-    }
-
-    pub fn to_json_string_pretty(
-        &self,
-    ) -> std::result::Result<std::string::String, gltf_json::Error> {
-        self.0.as_json().to_string_pretty()
-    }
-
     /// Validates that the current save file matches the app state schema
     pub fn validate(&self) -> anyhow::Result<()> {
         Ok(())
     }
 
+    /// Validates and interprets a GLTF / GLB as a `SaveFile`
     pub fn from_reader<R>(reader: R) -> anyhow::Result<Self>
     where
         R: io::Read + io::Seek,
@@ -34,5 +25,17 @@ impl SaveFile {
         let save = Self(Gltf::from_reader(reader)?);
         save.validate()?;
         Ok(save)
+    }
+
+    /// Returns the GLTF JSON blob as a JSON string
+    pub fn to_json_string(&self) -> std::result::Result<std::string::String, gltf_json::Error> {
+        self.0.as_json().to_string()
+    }
+
+    /// Returns the GLTF JSON blob as a JSON pretty-printed string
+    pub fn to_json_string_pretty(
+        &self,
+    ) -> std::result::Result<std::string::String, gltf_json::Error> {
+        self.0.as_json().to_string_pretty()
     }
 }
