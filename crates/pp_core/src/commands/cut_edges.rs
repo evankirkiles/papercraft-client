@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
     cut::{CutActionType, CutEdgeState},
@@ -15,13 +15,62 @@ use super::{Command, CommandError};
 /// cut, we save a before / after of any pieces on either side of each edge, as
 /// well as a snapshot of any pieces involved in the operation (before OR after,
 /// which is fine because no piece-internal data is changed as a result of cuts).
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub struct CutEdgesCommand {
     pub action: CutActionType,
     pub edges: Vec<(MeshId, id::EdgeId)>,
     pub pieces: HashMap<(MeshId, id::PieceId), Piece>,
     pub before: HashMap<(MeshId, id::EdgeId), CutEdgeState>,
     pub after: HashMap<(MeshId, id::EdgeId), CutEdgeState>,
+}
+
+impl Serialize for CutEdgesCommand {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer.serialize_struct("CutEdgesCommand", 5)?;
+        state.serialize_field("action", &self.action)?;
+        state.serialize_field("edges", &self.edges)?;
+
+        // Serialize HashMaps as Vec of tuples
+        let pieces_vec: Vec<_> = self.pieces.iter().collect();
+        state.serialize_field("pieces", &pieces_vec)?;
+
+        let before_vec: Vec<_> = self.before.iter().collect();
+        state.serialize_field("before", &before_vec)?;
+
+        let after_vec: Vec<_> = self.after.iter().collect();
+        state.serialize_field("after", &after_vec)?;
+
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for CutEdgesCommand {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct CutEdgesCommandHelper {
+            action: CutActionType,
+            edges: Vec<(MeshId, id::EdgeId)>,
+            pieces: Vec<((MeshId, id::PieceId), Piece)>,
+            before: Vec<((MeshId, id::EdgeId), CutEdgeState)>,
+            after: Vec<((MeshId, id::EdgeId), CutEdgeState)>,
+        }
+
+        let helper = CutEdgesCommandHelper::deserialize(deserializer)?;
+        Ok(CutEdgesCommand {
+            action: helper.action,
+            edges: helper.edges,
+            pieces: helper.pieces.into_iter().collect(),
+            before: helper.before.into_iter().collect(),
+            after: helper.after.into_iter().collect(),
+        })
+    }
 }
 
 impl CutEdgesCommand {
@@ -92,6 +141,8 @@ impl CutEdgesCommand {
 impl Command for CutEdgesCommand {
     fn execute(&self, state: &mut crate::State) -> Result<(), CommandError> {
         self.pieces.iter().for_each(|(id, piece)| {
+            // TODO: Increase capacity of pieces to accomodate new ones
+            // log::info!("{:?}", state.meshes.get_mut(id.0).unwrap().pieces);
             state.meshes.get_mut(id.0).unwrap().pieces.insert(id.1.to_usize(), *piece);
         });
         state.cut_edges(&self.edges, self.action, Some(&self.after));

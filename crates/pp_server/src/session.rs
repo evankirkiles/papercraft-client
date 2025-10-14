@@ -1,8 +1,8 @@
-use crate::protocol::{ClientMessage, ServerMessage};
 use crate::store::DocumentStore;
 use anyhow::Result;
 use axum::extract::ws::{Message, Utf8Bytes, WebSocket};
 use futures::{stream::StreamExt, SinkExt};
+use pp_protocol::{ClientMessage, ServerMessage};
 use std::io::Cursor;
 use std::sync::Arc;
 use thiserror::Error;
@@ -133,10 +133,14 @@ impl DocumentSession {
                 match msg {
                     Ok(Message::Text(text)) => {
                         match serde_json::from_str::<ClientMessage>(&text) {
-                            Ok(ClientMessage::Command { command }) => {
+                            Ok(ClientMessage::Command { command, rollback }) => {
+                                log::info!("{:?}", command);
                                 // Apply the command to the state
                                 let mut state = state.write().await;
-                                if let Err(e) = command.execute(&mut state) {
+                                if let Err(e) = match rollback {
+                                    true => command.rollback(&mut state),
+                                    false => command.execute(&mut state),
+                                } {
                                     warn!("Failed to apply operation: {:?}", e);
                                     continue;
                                 }
@@ -156,6 +160,7 @@ impl DocumentSession {
                                     serde_json::to_string(&ServerMessage::Command {
                                         client_id: client_id_clone.clone(),
                                         command,
+                                        rollback,
                                         version: new_version,
                                     })
                                     .unwrap()

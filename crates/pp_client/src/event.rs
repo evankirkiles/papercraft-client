@@ -3,7 +3,7 @@ use pp_editor::tool;
 use std::{cell::RefCell, rc::Rc};
 use wasm_bindgen::prelude::*;
 
-use crate::keyboard;
+use crate::{command, keyboard};
 
 /// Whether or not a button is pressed.
 #[wasm_bindgen]
@@ -79,10 +79,10 @@ impl core::fmt::Display for ExternalEventHandleError {
 
 /// A common event context making core state objects available inside of event
 /// handlers, including the state of any modifiers.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 pub(crate) struct EventContext {
     pub(crate) state: Rc<RefCell<pp_core::State>>,
-    pub(crate) history: Rc<RefCell<pp_core::CommandStack>>,
+    pub(crate) history: Rc<RefCell<command::MultiplayerCommandStack>>,
     pub(crate) renderer: Rc<RefCell<Option<pp_draw::Renderer<'static>>>>,
     pub(crate) modifiers: keyboard::ModifierKeys,
     pub(crate) surface_dpi: f32,

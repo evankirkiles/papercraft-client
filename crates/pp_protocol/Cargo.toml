@@ -1,0 +1,12 @@
+[package]
+name = "pp_protocol"
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+pp_core.workspace = true
+serde.workspace = true

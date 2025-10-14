@@ -2406,9 +2406,11 @@ dependencies = [
  "pp_core",
  "pp_draw",
  "pp_editor",
+ "pp_protocol",
  "pp_save",
  "serde",
  "serde-wasm-bindgen",
+ "serde_json",
  "slotmap",
  "tsify",
  "wasm-bindgen",
@@ -2497,6 +2499,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "pp_protocol"
+version = "0.0.1"
+dependencies = [
+ "pp_core",
+ "serde",
+]
+
+[[package]]
 name = "pp_save"
 version = "0.0.1"
 dependencies = [
@@ -2527,6 +2537,7 @@ dependencies = [
  "futures",
  "log",
  "pp_core",
+ "pp_protocol",
  "pp_save",
  "serde",
  "serde_json",

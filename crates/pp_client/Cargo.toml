@@ -18,6 +18,7 @@ pp_save.workspace = true
 pp_core.workspace = true
 pp_draw.workspace = true
 pp_editor.workspace = true
+pp_protocol.workspace = true
 # External:
 bitflags.workspace = true
 web-sys = { version = "0.3", features = [
@@ -26,6 +27,11 @@ web-sys = { version = "0.3", features = [
   "console",
   "Blob",
   "Url",
+  "WebSocket",
+  "MessageEvent",
+  "ErrorEvent",
+  "CloseEvent",
+  "BinaryType",
 ] }
 cfg-if.workspace = true
 log.workspace = true
@@ -36,6 +42,7 @@ console_error_panic_hook = { workspace = true }
 console_log.workspace = true
 cgmath.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 serde-wasm-bindgen.workspace = true
 slotmap.workspace = true
 tsify.workspace = true

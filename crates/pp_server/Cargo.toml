@@ -10,6 +10,7 @@ version.workspace = true
 [dependencies]
 # Internal dependencies
 pp_core.workspace = true
+pp_protocol.workspace = true
 pp_save.workspace = true
 
 # Async runtime

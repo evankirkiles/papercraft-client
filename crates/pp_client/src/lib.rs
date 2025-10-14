@@ -11,6 +11,9 @@ use std::{cell::RefCell, io::Cursor, ops::DerefMut, rc::Rc};
 use store::AppCallbacks;
 use wasm_bindgen::prelude::*;
 
+use crate::command::sync::SyncConnectionConfig;
+
+mod command;
 mod editor;
 mod event;
 mod keyboard;
@@ -30,7 +33,7 @@ pub struct App {
     /// The core model of the app, synchronized with the server
     state: Rc<RefCell<pp_core::State>>,
     /// The command stack for undoing / redoing operations
-    history: Rc<RefCell<pp_core::CommandStack>>,
+    history: Rc<RefCell<command::MultiplayerCommandStack>>,
     /// The GPU resources of the App. Only created once a canvas is `attach`ed.
     renderer: Rc<RefCell<Option<pp_draw::Renderer<'static>>>>,
     /// The client-side state of the app
@@ -50,7 +53,7 @@ impl App {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         let state = Rc::new(RefCell::new(pp_core::State::default()));
-        let history = Rc::new(RefCell::new(pp_core::CommandStack::default()));
+        let history = Rc::new(RefCell::new(command::MultiplayerCommandStack::default()));
         let renderer = Rc::new(RefCell::<Option<pp_draw::Renderer<'static>>>::new(None));
         Self {
             event_context: EventContext {
@@ -62,8 +65,20 @@ impl App {
             state,
             history,
             renderer,
-            ..Default::default()
+            callbacks: Rc::new(RefCell::new(AppCallbacks::default())),
+            editor: pp_editor::Editor::default(),
         }
+    }
+
+    /// Reloads the app by connecting to a `pp_server` websocket, where we recieve
+    /// the save file bytes and live-connect to the websocket server for additional changes.
+    pub fn load_live(&mut self, config: SyncConnectionConfig) -> Result<(), JsValue> {
+        // Reset history to default state
+        self.history.take();
+        self.editor.reset();
+        // Correct state will be streamed in over websocket
+        self.history.borrow_mut().subscribe(self.state.clone(), &config)?;
+        Ok(())
     }
 
     /// Reloads the app from the uncompressed bytes of a save file. Note that
@@ -74,7 +89,7 @@ impl App {
             .map_err(|_| JsError::new("Failed to load save file."))?;
         let state = pp_core::State::load(save_file)?;
         self.state.replace(state);
-        self.history.replace(pp_core::CommandStack::default());
+        self.history.take();
         self.editor.reset();
         Ok(())
     }

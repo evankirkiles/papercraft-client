@@ -1,5 +1,5 @@
 import PaperApp from "@/controller";
-import init from "@paper/core";
+import init, { SyncConnectionConfig } from "@paper/core";
 import {
   createContext,
   PropsWithChildren,
@@ -22,16 +22,13 @@ export function EngineProvider({ children }: PropsWithChildren) {
       output.install_logging();
       if (!mounted) return;
       const app = new PaperApp();
-      await fetch("/assets/link2.glb")
-        .then((res) => {
-          if (!res.ok) return;
-          return res.arrayBuffer();
-        })
-        .then((arrayBuffer) => {
-          if (!mounted || !arrayBuffer) return;
-          app.load_save(new Uint8Array(arrayBuffer));
-          console.log("Loaded save file from /public/assets/link2.glb");
-        });
+
+      // Connect to multiplayer server
+      const URI = "ws://localhost:8080";
+      const config = new SyncConnectionConfig(URI, "CesiumMan");
+      app.load_live(config);
+      console.log(`Connected to multiplayer server at ${URI}`);
+
       setApp(app);
     });
     return () => {
