@@ -1,5 +1,6 @@
 use cut_edges::CutEdgesCommand;
 use select_elements::SelectCommand;
+use serde::{Deserialize, Serialize};
 use transform_pieces::TransformPiecesCommand;
 use update_flaps::UpdateFlapsCommand;
 
@@ -74,6 +75,7 @@ impl CommandStack {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CommandError {
     Unknown,
 }
@@ -91,7 +93,7 @@ pub trait Command {
     fn rollback(&self, state: &mut State) -> Result<(), CommandError>;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CommandType {
     Select(SelectCommand),
     TransformPieces(TransformPiecesCommand),

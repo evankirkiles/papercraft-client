@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
     id,
     mesh::{edge::EdgeCut, MeshElementType},
@@ -11,7 +13,7 @@ use super::{Command, CommandError};
 /// A modification of the current select state. Because there are many possible
 /// side effects of these types of commands, we simply store before / after
 /// snapshots of the select state.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UpdateFlapsCommand {
     pub edges: Vec<(MeshId, id::EdgeId)>,
     pub before: HashMap<(MeshId, id::EdgeId), EdgeCut>,

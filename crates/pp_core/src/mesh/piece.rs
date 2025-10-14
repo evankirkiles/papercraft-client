@@ -1,6 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 
 use cgmath::*;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     id::{self, Id, PieceId},
@@ -8,7 +9,7 @@ use crate::{
 };
 
 /// A face, formed by three vertices and three edges.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Piece {
     /// Any face in the piece, used as the "root". "Unwrapping" the piece begins
     /// at this face and rotates faces along adjacent edges until all faces

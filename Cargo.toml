@@ -19,6 +19,7 @@ pp_editor = { path = "crates/pp_editor", version = "0.0.1" }
 pp_export = { path = "crates/pp_export", version = "0.0.1" }
 pp_import = { path = "crates/pp_import", version = "0.0.1" }
 pp_save = { path = "crates/pp_save", version = "0.0.1" }
+pp_server = { path = "crates/pp_server", version = "0.0.1" }
 
 # External:
 anyhow = "1.0"

@@ -139,8 +139,8 @@ pub trait MultiselectTool {
                 }
                 // Add the selection command onto the undo/redo stack
                 history.borrow_mut().add(pp_core::CommandType::Select(SelectCommand {
-                    after: state.selection.clone(),
-                    before: prev_state,
+                    after: Box::new(state.selection.clone()),
+                    before: Box::new(prev_state),
                 }))
             }
         };
@@ -219,8 +219,8 @@ impl MultiselectTool for pp_editor::tool::SelectBoxTool {
                 });
                 // Add the selection command onto the undo/redo stack
                 history.borrow_mut().add(pp_core::CommandType::Select(SelectCommand {
-                    after: state.selection.clone(),
-                    before: prev_state,
+                    after: Box::new(state.selection.clone()),
+                    before: Box::new(prev_state),
                 }))
             }
         };

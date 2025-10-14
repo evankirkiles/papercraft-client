@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 // Use hsize as a reasonable smaller (and consistent) version of usize, which
@@ -55,7 +56,7 @@ pub trait Id: 'static + Copy + fmt::Debug + Eq + Ord {
 macro_rules! make_handle_type {
     ($(#[$attr:meta])* $name:ident = $short:expr;) => {
         $(#[$attr])*
-        #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+        #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
         pub struct $name(hsize);
 
         impl Id for $name {

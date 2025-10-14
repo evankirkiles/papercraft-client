@@ -111,18 +111,31 @@ impl Saveable for pp_core::State {
 
         // Build final buffers, buffer views, and accessors
         let (buffers, buffer_views, accessors) = gltf_builder.build();
-        Ok(SaveFile(Gltf {
-            document: gltf::Document::from_json(gltf_json::Root {
-                accessors,
-                buffers,
-                buffer_views,
-                scene: Some(gltf_json::Index::new(0)),
-                scenes: vec![gltf_json::Scene {
+
+        // If there are no nodes, we need to set scene to None
+        // glTF spec allows scenes to reference nodes, but empty scenes are valid
+        let (scene_index, scenes) = if gltf_nodes.is_empty() {
+            // No nodes means no scene needed
+            (None, vec![])
+        } else {
+            (
+                Some(gltf_json::Index::new(0)),
+                vec![gltf_json::Scene {
                     name: Some("Scene".to_string()),
                     nodes: (0..gltf_nodes.len() as u32).map(gltf_json::Index::new).collect(),
                     extensions: Default::default(),
                     extras: Default::default(),
                 }],
+            )
+        };
+
+        Ok(SaveFile(Gltf {
+            document: gltf::Document::from_json(gltf_json::Root {
+                accessors,
+                buffers,
+                buffer_views,
+                scene: scene_index,
+                scenes,
                 meshes: gltf_meshes,
                 nodes: gltf_nodes,
                 samplers: gltf_samplers,

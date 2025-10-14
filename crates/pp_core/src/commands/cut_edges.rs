@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
     cut::{CutActionType, CutEdgeState},
     id::{self, Id},
@@ -13,7 +15,7 @@ use super::{Command, CommandError};
 /// cut, we save a before / after of any pieces on either side of each edge, as
 /// well as a snapshot of any pieces involved in the operation (before OR after,
 /// which is fine because no piece-internal data is changed as a result of cuts).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CutEdgesCommand {
     pub action: CutActionType,
     pub edges: Vec<(MeshId, id::EdgeId)>,

@@ -156,7 +156,7 @@ impl From<FlapPosition> for u8 {
 }
 
 // State of an edge's cut
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct EdgeCut {
     /// Which loop / face the flap extends to
     pub flap_position: FlapPosition,

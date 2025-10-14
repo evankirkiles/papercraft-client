@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
     id::{self},
     mesh::{
@@ -10,7 +12,7 @@ use crate::{
     MeshId, State,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum CutActionType {
     Join,
     Cut,
@@ -24,7 +26,7 @@ pub enum CutMaskType {
 
 /// Keeps track of information we need to preserve per-edge across cuts.
 /// Tuples represent data for face A and B
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CutEdgeState {
     pub cut: Option<EdgeCut>,
     pub p_a: Option<id::PieceId>,

@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 
 use crate::id::{self, Id};
 use crate::{MeshId, State};
@@ -12,7 +13,7 @@ pub enum SelectionActionType {
     Invert,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum SelectionActiveElement {
     Vert((MeshId, id::VertexId)),
     Edge((MeshId, id::EdgeId)),
@@ -38,7 +39,7 @@ impl From<bool> for SelectionActionType {
     }
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct SelectionState {
     pub active_element: Option<SelectionActiveElement>,
     pub verts: HashSet<(MeshId, id::VertexId)>,
