@@ -4,7 +4,7 @@ import {
   useContext,
   useSyncExternalStore,
 } from "react";
-import { Editor } from "@paper/core";
+import { Editor } from "@paperarium/client";
 import { useEngine } from "./EngineContext";
 
 export const EditorContext = createContext<Editor | undefined>(undefined);

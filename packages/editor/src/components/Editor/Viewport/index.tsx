@@ -1,5 +1,5 @@
 import { useEditor } from "@/contexts/EditorContext";
-import { ViewportId } from "@paper/core";
+import { ViewportId } from "@paperarium/client";
 
 interface ViewportProps {
   id: ViewportId;

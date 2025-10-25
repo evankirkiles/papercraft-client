@@ -1,6 +1,6 @@
 import { useEditor } from "@/contexts/EditorContext";
 import { useEngine } from "@/contexts/EngineContext";
-import { SplitId } from "@paper/core";
+import { SplitId } from "@paperarium/client";
 import { useEffect, useRef } from "react";
 import { DraggableCore } from "react-draggable";
 import cn from "classnames";

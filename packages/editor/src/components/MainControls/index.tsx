@@ -1,6 +1,6 @@
 import { useEngine } from "@/contexts/EngineContext";
 import styles from "./styles.module.scss";
-import { SelectionMode } from "@paper/core";
+import { SelectionMode } from "@paperarium/client";
 
 export default function MainControls() {
   const engine = useEngine();

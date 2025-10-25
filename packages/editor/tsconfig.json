@@ -1,8 +1,7 @@
 {
-  "include": ["./src", "./app/main.tsx"],
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
-    "types": ["vite/client", "node"],
     "isolatedModules": true,
     "esModuleInterop": true,
     "jsx": "react-jsx",
@@ -14,11 +13,12 @@
     "allowJs": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "noEmit": false,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@paper/core": ["./src/rs"]
+      "@/*": ["./src/*"]
     },
-    "noEmit": false
-  }
+    "types": ["vite/client", "node"]
+  },
+  "include": ["./src", "./app/main.tsx"]
 }

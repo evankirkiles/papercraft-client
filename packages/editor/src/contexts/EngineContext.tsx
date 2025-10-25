@@ -1,5 +1,4 @@
-import PaperApp from "@/controller";
-import init, { SyncConnectionConfig } from "@paper/core";
+import { init, SyncConnectionConfig, PaperClient } from "@paperarium/client";
 import {
   createContext,
   PropsWithChildren,
@@ -8,11 +7,11 @@ import {
   useState,
 } from "react";
 
-export const EngineContext = createContext<PaperApp | undefined>(undefined);
+export const EngineContext = createContext<PaperClient | undefined>(undefined);
 export const useEngine = () => useContext(EngineContext);
 
 export function EngineProvider({ children }: PropsWithChildren) {
-  const [app, setApp] = useState<PaperApp | undefined>(undefined);
+  const [app, setApp] = useState<PaperClient | undefined>(undefined);
 
   // Load the app in on startup
   useEffect(() => {
@@ -21,11 +20,11 @@ export function EngineProvider({ children }: PropsWithChildren) {
       output.__wbindgen_start();
       output.install_logging();
       if (!mounted) return;
-      const app = new PaperApp();
+      const app = new PaperClient();
 
       // Connect to multiplayer server
       const URI = "ws://localhost:8080";
-      const config = new SyncConnectionConfig(URI, "CesiumMan");
+      const config = new SyncConnectionConfig(URI, "villager");
       app.load_live(config);
       console.log(`Connected to multiplayer server at ${URI}`);
 

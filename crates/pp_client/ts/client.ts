@@ -1,4 +1,4 @@
-import { App, Editor, PressedState } from "@paper/core";
+import { App, Editor, PressedState } from "./wasm/client";
 import { ModifierKeys } from "./modifiers";
 
 // TODO: Clean this up
@@ -14,7 +14,7 @@ const CANVAS_EVENTS = [
   "mouseup",
 ] as const satisfies (keyof HTMLElementEventMap)[];
 
-export default class PaperApp
+export class PaperClient
   extends App
   implements
     Pick<

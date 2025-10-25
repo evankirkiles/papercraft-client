@@ -41,12 +41,13 @@ jobs:
       - name: Build static files
         id: build
         run: |
+          cd packages/editor
           pnpm build --base=/${{ github.event.repository.name }}/
       - name: Upload static files as artifact
         id: deployment
         uses: actions/upload-pages-artifact@v3 # or specific "vX.X.X" version tag for this action
         with:
-          path: dist/
+          path: packages/editor/dist/
 
   # Deployment job
   deploy:
