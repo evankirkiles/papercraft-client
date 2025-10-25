@@ -2,11 +2,10 @@ use gltf::{buffer::Data, Accessor, Semantic};
 use ordered_float::OrderedFloat;
 use pp_core::{
     id::{self, FaceId, Id, VertexId},
-    mesh::{edge::EdgeCut, face::FaceDescriptor, matslot::MaterialSlot, MaterialSlotId, Mesh},
+    mesh::{edge::EdgeCut, face::FaceDescriptor, Mesh},
     MaterialId,
 };
 use serde_json::value::RawValue;
-use slotmap::{SecondaryMap, SlotMap};
 use std::collections::{BTreeMap, HashMap};
 
 use crate::{
@@ -22,8 +21,7 @@ use crate::{
 /// GLTF meshes can only have a single material.
 pub fn save_mesh(
     mesh: &Mesh,
-    materials: &SecondaryMap<pp_core::mesh::MaterialSlotId, pp_core::MaterialId>,
-    material_map: &HashMap<pp_core::MaterialId, gltf_json::Index<gltf_json::Material>>,
+    materials: &HashMap<pp_core::MaterialId, gltf_json::Index<gltf_json::Material>>,
     builder: &mut GltfBufferBuilder,
 ) -> gltf_json::mesh::Mesh {
     use gltf_json::validation::Checked::Valid;
@@ -37,8 +35,7 @@ pub fn save_mesh(
     let mut normals = Vec::with_capacity(loops.len());
     let mut tex_coords = Vec::with_capacity(loops.len());
     // Primitives are grouped by material
-    let mut primitives_by_material: HashMap<Option<pp_core::mesh::MaterialSlotId>, Vec<u32>> =
-        HashMap::new();
+    let mut primitives_by_material: HashMap<Option<MaterialId>, Vec<u32>> = HashMap::new();
 
     // The below lookup table allows us to get (one of) a vertex's GLTF buffer
     // indices by its vertex ID, necessary for identifying the verts in an edge
@@ -122,7 +119,7 @@ pub fn save_mesh(
     // Create a primitive for each material
     let primitives = primitives_by_material
         .iter()
-        .map(|(mat_slot, indices)| mesh::Primitive {
+        .map(|(mat_id, indices)| mesh::Primitive {
             indices: Some(builder.add_accessor(
                 indices,
                 AccessorOptions {
@@ -143,10 +140,7 @@ pub fn save_mesh(
                 map.insert(Valid(mesh::Semantic::TexCoords(0)), texcoord_accessor);
                 map
             },
-            material: mat_slot
-                .and_then(|slot| materials.get(slot))
-                .and_then(|mat_id| material_map.get(mat_id))
-                .copied(),
+            material: mat_id.as_ref().and_then(|mat_id| materials.get(mat_id)).copied(),
             mode: Valid(mesh::Mode::Triangles),
             targets: None,
             extensions: Default::default(),
@@ -209,15 +203,12 @@ pub fn load_mesh(
     mesh: &gltf::mesh::Mesh,
     accessors: &[Accessor],
     buffers: &[Data],
-    material_ids: &[MaterialId],
-) -> anyhow::Result<(pp_core::mesh::Mesh, SecondaryMap<MaterialSlotId, MaterialId>), LoadError> {
+    materials: &[MaterialId],
+) -> anyhow::Result<pp_core::mesh::Mesh, LoadError> {
     let mut pp_mesh = pp_core::mesh::Mesh::new(
         mesh.name().map(|e| e.to_string()).unwrap_or_else(|| "ImportedMesh".to_string()),
     );
     let mut vertices: HashMap<VertPos, id::VertexId> = HashMap::new();
-    let mut material_slots: SlotMap<MaterialSlotId, MaterialSlot> = SlotMap::with_key();
-    let mut slot_materials: HashMap<MaterialId, MaterialSlotId> = HashMap::new();
-    let mut slot_materials_inv: SecondaryMap<MaterialSlotId, MaterialId> = SecondaryMap::new();
 
     // Build mappings from GLTF buffer indices to our runtime IDs
     // Key: GLTF buffer index, Value: our vertex/face ID
@@ -225,7 +216,7 @@ pub fn load_mesh(
     let mut gltf_index_to_face_id: HashMap<u32, id::FaceId> = HashMap::new();
 
     // Primitive corresponds to a set of faces with the same material
-    for (prim_i, primitive) in mesh.primitives().enumerate() {
+    for primitive in mesh.primitives() {
         use crate::standard::buffers;
         let attrs: HashMap<_, _> = primitive.attributes().collect();
 
@@ -276,19 +267,6 @@ pub fn load_mesh(
             })
             .collect();
 
-        // Create a bidirectional map between material "slots" and "materials",
-        // so we can re-use materials across meshes. Might remove this in the future.
-        let material_slot = primitive.material().index().and_then(|mat_idx| {
-            material_ids.get(mat_idx).map(|m_id| {
-                *slot_materials.entry(*m_id).or_insert_with(|| {
-                    let slot = material_slots
-                        .insert(MaterialSlot { label: format!("Material{}", prim_i) });
-                    slot_materials_inv.insert(slot, *m_id);
-                    slot
-                })
-            })
-        });
-
         // Create our adjacency map of tris from the indices by adding primitives
         // as faces.
         for i in (0..indices.len()).step_by(3) {
@@ -296,7 +274,10 @@ pub fn load_mesh(
             let f_id = pp_mesh.add_face(
                 &[v_ids[idx[0]], v_ids[idx[1]], v_ids[idx[2]]],
                 &FaceDescriptor {
-                    m: material_slot,
+                    m: primitive
+                        .material()
+                        .index()
+                        .and_then(|mat_idx| materials.get(mat_idx).cloned()),
                     uvs: uvs.as_ref().map(|uvs| [uvs[idx[0]], uvs[idx[1]], uvs[idx[2]]]).as_ref(),
                     nos: normals
                         .as_ref()
@@ -325,7 +306,7 @@ pub fn load_mesh(
         .and_then(|extras| serde_json::from_str::<crate::extra::MeshExtras>(extras.get()).ok())
         .and_then(|extras| extras.papercraft)
     else {
-        return Ok((pp_mesh, slot_materials_inv));
+        return Ok(pp_mesh);
     };
 
     // 1. Load cuts and apply them to real edges in the model. Do *not* use our
@@ -358,5 +339,5 @@ pub fn load_mesh(
         },
     );
 
-    Ok((pp_mesh, slot_materials_inv))
+    Ok(pp_mesh)
 }

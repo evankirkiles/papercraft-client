@@ -427,7 +427,6 @@ pub mod vbo {
 pub mod ibo {
     use pp_core::{
         id::{self, Id},
-        mesh::MaterialSlotId,
         MaterialId,
     };
     use slotmap::SecondaryMap;
@@ -439,7 +438,6 @@ pub mod ibo {
     pub fn mat_indices(
         ctx: &gpu::Context,
         mesh: &pp_core::mesh::Mesh,
-        slots: &SecondaryMap<MaterialSlotId, MaterialId>,
         default_mat: &MaterialId,
         ibo: &mut gpu::IndexBuf,
         ranges: &mut SecondaryMap<MaterialId, MaterialGPUVBORange>,
@@ -447,13 +445,7 @@ pub mod ibo {
         let mut data: Vec<_> = mesh
             .iter_loops()
             .zip(0u32..)
-            .map(|(l, i)| {
-                let mat = mesh[mesh[l].f]
-                    .m
-                    .and_then(|slot_id| slots.get(slot_id).cloned())
-                    .unwrap_or(*default_mat);
-                (i, mat)
-            })
+            .map(|(l, i)| (i, mesh[mesh[l].f].m.unwrap_or(*default_mat)))
             .collect();
         data.sort_by(|(_, m_a), (_, m_b)| m_a.cmp(m_b));
         let mut i_prev: u32 = 0;
@@ -479,7 +471,6 @@ pub mod ibo {
     pub fn piece_mat_indices(
         ctx: &gpu::Context,
         mesh: &pp_core::mesh::Mesh,
-        slots: &SecondaryMap<MaterialSlotId, MaterialId>,
         default_mat: &MaterialId,
         ibo: &mut gpu::IndexBuf,
         mats: &mut SecondaryMap<MaterialId, MaterialGPUVBORange>,
@@ -493,13 +484,7 @@ pub mod ibo {
             })
             .flat_map(|(f_id, p_id)| mesh.iter_face_loops(f_id).map(move |l_id| (l_id, p_id)))
             .zip(0u32..)
-            .map(|((l, p), i)| {
-                let mat = mesh[mesh[l].f]
-                    .m
-                    .and_then(|slot_id| slots.get(slot_id).cloned())
-                    .unwrap_or(*default_mat);
-                (i, mat, p)
-            })
+            .map(|((l, p), i)| (i, mesh[mesh[l].f].m.unwrap_or(*default_mat), p))
             .collect();
         data.sort_by(|(_, m_a, p_a), (_, m_b, p_b)| m_a.cmp(m_b).then(p_a.cmp(p_b)));
         let mut i_prev: u32 = 0;

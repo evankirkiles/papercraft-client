@@ -1,5 +1,4 @@
-use mesh::MaterialSlotId;
-use slotmap::{new_key_type, SecondaryMap, SlotMap};
+use slotmap::{new_key_type, SlotMap};
 
 pub mod commands;
 pub mod cut;
@@ -40,21 +39,21 @@ pub struct State {
     // Geometry-related entities
     pub meshes: SlotMap<MeshId, mesh::Mesh>,
     pub materials: SlotMap<MaterialId, material::Material>,
-    pub textures: SlotMap<TextureId, material::texture::Texture>,
-    pub samplers: SlotMap<SamplerId, material::texture::Sampler>,
-    pub images: SlotMap<ImageId, material::image::Image>,
+    pub textures: SlotMap<TextureId, material::Texture>,
+    pub samplers: SlotMap<SamplerId, material::Sampler>,
+    pub images: SlotMap<ImageId, material::Image>,
 
     // Print-related entities
     pub printing: print::PrintLayout,
     pub text_boxes: SlotMap<TextBoxId, print::TextBox>,
     pub image_boxes: SlotMap<ImageBoxId, print::ImageBox>,
 
-    /// Default entity IDs to use where providing an entity is optional
+    /// Default entity IDs to use where providing a link is optional (materials, textures, etc.)
     pub defaults: StateDefaults,
 
-    /// A map from mesh material "slot"s to the actual materials used by them
-    pub mesh_materials: SecondaryMap<MeshId, SecondaryMap<MaterialSlotId, MaterialId>>,
+    /// User-specific selection state, to be moved out of this struct
     pub selection: select::SelectionState,
+    /// User-specific editor settings, to be moved into `editor`
     pub settings: settings::Settings,
 }
 
@@ -96,25 +95,19 @@ impl Default for State {
             image_boxes: Default::default(),
             selection: Default::default(),
             settings: Default::default(),
-            mesh_materials: Default::default(),
             defaults: StateDefaults { material, texture, sampler, image },
         }
     }
 }
 
 impl State {
-    pub fn add_mesh(
-        &mut self,
-        mesh: mesh::Mesh,
-        materials: Option<SecondaryMap<MaterialSlotId, MaterialId>>,
-    ) {
-        let m_id = self.meshes.insert(mesh);
-        self.mesh_materials.insert(m_id, materials.unwrap_or_default());
+    pub fn add_mesh(&mut self, mesh: mesh::Mesh) {
+        self.meshes.insert(mesh);
     }
 
     pub fn with_cube() -> Self {
         let mut state = Self::default();
-        state.add_mesh(mesh::Mesh::new_cube(), None);
+        state.add_mesh(mesh::Mesh::new_cube());
         state
     }
 }

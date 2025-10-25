@@ -2,7 +2,7 @@ use crate::gpu;
 use extract::{ibo, vbo};
 use piece::PieceGPU;
 use pp_core::id::{self, Id};
-use pp_core::mesh::{MaterialSlotId, Mesh, MeshElementType};
+use pp_core::mesh::{Mesh, MeshElementType};
 use pp_core::select::SelectionState;
 use pp_core::{MaterialId, MeshId};
 use slotmap::SecondaryMap;
@@ -39,8 +39,7 @@ pub struct MeshGPUVBOs {
     pub edge_flags: gpu::VertBuf,
     pub edge_flap: gpu::VertBuf,
 
-    // For per-material indexing. Each `MaterialSlotGPU` has a corresponding range in
-    // this buffer to render all of the faces with that slot's material
+    // For per-material indexing
     pub mat_indices: gpu::IndexBuf,
 }
 
@@ -105,7 +104,6 @@ impl MeshGPU {
         ctx: &gpu::Context,
         m_id: MeshId,
         mesh: &mut Mesh,
-        slots: &SecondaryMap<MaterialSlotId, MaterialId>,
         default_mat: &MaterialId,
         selection: &SelectionState,
     ) {
@@ -125,11 +123,10 @@ impl MeshGPU {
             vbo::piece_edge_flap(ctx, mesh, &mut self.vbo_pieces.edge_flap);
             // Material slot IBOs
             let ranges = &mut self.mat_ranges;
-            ibo::mat_indices(ctx, mesh, slots, default_mat, &mut self.vbo.mat_indices, ranges);
+            ibo::mat_indices(ctx, mesh, default_mat, &mut self.vbo.mat_indices, ranges);
             ibo::piece_mat_indices(
                 ctx,
                 mesh,
-                slots,
                 default_mat,
                 &mut self.vbo_pieces.mat_indices,
                 ranges,
@@ -166,7 +163,6 @@ impl MeshGPU {
             ibo::piece_mat_indices(
                 ctx,
                 mesh,
-                slots,
                 default_mat,
                 &mut self.vbo_pieces.mat_indices,
                 ranges,

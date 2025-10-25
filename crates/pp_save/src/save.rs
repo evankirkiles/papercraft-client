@@ -21,7 +21,7 @@ impl Saveable for pp_core::State {
         let mut gltf_builder = standard::buffers::GltfBufferBuilder::new();
 
         // Step 1: Save images (skip default image)
-        let mut image_map = HashMap::new();
+        let mut images = HashMap::new();
         let mut gltf_images = Vec::new();
         for (img_id, img) in self.images.iter() {
             if img_id == self.defaults.image {
@@ -30,11 +30,11 @@ impl Saveable for pp_core::State {
             let gltf_image = standard::image::save_image(img);
             let idx = gltf_json::Index::new(gltf_images.len() as u32);
             gltf_images.push(gltf_image);
-            image_map.insert(img_id, idx);
+            images.insert(img_id, idx);
         }
 
         // Step 2: Save samplers (skip default sampler)
-        let mut sampler_map = HashMap::new();
+        let mut samplers = HashMap::new();
         let mut gltf_samplers = Vec::new();
         for (samp_id, samp) in self.samplers.iter() {
             if samp_id == self.defaults.sampler {
@@ -43,11 +43,11 @@ impl Saveable for pp_core::State {
             let gltf_sampler = standard::sampler::save_sampler(samp);
             let idx = gltf_json::Index::new(gltf_samplers.len() as u32);
             gltf_samplers.push(gltf_sampler);
-            sampler_map.insert(samp_id, idx);
+            samplers.insert(samp_id, idx);
         }
 
         // Step 3: Save textures (skip default texture)
-        let mut texture_map = HashMap::new();
+        let mut textures = HashMap::new();
         let mut gltf_textures = Vec::new();
         for (tex_id, tex) in self.textures.iter() {
             if tex_id == self.defaults.texture {
@@ -55,39 +55,34 @@ impl Saveable for pp_core::State {
             }
             let gltf_texture = gltf_json::Texture {
                 name: Some(tex.label.clone()),
-                sampler: sampler_map.get(&tex.sampler).copied(),
-                source: image_map.get(&tex.image).copied().unwrap(),
+                sampler: samplers.get(&tex.sampler).copied(),
+                source: images.get(&tex.image).copied().unwrap(),
                 extensions: Default::default(),
                 extras: Default::default(),
             };
             let idx = gltf_json::Index::new(gltf_textures.len() as u32);
             gltf_textures.push(gltf_texture);
-            texture_map.insert(tex_id, idx);
+            textures.insert(tex_id, idx);
         }
 
         // Step 4: Save materials (skip default material)
-        let mut material_map = HashMap::new();
+        let mut materials = HashMap::new();
         let mut gltf_materials = Vec::new();
         for (mat_id, mat) in self.materials.iter() {
             if mat_id == self.defaults.material {
                 continue;
             }
-            let gltf_material = standard::material::save_material(mat, &texture_map);
+            let gltf_material = standard::material::save_material(mat, &textures);
             let idx = gltf_json::Index::new(gltf_materials.len() as u32);
             gltf_materials.push(gltf_material);
-            material_map.insert(mat_id, idx);
+            materials.insert(mat_id, idx);
         }
 
         // Step 5: Save mesh geometries
-        let mut mesh_map = HashMap::new();
         let mut gltf_meshes = Vec::new();
-        for (mesh_id, mesh) in self.meshes.iter() {
-            let materials = self.mesh_materials.get(mesh_id).cloned().unwrap_or_default();
-            let gltf_mesh =
-                standard::mesh::save_mesh(mesh, &materials, &material_map, &mut gltf_builder);
-            let idx = gltf_json::Index::<u32>::new(gltf_meshes.len() as u32);
+        for mesh in self.meshes.values() {
+            let gltf_mesh = standard::mesh::save_mesh(mesh, &materials, &mut gltf_builder);
             gltf_meshes.push(gltf_mesh);
-            mesh_map.insert(mesh_id, idx);
         }
 
         // Step 6: Create a scene with all meshes as nodes

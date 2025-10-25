@@ -82,15 +82,9 @@ impl Loadable for pp_core::State {
             .meshes()
             .filter_map(|gltf_mesh| {
                 // Add mesh from the GLTF to the state we're building
-                let Ok((mesh, slot_materials_inv)) =
-                    standard::mesh::load_mesh(&gltf_mesh, &accessors, &buffers, &material_ids)
-                else {
-                    return None;
-                };
-                let mesh_id = state.meshes.insert(mesh);
-                state.mesh_materials.insert(mesh_id, slot_materials_inv);
-                Some(mesh_id)
+                standard::mesh::load_mesh(&gltf_mesh, &accessors, &buffers, &material_ids).ok()
             })
+            .map(|mesh| state.meshes.insert(mesh))
             .collect();
 
         Ok(state)

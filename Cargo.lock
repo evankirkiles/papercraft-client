@@ -2487,18 +2487,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pp_import"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "gltf",
- "gltf-json",
- "pp_core",
- "pp_save",
- "thiserror 2.0.17",
-]
-
-[[package]]
 name = "pp_protocol"
 version = "0.0.1"
 dependencies = [

@@ -1,5 +1,5 @@
 use bitflags::bitflags;
-use slotmap::{new_key_type, SlotMap};
+use slotmap::new_key_type;
 use stable_vec::StableVec;
 use std::ops;
 
@@ -8,7 +8,6 @@ use crate::id::{EdgeId, FaceId, Id, LoopId, PieceId, VertexId};
 pub mod edge;
 pub mod face;
 pub mod loop_;
-pub mod matslot;
 pub mod piece;
 mod primitives;
 mod vertex;
@@ -16,13 +15,8 @@ mod vertex;
 use edge::*;
 use face::*;
 use loop_::*;
-use matslot::*;
 use piece::*;
 use vertex::*;
-
-new_key_type! {
-    pub struct MaterialSlotId;
-}
 
 bitflags! {
     #[derive(Debug, Clone, Copy)]
@@ -60,12 +54,12 @@ impl From<MeshElementType> for bool {
 pub struct Mesh {
     pub label: String,
 
+    // Mesh components
     pub verts: StableVec<Vertex>,
     pub edges: StableVec<Edge>,
     pub faces: StableVec<Face>,
     pub loops: StableVec<Loop>,
     pub pieces: StableVec<Piece>,
-    pub material_slots: SlotMap<MaterialSlotId, MaterialSlot>,
 
     /// Indicates which type of element has changed in this mesh
     pub elem_dirty: MeshElementType,
@@ -81,7 +75,6 @@ impl Mesh {
             faces: StableVec::new(),
             loops: StableVec::new(),
             pieces: StableVec::new(),
-            material_slots: SlotMap::with_key(),
             elem_dirty: MeshElementType::empty(),
             index_dirty: MeshElementType::empty(),
         }

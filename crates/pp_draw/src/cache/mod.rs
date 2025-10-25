@@ -68,7 +68,6 @@ impl DrawCache {
                 ctx,
                 m_id,
                 mesh,
-                state.mesh_materials.get(m_id).unwrap(),
                 &state.defaults.material,
                 &state.selection,
             );

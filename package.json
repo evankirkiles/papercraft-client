@@ -14,6 +14,7 @@
     "build": "turbo build --cache-dir=.turbo --",
     "preview": "turbo preview --",
     "typecheck": "turbo typecheck --",
+    "typecheck:rs": "cargo check --workspace --exclude pp_server",
     "lint": "turbo lint --",
     "format": "prettier --write \"**/*.{ts,tsx,md,astro,scss,css}\"",
     "prepare": "husky install"

@@ -4,15 +4,15 @@ use std::collections::VecDeque;
 use cgmath::InnerSpace;
 
 use crate::id::{self, Id};
+use crate::MaterialId;
 
 use super::loop_::*;
-use super::MaterialSlotId;
 use super::MeshElementType;
 
 /// Input parameters when creating a face
 #[derive(Debug, Clone, Copy, Default)]
 pub struct FaceDescriptor<'a> {
-    pub m: Option<MaterialSlotId>,
+    pub m: Option<MaterialId>,
     pub nos: Option<&'a [[f32; 3]; 3]>,
     pub uvs: Option<&'a [[f32; 2]; 3]>,
 }
@@ -22,13 +22,12 @@ pub struct FaceDescriptor<'a> {
 pub struct Face {
     /// Face normal
     pub no: [f32; 3],
-
     /// Any loop in this face, allowing for loop cycle iteration
     pub l: id::LoopId,
     /// The piece this face is a part of, if any
     pub p: Option<id::PieceId>,
-    /// The material slot of this face, or none if using the default material
-    pub m: Option<MaterialSlotId>,
+    /// The material of this face, or none if using the default material
+    pub m: Option<MaterialId>,
 }
 
 impl super::Mesh {
