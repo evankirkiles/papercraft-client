@@ -10,11 +10,11 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "turbo dev",
-    "build": "turbo build --cache-dir=.turbo",
-    "preview": "turbo preview",
-    "typecheck": "turbo typecheck",
-    "lint": "turbo lint",
+    "dev": "turbo dev --",
+    "build": "turbo build --cache-dir=.turbo --",
+    "preview": "turbo preview --",
+    "typecheck": "turbo typecheck --",
+    "lint": "turbo lint --",
     "format": "prettier --write \"**/*.{ts,tsx,md,astro,scss,css}\"",
     "prepare": "husky install"
   },

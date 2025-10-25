@@ -41,7 +41,6 @@ jobs:
       - name: Build static files
         id: build
         run: |
-          cd packages/editor
           pnpm build --base=/${{ github.event.repository.name }}/
       - name: Upload static files as artifact
         id: deployment
