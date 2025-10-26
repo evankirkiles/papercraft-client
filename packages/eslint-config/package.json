@@ -1,0 +1,15 @@
+{
+  "name": "@repo/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "devDependencies": {
+    "@types/eslint-plugin-tailwindcss": "^3.17.0",
+    "@types/node": "^24.9.1",
+    "eslint": "^9.38.0",
+    "eslint-plugin-storybook": "^9.1.15",
+    "eslint-plugin-turbo": "^2.5.8",
+    "jiti": "^2.6.1",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46.2"
+  }
+}

@@ -1,9 +1,8 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "tasks": {
-    "typecheck": {
-      "dependsOn": ["^typecheck"]
-    },
+    "lint": {},
+    "typecheck": {},
     "dev": {
       "dependsOn": ["@paperarium/client#build:dev"],
       "with": ["pp_server#dev"],

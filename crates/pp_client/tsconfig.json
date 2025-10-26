@@ -6,6 +6,6 @@
     "types": ["node"],
     "declaration": true
   },
-  "include": ["ts/**/*.ts", "ts/**/*.tsx"],
+  "include": ["ts/**/*.ts"],
   "exclude": ["node_modules"]
 }

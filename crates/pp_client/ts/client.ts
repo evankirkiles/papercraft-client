@@ -48,14 +48,13 @@ export class PaperClient
     // Add event listeners to the canvas
     CANVAS_EVENTS.forEach((type) => {
       const listener = this[`on${type}`].bind(this);
-      // @ts-ignore - This is a really hard type to make
+      // @ts-expect-error - This is a really hard type to make
       this._canvas?.addEventListener(type, listener, { signal });
     });
 
     // Add event listeners to the document
     DOCUMENT_EVENTS.forEach((type) => {
       const listener = this[`on${type}`].bind(this);
-      // @ts-ignore - This is a really hard type to make
       window.document?.addEventListener(type, listener, { signal });
     });
 

@@ -10,7 +10,6 @@ export default function Node({ node }: NodeProps) {
     case "Split" in node:
       return <Split id={node.Split} />;
     case "Viewport" in node:
-      node.Viewport;
     default:
       return null;
   }

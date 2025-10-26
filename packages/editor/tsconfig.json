@@ -20,5 +20,5 @@
     },
     "types": ["vite/client", "node"]
   },
-  "include": ["./src", "./app/main.tsx"]
+  "include": ["./src", "./app", "./.storybook/"]
 }

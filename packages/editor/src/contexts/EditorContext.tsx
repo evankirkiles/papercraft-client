@@ -14,7 +14,7 @@ export function EditorProvider({ children }: PropsWithChildren) {
   const engine = useEngine();
   const editor = useSyncExternalStore(
     (update) =>
-      (engine?.subscribe_to_editor(update) as () => void) || (() => {}),
+      (engine?.on_editor_state_change(update) as () => void) || (() => {}),
     () => engine?.editor
   );
 

@@ -65,7 +65,7 @@ export default function MainControls() {
           name="select_mode"
           value="faces"
           className={styles.select_mode_radio}
-          onChange={(e) => {
+          onChange={() => {
             if (!engine) return;
             engine.set_select_mode(SelectionMode.Face);
           }}
@@ -82,7 +82,7 @@ export default function MainControls() {
           name="select_mode"
           value="pieces"
           className={styles.select_mode_radio}
-          onChange={(e) => {
+          onChange={() => {
             if (!engine) return;
             engine.set_select_mode(SelectionMode.Piece);
           }}

@@ -7,31 +7,31 @@
   "keywords": [],
   "private": true,
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=24.0.0"
   },
   "scripts": {
     "dev": "turbo dev --",
     "build": "turbo build --cache-dir=.turbo --",
     "preview": "turbo preview --",
+    "lint": "turbo lint --",
     "typecheck": "turbo typecheck --",
     "typecheck:rs": "cargo check --workspace --exclude pp_server",
-    "lint": "turbo lint --",
-    "format": "prettier --write \"**/*.{ts,tsx,md,astro,scss,css}\"",
-    "prepare": "husky install"
+    "format": "prettier --write \"**/*.{ts,tsx,md,scss,css}\"",
+    "prepare": "husky"
   },
   "devDependencies": {
     "husky": "^9.0.11",
+    "jiti": "^2.6.1",
     "lint-staged": "^15.2.2",
     "turbo": "^2.5.8",
     "turborepo": "^0.0.1",
-    "typescript": "^5.8.2",
-    "typescript-eslint": "^8.26.0"
+    "typescript": "~5.8"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx,astro,md,scss,css}": [
+    "*.{ts,tsx,js,jsx,scss,css}": [
       "prettier --write"
     ],
-    "apps/web/**/*.{ts,tsx,js,jsx,astro}": [
+    "*.{ts,tsx,js,jsx}": [
       "eslint --fix"
     ]
   },

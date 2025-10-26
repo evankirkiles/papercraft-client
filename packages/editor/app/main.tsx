@@ -1,11 +1,14 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { Engine } from "@/Engine";
+import { Engine } from "@/index";
 
 import "./main.scss";
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <Engine />
-  </React.StrictMode>
-);
+const root = document.getElementById("root");
+if (root) {
+  ReactDOM.createRoot(root).render(
+    <React.StrictMode>
+      <Engine />
+    </React.StrictMode>
+  );
+}
