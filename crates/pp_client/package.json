@@ -19,8 +19,9 @@
     }
   },
   "scripts": {
-    "build": "pnpm build:wasm && rollup -c",
-    "build:wasm": "wasm-pack build ./ --target web --out-name client --out-dir ./ts/wasm"
+    "compile-wasm": "wasm-pack build ./ --target web --out-name client --out-dir ./ts/wasm",
+    "build:dev": "pnpm compile-wasm --dev && rollup -c",
+    "build": "pnpm compile-wasm && rollup -c"
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^16.0.3",

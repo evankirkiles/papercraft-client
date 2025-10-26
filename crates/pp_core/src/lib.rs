@@ -1,7 +1,6 @@
 use slotmap::{new_key_type, SlotMap};
 
 pub mod commands;
-pub mod cut;
 pub mod id;
 pub mod material;
 pub mod measures;
@@ -101,13 +100,9 @@ impl Default for State {
 }
 
 impl State {
-    pub fn add_mesh(&mut self, mesh: mesh::Mesh) {
-        self.meshes.insert(mesh);
-    }
-
     pub fn with_cube() -> Self {
         let mut state = Self::default();
-        state.add_mesh(mesh::Mesh::new_cube());
+        state.meshes.insert(mesh::Mesh::new_cube());
         state
     }
 }

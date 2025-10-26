@@ -2,7 +2,7 @@ use gltf::{buffer::Data, Accessor, Semantic};
 use ordered_float::OrderedFloat;
 use pp_core::{
     id::{self, FaceId, Id, VertexId},
-    mesh::{edge::EdgeCut, face::FaceDescriptor, Mesh},
+    mesh::{cut::Cut, face::FaceDescriptor, Mesh},
     MaterialId,
 };
 use serde_json::value::RawValue;
@@ -153,12 +153,15 @@ pub fn save_mesh(
     // edges with pairs of vertices.
     let cuts = extra::cut::save_cuts(
         builder,
-        mesh.edges
+        mesh.cuts
             .iter()
-            .filter(|(_, e)| e.cut.is_some())
-            .map(|(_, e)| SerializableCut {
-                vertices: [*v_indices.get(&e.v[0]).unwrap(), *v_indices.get(&e.v[1]).unwrap()],
-                flap_position: e.cut.unwrap().flap_position,
+            .filter(|(_, cut)| !cut.is_dead)
+            .map(|(e_id, cut)| SerializableCut {
+                vertices: [
+                    *v_indices.get(&mesh[*e_id].v[0]).unwrap(),
+                    *v_indices.get(&mesh[*e_id].v[1]).unwrap(),
+                ],
+                flap_position: cut.flap_position,
             })
             .collect(),
     );
@@ -167,17 +170,16 @@ pub fn save_mesh(
     // as each piece has metadata attached to it.
     let pieces = extra::piece::save_pieces(
         builder,
-        mesh.pieces
-            .iter()
-            .map(|(_, piece)| SerializablePiece {
-                face_index: *f_indices.get(&piece.f).unwrap(),
-                transform: piece.transform,
+        mesh.iter_pieces()
+            .map(|f_id| SerializablePiece {
+                face_index: *f_indices.get(f_id).unwrap(),
+                transform: mesh.pieces.get(f_id).unwrap().transform,
             })
             .collect(),
     );
 
     gltf_json::mesh::Mesh {
-        name: Some(mesh.label.clone()),
+        name: mesh.label.clone(),
         primitives,
         weights: Default::default(),
         extensions: Default::default(),
@@ -317,9 +319,10 @@ pub fn load_mesh(
             gltf_index_to_vertex_id.get(&cut.vertices[1]),
         ) {
             if let Some(e_id) = pp_mesh.query_edge(v0_id, v1_id) {
-                pp_mesh.edges[e_id.to_usize()].cut =
-                    Some(EdgeCut { flap_position: cut.flap_position });
-                pp_mesh.elem_dirty |= pp_core::mesh::MeshElementType::EDGES;
+                pp_mesh.make_cut(e_id, false);
+                if let Some(new_cut) = pp_mesh.cuts.get_mut(&e_id) {
+                    new_cut.flap_position = cut.flap_position;
+                }
             };
         };
     });
@@ -328,13 +331,12 @@ pub fn load_mesh(
     // refer to pieces such that we can load in their transforms / metadata.
     crate::extra::piece::load_pieces(accessors, buffers, extras.pieces).iter().for_each(
         |piece_data| {
-            if let Some(p_id) = gltf_index_to_face_id
-                .get(&piece_data.face_index)
-                .and_then(|f_id| pp_mesh.create_piece(*f_id, None).ok())
-            {
-                pp_mesh[p_id].transform = piece_data.transform;
-                pp_mesh[p_id].elem_dirty = true;
-                pp_mesh.elem_dirty |= pp_core::mesh::MeshElementType::PIECES;
+            if let Some(f_id) = gltf_index_to_face_id.get(&piece_data.face_index) {
+                pp_mesh.expand_piece(*f_id).unwrap();
+                if let Some(piece) = pp_mesh.pieces.get_mut(f_id) {
+                    piece.transform = piece_data.transform;
+                    piece.elem_dirty = true;
+                }
             };
         },
     );

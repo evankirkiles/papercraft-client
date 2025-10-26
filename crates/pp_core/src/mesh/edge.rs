@@ -1,5 +1,3 @@
-use serde::{Deserialize, Serialize};
-
 use crate::id::{self, Id};
 
 /// An edge, formed by two vertices.
@@ -7,20 +5,16 @@ use crate::id::{self, Id};
 pub struct Edge {
     /// Vertices connected by this edge
     pub v: [id::VertexId; 2],
-
-    /// Is this edge cut or not?
-    pub cut: Option<EdgeCut>,
-
-    /// DiskCycle: Support radially iterating the edges of each vertex
+    /// DiskCycle: Iterate the edges around a vertex
     pub dl: [DiskLink; 2],
-    /// RadialCycle: Any loop (defined by a face) for this specific edge
+    /// RadialCycle: Iterate the faces around an edge
     pub l: Option<id::LoopId>,
 }
 
 impl Edge {
     /// Creates a new Edge with DiskLinks referencing just itself
     pub fn new(e: id::EdgeId, v1: id::VertexId, v2: id::VertexId) -> Self {
-        Self { v: [v1, v2], dl: [DiskLink::new(e), DiskLink::new(e)], l: None, cut: None }
+        Self { v: [v1, v2], dl: [DiskLink::new(e), DiskLink::new(e)], l: None }
     }
 
     /// Ensures that this edge contains vertex `v`
@@ -122,46 +116,6 @@ impl DiskLink {
     }
 }
 
-#[repr(u8)]
-#[derive(Clone, Copy, Default, Debug, Deserialize, Serialize)]
-pub enum FlapPosition {
-    #[default]
-    FirstFace,
-    SecondFace,
-    BothFaces,
-    None,
-}
-
-impl From<u8> for FlapPosition {
-    fn from(value: u8) -> Self {
-        match value {
-            0 => Self::FirstFace,
-            1 => Self::SecondFace,
-            2 => Self::BothFaces,
-            3 => Self::None,
-            _ => Self::FirstFace,
-        }
-    }
-}
-
-impl From<FlapPosition> for u8 {
-    fn from(val: FlapPosition) -> Self {
-        match val {
-            FlapPosition::FirstFace => 0,
-            FlapPosition::SecondFace => 1,
-            FlapPosition::BothFaces => 2,
-            FlapPosition::None => 3,
-        }
-    }
-}
-
-// State of an edge's cut
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct EdgeCut {
-    /// Which loop / face the flap extends to
-    pub flap_position: FlapPosition,
-}
-
 // --- Section: Radial Cycle ---
 
 /// Enables walking over the loops (faces) around an edge
@@ -206,7 +160,7 @@ impl DoubleEndedIterator for RadialCycleWalker<'_> {
 
 impl super::Mesh {
     /// Walks the loops including an edge (faces)
-    pub fn iter_edge_loops(&self, e: id::EdgeId) -> Option<RadialCycleWalker> {
+    pub fn iter_edge_loops(&'_ self, e: id::EdgeId) -> Option<RadialCycleWalker<'_>> {
         Some(RadialCycleWalker::new(self, self[e].l?))
     }
 }

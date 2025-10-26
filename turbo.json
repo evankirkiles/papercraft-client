@@ -5,7 +5,13 @@
       "dependsOn": ["^typecheck"]
     },
     "dev": {
+      "dependsOn": ["@paperarium/client#build:dev"],
+      "with": ["pp_server#dev"],
       "persistent": true,
+      "cache": false
+    },
+    "build:dev": {
+      "outputs": ["dist/**"],
       "cache": false
     },
     "build": {

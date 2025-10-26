@@ -130,7 +130,6 @@ impl SyncManager {
 
     /// Send a command to the server
     pub fn send_command(&self, command: &CommandType, rollback: bool) -> Result<(), JsValue> {
-        // log::info!("{:?}", command);
         let msg = ClientMessage::Command { command: command.clone(), rollback };
         let json = serde_json::to_string(&msg).map_err(|e| {
             log::error!("{:?}", e);

@@ -257,8 +257,8 @@ impl DocumentSession {
         let state = self.state.read().await;
         let save_file = state.save()?;
         let bytes = save_file.to_binary()?;
-        self.store.save(&self.doc_id, &bytes).await?;
-        info!("Persisted document {} ({} bytes)", self.doc_id, bytes.len());
+        // self.store.save(&self.doc_id, &bytes).await?;
+        // info!("Persisted document {} ({} bytes)", self.doc_id, bytes.len());
         Ok(())
     }
 

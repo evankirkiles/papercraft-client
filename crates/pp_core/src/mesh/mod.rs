@@ -1,10 +1,10 @@
 use bitflags::bitflags;
-use slotmap::new_key_type;
 use stable_vec::StableVec;
-use std::ops;
+use std::{collections::HashMap, ops};
 
-use crate::id::{EdgeId, FaceId, Id, LoopId, PieceId, VertexId};
+use crate::id::{EdgeId, FaceId, Id, LoopId, VertexId};
 
+pub mod cut;
 pub mod edge;
 pub mod face;
 pub mod loop_;
@@ -12,6 +12,7 @@ pub mod piece;
 mod primitives;
 mod vertex;
 
+use cut::*;
 use edge::*;
 use face::*;
 use loop_::*;
@@ -19,7 +20,7 @@ use piece::*;
 use vertex::*;
 
 bitflags! {
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug, Default, Clone, Copy)]
     pub struct MeshElementType: u8 {
         const VERTS = 1 << 0;
         const EDGES = 1 << 1;
@@ -50,16 +51,19 @@ impl From<MeshElementType> for bool {
 ///  - Use "faces.mat_nr" to buld IBOs
 ///
 /// @see https://developer.blender.org/docs/features/objects/mesh/bmesh/
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Mesh {
-    pub label: String,
+    pub label: Option<String>,
 
-    // Mesh components
+    // Unchanging components based on underlying geometry
     pub verts: StableVec<Vertex>,
     pub edges: StableVec<Edge>,
     pub faces: StableVec<Face>,
     pub loops: StableVec<Loop>,
-    pub pieces: StableVec<Piece>,
+
+    // Things that are actually modified by the editor
+    pub cuts: HashMap<EdgeId, Cut>,
+    pub pieces: HashMap<FaceId, Piece>,
 
     /// Indicates which type of element has changed in this mesh
     pub elem_dirty: MeshElementType,
@@ -68,16 +72,7 @@ pub struct Mesh {
 
 impl Mesh {
     pub fn new(label: String) -> Self {
-        Self {
-            label,
-            verts: StableVec::new(),
-            edges: StableVec::new(),
-            faces: StableVec::new(),
-            loops: StableVec::new(),
-            pieces: StableVec::new(),
-            elem_dirty: MeshElementType::empty(),
-            index_dirty: MeshElementType::empty(),
-        }
+        Self { label: Some(label), ..Default::default() }
     }
 }
 
@@ -109,7 +104,6 @@ impl_index!(VertexId, verts, Vertex);
 impl_index!(FaceId, faces, Face);
 impl_index!(EdgeId, edges, Edge);
 impl_index!(LoopId, loops, Loop);
-impl_index!(PieceId, pieces, Piece);
 
 #[cfg(test)]
 mod test {

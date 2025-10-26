@@ -48,7 +48,7 @@ impl MultiplayerCommandStack {
     /// consistent with any corresponding modifications that happened on the mesh.
     pub fn add(&mut self, command: CommandType) {
         self.sync.as_mut().inspect(|sync| {
-            let _ = sync.send_command(&command, false);
+            sync.send_command(&command, false).expect("Failed to send command!");
         });
         self.commands.add(command);
     }

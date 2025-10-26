@@ -21,122 +21,110 @@ impl Saveable for pp_core::State {
         let mut gltf_builder = standard::buffers::GltfBufferBuilder::new();
 
         // Step 1: Save images (skip default image)
-        let mut images = HashMap::new();
-        let mut gltf_images = Vec::new();
+        let mut image_ids = HashMap::new();
+        let mut images = Vec::new();
         for (img_id, img) in self.images.iter() {
             if img_id == self.defaults.image {
                 continue;
             }
             let gltf_image = standard::image::save_image(img);
-            let idx = gltf_json::Index::new(gltf_images.len() as u32);
-            gltf_images.push(gltf_image);
-            images.insert(img_id, idx);
+            let idx = gltf_json::Index::new(images.len() as u32);
+            images.push(gltf_image);
+            image_ids.insert(img_id, idx);
         }
 
         // Step 2: Save samplers (skip default sampler)
-        let mut samplers = HashMap::new();
-        let mut gltf_samplers = Vec::new();
+        let mut sampler_ids = HashMap::new();
+        let mut samplers = Vec::new();
         for (samp_id, samp) in self.samplers.iter() {
             if samp_id == self.defaults.sampler {
                 continue;
             }
             let gltf_sampler = standard::sampler::save_sampler(samp);
-            let idx = gltf_json::Index::new(gltf_samplers.len() as u32);
-            gltf_samplers.push(gltf_sampler);
-            samplers.insert(samp_id, idx);
+            let idx = gltf_json::Index::new(samplers.len() as u32);
+            samplers.push(gltf_sampler);
+            sampler_ids.insert(samp_id, idx);
         }
 
         // Step 3: Save textures (skip default texture)
-        let mut textures = HashMap::new();
-        let mut gltf_textures = Vec::new();
+        let mut texture_ids = HashMap::new();
+        let mut textures = Vec::new();
         for (tex_id, tex) in self.textures.iter() {
             if tex_id == self.defaults.texture {
                 continue;
             }
             let gltf_texture = gltf_json::Texture {
                 name: Some(tex.label.clone()),
-                sampler: samplers.get(&tex.sampler).copied(),
-                source: images.get(&tex.image).copied().unwrap(),
+                sampler: sampler_ids.get(&tex.sampler).copied(),
+                source: image_ids.get(&tex.image).copied().unwrap(),
                 extensions: Default::default(),
                 extras: Default::default(),
             };
-            let idx = gltf_json::Index::new(gltf_textures.len() as u32);
-            gltf_textures.push(gltf_texture);
-            textures.insert(tex_id, idx);
+            let idx = gltf_json::Index::new(textures.len() as u32);
+            textures.push(gltf_texture);
+            texture_ids.insert(tex_id, idx);
         }
 
         // Step 4: Save materials (skip default material)
-        let mut materials = HashMap::new();
-        let mut gltf_materials = Vec::new();
+        let mut material_ids = HashMap::new();
+        let mut materials = Vec::new();
         for (mat_id, mat) in self.materials.iter() {
             if mat_id == self.defaults.material {
                 continue;
             }
-            let gltf_material = standard::material::save_material(mat, &textures);
-            let idx = gltf_json::Index::new(gltf_materials.len() as u32);
-            gltf_materials.push(gltf_material);
-            materials.insert(mat_id, idx);
+            let gltf_material = standard::material::save_material(mat, &texture_ids);
+            let idx = gltf_json::Index::new(materials.len() as u32);
+            materials.push(gltf_material);
+            material_ids.insert(mat_id, idx);
         }
 
         // Step 5: Save mesh geometries
-        let mut gltf_meshes = Vec::new();
+        let mut meshes = Vec::new();
         for mesh in self.meshes.values() {
-            let gltf_mesh = standard::mesh::save_mesh(mesh, &materials, &mut gltf_builder);
-            gltf_meshes.push(gltf_mesh);
+            let gltf_mesh = standard::mesh::save_mesh(mesh, &material_ids, &mut gltf_builder);
+            meshes.push(gltf_mesh);
         }
 
-        // Step 6: Create a scene with all meshes as nodes
-        let mut gltf_nodes = Vec::new();
-        for (i, _) in self.meshes.iter().enumerate() {
-            gltf_nodes.push(gltf_json::Node {
+        // Step 6: Save each mesh as a node
+        // In the future, we may support grouping / more ECS-style scene building
+        let mut nodes = Vec::new();
+        for i in 0u32..(self.meshes.len() as u32) {
+            nodes.push(gltf_json::Node {
                 name: Some(format!("Node_{}", i)),
-                mesh: Some(gltf_json::Index::new(i as u32)),
-                camera: None,
-                children: None,
+                mesh: Some(gltf_json::Index::new(i)),
+                ..Default::default()
+            });
+        }
+
+        // Step 7: Create a scene from all the nodes
+        // If there are no nodes, we need to set scene to None.
+        let mut scene = None;
+        let mut scenes = Vec::new();
+        if !nodes.is_empty() {
+            scene = Some(gltf_json::Index::new(0));
+            scenes.push(gltf_json::Scene {
+                name: Some("Scene".to_string()),
+                nodes: (0..nodes.len() as u32).map(gltf_json::Index::new).collect(),
                 extensions: Default::default(),
                 extras: Default::default(),
-                matrix: None,
-                rotation: None,
-                scale: None,
-                translation: None,
-                skin: None,
-                weights: None,
-            });
+            })
         }
 
         // Build final buffers, buffer views, and accessors
         let (buffers, buffer_views, accessors) = gltf_builder.build();
-
-        // If there are no nodes, we need to set scene to None
-        // glTF spec allows scenes to reference nodes, but empty scenes are valid
-        let (scene_index, scenes) = if gltf_nodes.is_empty() {
-            // No nodes means no scene needed
-            (None, vec![])
-        } else {
-            (
-                Some(gltf_json::Index::new(0)),
-                vec![gltf_json::Scene {
-                    name: Some("Scene".to_string()),
-                    nodes: (0..gltf_nodes.len() as u32).map(gltf_json::Index::new).collect(),
-                    extensions: Default::default(),
-                    extras: Default::default(),
-                }],
-            )
-        };
-
         Ok(SaveFile(Gltf {
             document: gltf::Document::from_json(gltf_json::Root {
                 accessors,
                 buffers,
                 buffer_views,
-                scene: scene_index,
+                scene,
                 scenes,
-                meshes: gltf_meshes,
-                nodes: gltf_nodes,
-                samplers: gltf_samplers,
-                textures: gltf_textures,
-                images: gltf_images,
-                materials: gltf_materials,
+                meshes,
+                nodes,
+                samplers,
+                textures,
+                images,
+                materials,
                 ..Default::default()
             })?,
             blob: None,

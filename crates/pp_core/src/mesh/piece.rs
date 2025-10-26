@@ -2,20 +2,20 @@ use std::collections::{HashSet, VecDeque};
 
 use cgmath::*;
 use serde::{Deserialize, Serialize};
+use slotmap::new_key_type;
 
 use crate::{
-    id::{self, Id, PieceId},
+    id::{self, FaceId, LoopId},
     mesh::MeshElementType,
 };
+
+new_key_type! {
+    pub struct PieceId;
+}
 
 /// A face, formed by three vertices and three edges.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Piece {
-    /// Any face in the piece, used as the "root". "Unwrapping" the piece begins
-    /// at this face and rotates faces along adjacent edges until all faces
-    /// lie on the same plane.
-    pub f: id::FaceId,
-
     /// In progressive unwrapping editors, this indicates the "unwrappedness"
     /// of the piece. t=0 means fully 3d, whereas t=1 means fully 2d
     pub t: f32,
@@ -29,15 +29,9 @@ pub struct Piece {
     pub is_dirty: bool,
 }
 
-impl Piece {
-    fn new(f: id::FaceId) -> Self {
-        Self {
-            f,
-            t: 1.0,
-            transform: cgmath::Matrix4::identity(),
-            elem_dirty: true,
-            is_dirty: false,
-        }
+impl Default for Piece {
+    fn default() -> Self {
+        Self { t: 1.0, transform: cgmath::Matrix4::identity(), elem_dirty: true, is_dirty: false }
     }
 }
 
@@ -49,48 +43,51 @@ pub enum PieceCreationError {
 
 impl super::Mesh {
     /// Tries to create a new piece from all the faces connected to a given face
-    /// If you provide a `p_id`, then no new piece is created and all faces are
-    /// assigned to the provided `p_id`.
-    pub fn create_piece(
-        &mut self,
-        f_id: id::FaceId,
-        p_id: Option<PieceId>,
-    ) -> Result<id::PieceId, PieceCreationError> {
-        self.assert_face_can_make_piece(f_id)?;
-        let p_id = p_id.unwrap_or_else(|| {
-            let piece = Piece::new(f_id);
-            id::PieceId::from_usize(self.pieces.push(piece))
-        });
-        let f_ids: Vec<_> = self.iter_connected_faces(f_id).collect();
-        f_ids.iter().for_each(|f_id| self[*f_id].p = Some(p_id));
+    pub fn expand_piece(&mut self, root_f_id: id::FaceId) -> Result<(), PieceCreationError> {
+        self.assert_face_can_make_piece(root_f_id)?;
+        self.pieces.entry(root_f_id).or_insert(Default::default());
+        let f_ids: Vec<_> = self.iter_connected_faces(root_f_id).collect();
+        f_ids.iter().for_each(|f_id| self[*f_id].p = Some(root_f_id));
         // Face and loop resources need to be recreated
         self.elem_dirty |= MeshElementType::PIECES;
         self.index_dirty |= MeshElementType::PIECES;
-        Ok(p_id)
+        Ok(())
     }
 
     /// "Clears" a piece, returning all of its contained faces back to a no-piece state
-    pub(crate) fn remove_piece(&mut self, p_id: id::PieceId, new_p_id: Option<id::PieceId>) {
-        let f_id = self[p_id].f;
-        let f_ids: Vec<_> = self.iter_connected_faces(f_id).collect();
-        f_ids.iter().for_each(|f_id| self[*f_id].p = new_p_id);
-        log::info!("Removed piece {p_id:?} for {new_p_id:?}");
-        self.pieces.remove(p_id.to_usize());
+    pub fn clear_piece(&mut self, root_f_id: id::FaceId) {
+        let f_ids: Vec<_> = self.iter_connected_faces(root_f_id).collect();
+        f_ids.iter().for_each(|f_id| self[*f_id].p = None);
         self.elem_dirty |= MeshElementType::PIECES;
         self.index_dirty |= MeshElementType::PIECES;
+    }
+
+    /// Iterates the valid pieces in the mesh. Note that pieces are never deleted
+    /// within a session, so that we can support undo / redo without transfering
+    /// whole states every time.
+    pub fn iter_pieces(&self) -> impl Iterator<Item = &FaceId> {
+        self.pieces.keys().filter(|f_id| self[**f_id].p.is_some_and(|p_id| p_id == **f_id))
+    }
+
+    /// Iterates the loops of valid pieces in the mesh. Note that pieces are never deleted
+    /// within a session, so that we can support undo / redo without transfering
+    /// whole states every time.
+    pub fn iter_piece_loops(&self) -> impl Iterator<Item = LoopId> + '_ {
+        self.iter_pieces()
+            .flat_map(|f_id| self.iter_connected_faces(*f_id))
+            .flat_map(|f_id| self.iter_face_loops(f_id))
     }
 
     /// Ensures that there are no cycles in faces connected to this mesh
     fn assert_face_can_make_piece(&self, f_start: id::FaceId) -> Result<(), PieceCreationError> {
         let mut frontier = VecDeque::from([(f_start, None)]);
         let mut visited = HashSet::from([f_start]);
-
         while let Some((f_id, parent)) = frontier.pop_front() {
             for neighbor in self
                 .iter_face_loops(f_id)
                 .filter_map(|l| {
                     let e_id = self[l].e;
-                    if self[e_id].cut.is_none() {
+                    if !self.edge_is_cut(&e_id) {
                         self.iter_edge_loops(e_id)
                     } else {
                         None
@@ -116,15 +113,17 @@ impl super::Mesh {
     }
 
     /// Iterates all the loops in pieces of the mesh in pre-defined order.
-    pub fn iter_piece_faces_unfolded(&self, p_id: id::PieceId) -> UnfoldedPieceFaceWalker {
-        UnfoldedPieceFaceWalker::new(self, p_id)
+    pub fn iter_piece_faces_unfolded(&'_ self, f_id: FaceId) -> UnfoldedPieceFaceWalker<'_> {
+        UnfoldedPieceFaceWalker::new(self, f_id)
     }
 
     /// Moves the piece, updating its transformation
-    pub fn transform_piece(&mut self, p_id: id::PieceId, affine: cgmath::Matrix4<f32>) {
-        self[p_id].transform = affine * self[p_id].transform;
-        self[p_id].elem_dirty = true;
-        self.elem_dirty |= MeshElementType::PIECES;
+    pub fn transform_piece(&mut self, f_id: &FaceId, affine: cgmath::Matrix4<f32>) {
+        if let Some(piece) = self.pieces.get_mut(f_id) {
+            piece.transform = affine * piece.transform;
+            piece.elem_dirty = true;
+            self.elem_dirty |= MeshElementType::PIECES;
+        }
     }
 }
 
@@ -153,8 +152,8 @@ pub struct UnfoldedPieceFaceWalker<'mesh> {
 }
 
 impl<'mesh> UnfoldedPieceFaceWalker<'mesh> {
-    fn new(mesh: &'mesh super::Mesh, p_id: id::PieceId) -> Self {
-        let Piece { f, t, .. } = mesh[p_id];
+    fn new(mesh: &'mesh super::Mesh, f: id::FaceId) -> Self {
+        let Piece { t, .. } = mesh.pieces.get(&f).unwrap();
         let up = Vector3::unit_z();
         let n = Vector3::from(mesh[f].no);
 
@@ -176,7 +175,7 @@ impl<'mesh> UnfoldedPieceFaceWalker<'mesh> {
             }
         } else {
             let angle = n.angle(up);
-            Matrix4::from_axis_angle(axis.normalize(), angle * t)
+            Matrix4::from_axis_angle(axis.normalize(), angle * *t)
         };
         // 2. Translate point to lie on Z = 0
         let rotated_point = rotation.transform_vector(Vector3::from(mesh[mesh[mesh[f].l].v].po));
@@ -185,7 +184,7 @@ impl<'mesh> UnfoldedPieceFaceWalker<'mesh> {
 
         Self {
             mesh,
-            t,
+            t: *t,
             affine_final,
             visited: HashSet::from([f]),
             frontier: VecDeque::from([UnfoldedFace { f, affine: Matrix4::identity() }]),
@@ -204,9 +203,9 @@ impl Iterator for UnfoldedPieceFaceWalker<'_> {
                 .iter_face_loops(curr.f)
                 .filter_map(|l| {
                     // Do not traverse across cut edges (keep within piece)
-                    let e_id = self.mesh[l].e;
-                    if self.mesh[e_id].cut.is_none() {
-                        self.mesh.iter_edge_loops(e_id)
+                    let e_id = &self.mesh[l].e;
+                    if !self.mesh.edge_is_cut(e_id) {
+                        self.mesh.iter_edge_loops(*e_id)
                     } else {
                         None
                     }

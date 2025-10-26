@@ -31,7 +31,7 @@ bitflags! {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
+#[derive(Debug, Default, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct EdgeFlapInfo {
     pub v3_pos: [f32; 3],
     pub flags: u32,
@@ -42,6 +42,7 @@ pub mod vbo {
     use cgmath::{InnerSpace, Matrix4, Rad, Transform, Vector3};
     use pp_core::{
         id::{self, EdgeId, Id, LoopId},
+        mesh::cut::FlapPosition,
         select::SelectionActiveElement,
         MeshId,
     };
@@ -61,9 +62,8 @@ pub mod vbo {
     /// by each piece's `t` value.
     pub fn piece_pos(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
         let data: Vec<_> = mesh
-            .pieces
-            .indices()
-            .flat_map(|p_id| mesh.iter_piece_faces_unfolded(id::PieceId::from_usize(p_id)))
+            .iter_pieces()
+            .flat_map(|f_id| mesh.iter_piece_faces_unfolded(*f_id))
             .flat_map(|item| {
                 mesh.iter_face_loops(item.f).map(move |l| {
                     Into::<[f32; 3]>::into(
@@ -85,9 +85,8 @@ pub mod vbo {
     /// Reloads the piece vertex positons VBO from the mesh's data
     pub fn piece_edge_pos(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
         let data: Vec<_> =
-            mesh.pieces
-                .indices()
-                .flat_map(|p_id| mesh.iter_piece_faces_unfolded(id::PieceId::from_usize(p_id)))
+            mesh.iter_pieces()
+                .flat_map(|f_id| mesh.iter_piece_faces_unfolded(*f_id))
                 .flat_map(|item| {
                     mesh.iter_face_loops(item.f).map(move |l| {
                         [
@@ -116,12 +115,7 @@ pub mod vbo {
 
     /// Reloads the vertex normals VBO from the mesh's data
     pub fn piece_vnor(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
-        let data: Vec<_> = mesh
-            .pieces
-            .indices()
-            .flat_map(|p_id| mesh.iter_connected_faces(mesh[id::PieceId::from_usize(p_id)].f))
-            .flat_map(|f_id| mesh.iter_face_loops(f_id).map(|l| _vnor(mesh, l)))
-            .collect();
+        let data: Vec<_> = mesh.iter_piece_loops().map(|l| _vnor(mesh, l)).collect();
         vbo.update(ctx, data.as_slice());
     }
 
@@ -137,12 +131,7 @@ pub mod vbo {
 
     /// Reloads the vertex normals VBO from the mesh's data
     pub fn piece_uv(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
-        let data: Vec<_> = mesh
-            .pieces
-            .indices()
-            .flat_map(|p_id| mesh.iter_connected_faces(mesh[id::PieceId::from_usize(p_id)].f))
-            .flat_map(|f_id| mesh.iter_face_loops(f_id).map(|l| _uv(mesh, l)))
-            .collect();
+        let data: Vec<_> = mesh.iter_piece_loops().map(|l| _uv(mesh, l)).collect();
         vbo.update(ctx, data.as_slice());
     }
 
@@ -198,14 +187,8 @@ pub mod vbo {
         selection: &pp_core::select::SelectionState,
         vbo: &mut gpu::VertBuf,
     ) {
-        let data: Vec<_> = mesh
-            .pieces
-            .indices()
-            .flat_map(|p_id| mesh.iter_connected_faces(mesh[id::PieceId::from_usize(p_id)].f))
-            .flat_map(|f_id| {
-                mesh.iter_face_loops(f_id).map(|l| _vert_flags(m_id, mesh, selection, l))
-            })
-            .collect();
+        let data: Vec<_> =
+            mesh.iter_piece_loops().map(|l| _vert_flags(m_id, mesh, selection, l)).collect();
         vbo.update(ctx, data.as_slice());
     }
 
@@ -227,7 +210,7 @@ pub mod vbo {
         if selection.verts.contains(&(m_id, e.v[1])) {
             flags |= EdgeFlags::V1_SELECTED;
         }
-        if e.cut.is_some() {
+        if mesh.edge_is_cut(&e_id) {
             flags |= EdgeFlags::CUT;
         }
         if e.l.is_none_or(|l| mesh[l].radial_next == l) {
@@ -267,12 +250,8 @@ pub mod vbo {
         vbo: &mut gpu::VertBuf,
     ) {
         let data: Vec<_> = mesh
-            .pieces
-            .indices()
-            .flat_map(|p_id| mesh.iter_connected_faces(mesh[id::PieceId::from_usize(p_id)].f))
-            .flat_map(|f_id| {
-                mesh.iter_face_loops(f_id).map(|l| _edge_flags(m_id, mesh, selection, mesh[l].e))
-            })
+            .iter_piece_loops()
+            .map(|l| _edge_flags(m_id, mesh, selection, mesh[l].e))
             .collect();
         vbo.update(ctx, data.as_slice());
     }
@@ -300,12 +279,7 @@ pub mod vbo {
         mesh: &pp_core::mesh::Mesh,
         vbo: &mut gpu::VertBuf,
     ) {
-        let data: Vec<_> = mesh
-            .pieces
-            .indices()
-            .flat_map(|p_id| mesh.iter_connected_faces(mesh[id::PieceId::from_usize(p_id)].f))
-            .flat_map(|f_id| mesh.iter_face_loops(f_id).map(|l| _vert_idx(m_id, mesh, l)))
-            .collect();
+        let data: Vec<_> = mesh.iter_piece_loops().map(|l| _vert_idx(m_id, mesh, l)).collect();
         vbo.update(ctx, data.as_slice());
     }
 
@@ -331,14 +305,8 @@ pub mod vbo {
         mesh: &pp_core::mesh::Mesh,
         vbo: &mut gpu::VertBuf,
     ) {
-        let data: Vec<_> = mesh
-            .pieces
-            .indices()
-            .flat_map(|p_id| mesh.iter_connected_faces(mesh[id::PieceId::from_usize(p_id)].f))
-            .flat_map(|f_id| {
-                mesh.iter_face_loops(f_id).map(|l| _edge_idx(m_id, mesh[l].e.to_usize()))
-            })
-            .collect();
+        let data: Vec<_> =
+            mesh.iter_piece_loops().map(|l| _edge_idx(m_id, mesh[l].e.to_usize())).collect();
         vbo.update(ctx, data.as_slice())
     }
 
@@ -347,10 +315,9 @@ pub mod vbo {
     ///  - v3_pos (the position of the anchor vertex the piece should reach to)
     pub fn piece_edge_flap(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
         let data: Vec<_> = mesh
-            .pieces
-            .indices()
-            .flat_map(|p_id| {
-                let walker = mesh.iter_piece_faces_unfolded(id::PieceId::from_usize(p_id));
+            .iter_pieces()
+            .flat_map(|f_id| {
+                let walker = mesh.iter_piece_faces_unfolded(*f_id);
                 let t = walker.t;
                 walker.flat_map(move |item| {
                     mesh.iter_face_loops(item.f).map(move |l_id| {
@@ -360,19 +327,20 @@ pub mod vbo {
 
                         // If edge is not cut or there's no flap here, just return the default,
                         // which will not render / render an invisible flap
-                        if e.cut.is_none_or(|cut| match cut.flap_position {
-                            pp_core::mesh::edge::FlapPosition::FirstFace => l.v == e.v[0],
-                            pp_core::mesh::edge::FlapPosition::SecondFace => l.v == e.v[1],
-                            pp_core::mesh::edge::FlapPosition::BothFaces => true,
-                            pp_core::mesh::edge::FlapPosition::None => false,
-                        })
-                            // Or if this edge doesn't have another face
-                            || l_id == l.radial_next
+                        if l_id == l.radial_next
+                            || mesh.cuts.get(&l.e).is_none_or(|cut| {
+                                if cut.is_dead {
+                                    return true;
+                                };
+                                match cut.flap_position {
+                                    FlapPosition::FirstFace => l.v == e.v[0],
+                                    FlapPosition::SecondFace => l.v == e.v[1],
+                                    FlapPosition::BothFaces => false,
+                                    FlapPosition::None => true,
+                                }
+                            })
                         {
-                            return EdgeFlapInfo {
-                                v3_pos: [0.0, 0.0, 0.0],
-                                flags: EdgeFlapFlags::empty().bits(),
-                            };
+                            return EdgeFlapInfo::default();
                         }
 
                         // Here, we need the unfolded position of the vertex across
@@ -426,7 +394,7 @@ pub mod vbo {
 
 pub mod ibo {
     use pp_core::{
-        id::{self, Id},
+        id::{self},
         MaterialId,
     };
     use slotmap::SecondaryMap;
@@ -468,6 +436,12 @@ pub mod ibo {
     }
 
     /// Gets an ordered IBO for rendering materials. We sort it so each material's
+    /// face indices occupy contiguous blocks and piece indices occupy contiguous,
+    /// blocks within that, allowing us to cut down on material binds and have more
+    /// frequent piece binds (driven by a uniform).
+    /// E.g.:
+    /// |    M1    |    M2    |
+    /// | P1 P2 P3 | P1 P2 P3 |
     pub fn piece_mat_indices(
         ctx: &gpu::Context,
         mesh: &pp_core::mesh::Mesh,
@@ -476,12 +450,8 @@ pub mod ibo {
         mats: &mut SecondaryMap<MaterialId, MaterialGPUVBORange>,
     ) {
         let mut data: Vec<_> = mesh
-            .pieces
-            .indices()
-            .flat_map(|p_id| {
-                let p_id = id::PieceId::from_usize(p_id);
-                mesh.iter_connected_faces(mesh[p_id].f).map(move |f_id| (f_id, p_id))
-            })
+            .iter_pieces()
+            .flat_map(|p_id| mesh.iter_connected_faces(*p_id).map(move |f_id| (f_id, *p_id)))
             .flat_map(|(f_id, p_id)| mesh.iter_face_loops(f_id).map(move |l_id| (l_id, p_id)))
             .zip(0u32..)
             .map(|((l, p), i)| (i, mesh[mesh[l].f].m.unwrap_or(*default_mat), p))
@@ -489,7 +459,7 @@ pub mod ibo {
         data.sort_by(|(_, m_a, p_a), (_, m_b, p_b)| m_a.cmp(m_b).then(p_a.cmp(p_b)));
         let mut i_prev: u32 = 0;
         let mut m_prev: Option<MaterialId> = None;
-        let mut p_prev: Option<id::PieceId> = None;
+        let mut p_prev: Option<id::FaceId> = None;
         // Clear out all the existing piece_ranges
         mats.iter_mut().for_each(|(_, mat)| mat.piece_ranges.clear());
         let final_data: Vec<_> = data

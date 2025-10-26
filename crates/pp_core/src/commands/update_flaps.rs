@@ -1,10 +1,8 @@
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
 
 use crate::{
     id,
-    mesh::{edge::EdgeCut, MeshElementType},
+    mesh::{cut::FlapPosition, MeshElementType},
     MeshId,
 };
 
@@ -15,48 +13,57 @@ use super::{Command, CommandError};
 /// snapshots of the select state.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UpdateFlapsCommand {
-    pub edges: Vec<(MeshId, id::EdgeId)>,
-    pub before: HashMap<(MeshId, id::EdgeId), EdgeCut>,
-    pub after: HashMap<(MeshId, id::EdgeId), EdgeCut>,
+    pub before: Vec<((MeshId, id::EdgeId), FlapPosition)>,
+    pub after: Vec<((MeshId, id::EdgeId), FlapPosition)>,
 }
 
 impl UpdateFlapsCommand {
     /// Entirely swaps which edge the flap is on
     pub fn swap_flaps(state: &mut crate::State) -> Self {
-        let cut_edges: Vec<_> = state
+        let edges: Vec<_> = state
             .selection
             .edges
             .iter()
             .copied()
-            .filter(|id| state.meshes[id.0][id.1].cut.is_some())
+            .filter(|id| state.meshes[id.0].cuts.get(&id.1).is_some_and(|cut| !cut.is_dead))
             .collect();
         // Build up the previous history around those edges. What were the
         // cut states, what were the existing pieces, etc.
-        let mut before: HashMap<(MeshId, id::EdgeId), EdgeCut> = HashMap::new();
-        let mut after: HashMap<(MeshId, id::EdgeId), EdgeCut> = HashMap::new();
-        cut_edges.iter().copied().for_each(|id| {
-            before.insert(id, state.meshes[id.0][id.1].cut.unwrap());
-            state.swap_edge_flap(&id);
-            after.insert(id, state.meshes[id.0][id.1].cut.unwrap());
+        let mut before: Vec<_> = Vec::new();
+        let mut after: Vec<_> = Vec::new();
+        edges.iter().copied().for_each(|id| {
+            let mesh = &mut state.meshes[id.0];
+            let Some(flap_position) = mesh.cuts.get_mut(&id.1).map(|cut| cut.flap_position) else {
+                return;
+            };
+            before.push((id, flap_position));
+            let new_flap = match flap_position {
+                FlapPosition::FirstFace => FlapPosition::SecondFace,
+                FlapPosition::SecondFace => FlapPosition::FirstFace,
+                FlapPosition::BothFaces => FlapPosition::BothFaces,
+                FlapPosition::None => FlapPosition::None,
+            };
+            mesh.set_cut_flap(id.1, new_flap);
+            after.push((id, new_flap));
         });
-        Self { edges: cut_edges, before, after }
+        Self { before, after }
     }
 }
 
 impl Command for UpdateFlapsCommand {
     fn execute(&self, state: &mut crate::State) -> Result<(), CommandError> {
-        self.edges.iter().for_each(|id| {
+        self.after.iter().for_each(|(id, flap_position)| {
             let mesh = state.meshes.get_mut(id.0).unwrap();
-            mesh[id.1].cut = Some(self.after[id]);
+            mesh.set_cut_flap(id.1, *flap_position);
             mesh.elem_dirty |= MeshElementType::FLAPS;
         });
         Ok(())
     }
 
     fn rollback(&self, state: &mut crate::State) -> Result<(), CommandError> {
-        self.edges.iter().for_each(|id| {
+        self.before.iter().for_each(|(id, flap_position)| {
             let mesh = state.meshes.get_mut(id.0).unwrap();
-            mesh[id.1].cut = Some(self.before[id]);
+            mesh.set_cut_flap(id.1, *flap_position);
             mesh.elem_dirty |= MeshElementType::FLAPS;
         });
         Ok(())

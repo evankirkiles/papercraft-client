@@ -1,12 +1,12 @@
 use crate::gpu;
 use extract::{ibo, vbo};
 use piece::PieceGPU;
-use pp_core::id::{self, Id};
+use pp_core::id;
 use pp_core::mesh::{Mesh, MeshElementType};
 use pp_core::select::SelectionState;
 use pp_core::{MaterialId, MeshId};
 use slotmap::SecondaryMap;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 
 mod extract;
@@ -20,7 +20,7 @@ pub(crate) struct MaterialGPUVBORange {
     pub range: Range<u32>,
     /// This material's range of elements in the IBO for piecewise VBOs
     /// A missing entry indicates that the piece doesn't use the given material.
-    pub piece_ranges: HashMap<id::PieceId, Range<u32>>,
+    pub piece_ranges: HashMap<id::FaceId, Range<u32>>,
 }
 
 /// All the possible VBOs a mesh might need to use.
@@ -76,7 +76,7 @@ pub struct MeshGPU {
 
     // Pieces own their own uniform buffers and the ranges of their vertices
     // in the piece VBOs.
-    pieces: HashMap<id::PieceId, PieceGPU>,
+    pieces: HashMap<id::FaceId, PieceGPU>,
 
     // Likewise, material slots own their ranges in the material index buffers
     mat_ranges: SecondaryMap<MaterialId, MaterialGPUVBORange>,
@@ -88,7 +88,7 @@ pub struct MeshGPU {
 impl MeshGPU {
     /// Creates the GPU representation of a mesh and populates its buffers
     pub fn new(mesh: &Mesh) -> Self {
-        let mesh_lbl = mesh.label.as_str();
+        let mesh_lbl = mesh.label.clone().unwrap_or_default();
         Self {
             is_dirty: true,
             vbo: MeshGPUVBOs::new(&format!("{mesh_lbl}.vbo)")),
@@ -169,31 +169,27 @@ impl MeshGPU {
             );
             // Ensure each piece has up-to-date ranges of elements to render
             let mut i = 0;
-            mesh.pieces.indices().for_each(|p_id| {
-                let p_id = id::PieceId::from_usize(p_id);
+            let mut seen_pieces: HashSet<_> = HashSet::new();
+            mesh.iter_pieces().for_each(|f_id| {
                 let piece = self
                     .pieces
-                    .entry(p_id)
-                    .or_insert_with(|| PieceGPU::new(ctx, format!("{p_id:?}").as_str()));
+                    .entry(*f_id)
+                    .or_insert_with(|| PieceGPU::new(ctx, format!("{f_id:?}").as_str()));
                 let n_els = mesh
-                    .iter_connected_faces(mesh[p_id].f)
+                    .iter_connected_faces(*f_id)
                     .flat_map(|f_id| mesh.iter_face_loops(f_id))
                     .count() as u32;
                 piece.range = i..(i + n_els);
+                seen_pieces.insert(f_id);
                 i += n_els;
             });
             // Delete pieces no longer being used
-            if mesh.pieces.num_elements() != self.pieces.len() {
+            if seen_pieces.len() != self.pieces.len() {
                 let old_keys: Vec<_> = self
                     .pieces
                     .keys()
-                    .filter_map(|p_id| {
-                        if !mesh.pieces.has_element_at(p_id.to_usize()) {
-                            Some(*p_id)
-                        } else {
-                            None
-                        }
-                    })
+                    .copied()
+                    .filter(|p_id| !seen_pieces.contains(p_id))
                     .collect();
                 old_keys.iter().for_each(|p_id| {
                     self.pieces.remove_entry(p_id);
@@ -205,7 +201,6 @@ impl MeshGPU {
         if elem_dirty.intersects(MeshElementType::PIECES) {
             mesh.pieces.iter_mut().for_each(|(p_id, piece)| {
                 if piece.elem_dirty {
-                    let p_id = id::PieceId::from_usize(p_id);
                     if let Some(piece_gpu) = self.pieces.get_mut(&p_id) {
                         piece_gpu.sync(ctx, piece)
                     }
@@ -636,7 +631,7 @@ impl MeshGPU {
         render_pass.set_vertex_buffer(2, self.vbo_pieces.uv.slice());
         // The material is bound, so draw all the pieces which use it
         material.piece_ranges.iter().for_each(|(p_id, range)| {
-            self.pieces[p_id].bind(render_pass);
+            self.pieces.get(p_id).unwrap().bind(render_pass);
             render_pass.draw_indexed(range.clone(), 0, 0..1);
         })
     }

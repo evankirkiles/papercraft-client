@@ -91,4 +91,3 @@ make_handle_type! { FaceId = "F"; }
 make_handle_type! { EdgeId = "E"; }
 make_handle_type! { VertexId = "V"; }
 make_handle_type! { LoopId = "L"; }
-make_handle_type! { PieceId = "P"; }

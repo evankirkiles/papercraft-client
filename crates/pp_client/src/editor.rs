@@ -1,6 +1,6 @@
 use pp_core::{
-    cut_edges::CutEdgesCommand, select::SelectionActionType, select_elements::SelectCommand,
-    update_flaps::UpdateFlapsCommand,
+    clear_cuts::ClearCutsCommand, make_cuts::MakeCutsCommand, select::SelectionActionType,
+    select_elements::SelectCommand, update_flaps::UpdateFlapsCommand, CommandType,
 };
 use pp_editor::{
     tool::{SelectBoxTool, Tool},
@@ -81,15 +81,11 @@ impl EventHandler for Editor {
                         return Some(Ok(event::EventHandleSuccess::stop_propagation()));
                     } else {
                         // S: Mark edge as cut
-                        ctx.history.borrow_mut().add(pp_core::CommandType::CutEdges(
-                            CutEdgesCommand::cut_edges(
-                                &mut ctx.state.borrow_mut(),
-                                match ctx.modifiers.alt_pressed() {
-                                    true => pp_core::cut::CutActionType::Join,
-                                    false => pp_core::cut::CutActionType::Cut,
-                                },
-                            ),
-                        ))
+                        let state = &mut ctx.state.borrow_mut();
+                        ctx.history.borrow_mut().add(match ctx.modifiers.alt_pressed() {
+                            false => CommandType::MakeCuts(MakeCutsCommand::from_select(state)),
+                            true => CommandType::ClearCuts(ClearCutsCommand::from_select(state)),
+                        })
                     };
                 }
                 // D: Swap edge flap side

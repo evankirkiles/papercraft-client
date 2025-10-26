@@ -3,7 +3,7 @@ use gltf_json::{
     accessor::{self, ComponentType, GenericComponentType},
     Index,
 };
-use pp_core::mesh::edge::FlapPosition;
+use pp_core::mesh::cut::FlapPosition;
 use serde::{Deserialize, Serialize};
 
 use crate::standard::buffers::{self, AccessorOptions, GltfBufferBuilder};

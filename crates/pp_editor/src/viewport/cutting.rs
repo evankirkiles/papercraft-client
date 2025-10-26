@@ -1,5 +1,5 @@
 use cgmath::{ElementWise, Transform};
-use pp_core::{id::PieceId, MeshId};
+use pp_core::{id::FaceId, MeshId};
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -20,16 +20,19 @@ impl CuttingViewport {
         &self,
         state: &pp_core::State,
         bounds: &ViewportBounds,
-        pieces: &[(MeshId, PieceId)],
+        pieces: &[(MeshId, FaceId)],
     ) -> Result<(cgmath::Point3<f32>, cgmath::Point2<f32>), ()> {
         let vert_pos: Vec<_> = pieces
             .iter()
             .copied()
-            .flat_map(|(m_id, p_id)| {
+            .filter_map(|(m_id, f_id)| {
                 let mesh = &state.meshes[m_id];
-                mesh.iter_piece_faces_unfolded(p_id)
-                    .map(move |face| ((m_id, face.f), mesh[p_id].transform, face))
+                mesh.pieces.get(&f_id).map(|piece| {
+                    mesh.iter_piece_faces_unfolded(f_id)
+                        .map(move |face| ((m_id, face.f), piece.transform, face))
+                })
             })
+            .flatten()
             .filter(|(id, _, _)| state.selection.faces.contains(id))
             .flat_map(|((m_id, _), piece_affine, item)| {
                 let mesh = &state.meshes[m_id];

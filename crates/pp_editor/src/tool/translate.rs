@@ -24,7 +24,7 @@ pub struct TranslateTool {
     pub curr_pos: Option<cgmath::Point2<f32>>,
 
     /// Which pieces are being affected by this translation
-    pub pieces: Vec<(MeshId, id::PieceId)>,
+    pub pieces: Vec<(MeshId, id::FaceId)>,
     /// The amount each piece is translated by
     pub transform: cgmath::Matrix4<f32>,
     /// If true, the transformation is locked to this axis
@@ -108,9 +108,8 @@ impl TranslateTool {
 
     fn apply(&mut self, state: &mut pp_core::State, transform: cgmath::Matrix4<f32>) {
         let diff = transform * self.transform.inverse_transform().unwrap();
-        self.pieces.iter().copied().for_each(|(m_id, p_id)| {
-            let mesh = state.meshes.get_mut(m_id).unwrap();
-            mesh.transform_piece(p_id, diff);
+        self.pieces.iter().for_each(|(m_id, f_id)| {
+            state.meshes.get_mut(*m_id).unwrap().transform_piece(f_id, diff);
         });
         self.transform = transform;
     }

@@ -45,7 +45,7 @@ pub struct SelectionState {
     pub verts: HashSet<(MeshId, id::VertexId)>,
     pub edges: HashSet<(MeshId, id::EdgeId)>,
     pub faces: HashSet<(MeshId, id::FaceId)>,
-    pub pieces: HashSet<(MeshId, id::PieceId)>,
+    pub pieces: HashSet<(MeshId, id::FaceId)>,
     pub is_dirty: bool,
 }
 
@@ -70,8 +70,8 @@ impl State {
                     (mesh.faces.indices().for_each(|id| {
                         self.selection.faces.insert((m_id, id::FaceId::from_usize(id)));
                     }));
-                    (mesh.pieces.indices().for_each(|id| {
-                        self.selection.pieces.insert((m_id, id::PieceId::from_usize(id)));
+                    (mesh.pieces.keys().for_each(|id| {
+                        self.selection.pieces.insert((m_id, *id));
                     }));
                 });
             }
@@ -228,7 +228,7 @@ impl State {
     }
 
     /// Selects all the faces / edges / verts within a piece
-    pub fn select_piece(&mut self, id: &(MeshId, id::PieceId), action: SelectionActionType) {
+    pub fn select_piece(&mut self, id: &(MeshId, id::FaceId), action: SelectionActionType) {
         let selected = match action {
             SelectionActionType::Deselect => false,
             SelectionActionType::Select => true,
@@ -237,12 +237,12 @@ impl State {
         };
 
         // Propagate selection to faces
-        let (m_id, p_id) = *id;
+        let (m_id, f_id) = *id;
         let mesh = &self.meshes[m_id];
         let select_mode =
             if selected { SelectionActionType::Select } else { SelectionActionType::Deselect };
         let updated_faces: Vec<_> = mesh
-            .iter_connected_faces(mesh[p_id].f)
+            .iter_connected_faces(f_id)
             .filter_map(|f_id| {
                 let face_selected = self.selection.faces.contains(&(m_id, f_id));
                 (selected != face_selected).then_some((m_id, f_id))
@@ -254,7 +254,7 @@ impl State {
     }
 
     /// Returns all the pieces which have at least one face selected in the mesh
-    pub fn get_selected_pieces(&self) -> Vec<(MeshId, id::PieceId)> {
+    pub fn get_selected_pieces(&self) -> Vec<(MeshId, id::FaceId)> {
         self.selection
             .faces
             .iter()

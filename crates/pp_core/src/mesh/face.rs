@@ -3,19 +3,11 @@ use std::collections::VecDeque;
 
 use cgmath::InnerSpace;
 
-use crate::id::{self, Id};
+use crate::id::{self, FaceId, Id, LoopId};
 use crate::MaterialId;
 
 use super::loop_::*;
 use super::MeshElementType;
-
-/// Input parameters when creating a face
-#[derive(Debug, Clone, Copy, Default)]
-pub struct FaceDescriptor<'a> {
-    pub m: Option<MaterialId>,
-    pub nos: Option<&'a [[f32; 3]; 3]>,
-    pub uvs: Option<&'a [[f32; 2]; 3]>,
-}
 
 /// A face, formed by three vertices and three edges.
 #[derive(Debug, Clone, Copy, Default)]
@@ -23,11 +15,19 @@ pub struct Face {
     /// Face normal
     pub no: [f32; 3],
     /// Any loop in this face, allowing for loop cycle iteration
-    pub l: id::LoopId,
-    /// The piece this face is a part of, if any
-    pub p: Option<id::PieceId>,
+    pub l: LoopId,
+    /// The root face id of the piece this face is a part of, if any
+    pub p: Option<FaceId>,
     /// The material of this face, or none if using the default material
     pub m: Option<MaterialId>,
+}
+
+/// Input parameters when creating a face
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FaceDescriptor<'a> {
+    pub m: Option<MaterialId>,
+    pub nos: Option<&'a [[f32; 3]; 3]>,
+    pub uvs: Option<&'a [[f32; 2]; 3]>,
 }
 
 impl super::Mesh {
@@ -208,7 +208,7 @@ impl DoubleEndedIterator for LoopCycleWalker<'_> {
 
 impl super::Mesh {
     /// Walks the loops in a face (vertices)
-    pub fn iter_face_loops(&self, f: id::FaceId) -> LoopCycleWalker {
+    pub fn iter_face_loops(&'_ self, f: id::FaceId) -> LoopCycleWalker<'_> {
         LoopCycleWalker::new(self, self[f].l)
     }
 }
@@ -241,11 +241,10 @@ impl Iterator for ConnectedFaceWalker<'_> {
         self.frontier.extend(
             self.mesh
                 .iter_face_loops(f_id)
-                .filter_map(|l| {
-                    // Do not traverse across cut edges
-                    let e_id = self.mesh[l].e;
-                    if self.mesh[e_id].cut.is_none() {
-                        self.mesh.iter_edge_loops(e_id)
+                .map(|l| &self.mesh[l].e)
+                .filter_map(|e_id| {
+                    if !self.mesh.edge_is_cut(e_id) {
+                        self.mesh.iter_edge_loops(*e_id)
                     } else {
                         None
                     }
@@ -263,7 +262,7 @@ impl Iterator for ConnectedFaceWalker<'_> {
 
 impl super::Mesh {
     /// Walks all faces connected to the given face, respecting cut boundaries.
-    pub fn iter_connected_faces(&self, f: id::FaceId) -> ConnectedFaceWalker {
+    pub fn iter_connected_faces(&'_ self, f: id::FaceId) -> ConnectedFaceWalker<'_> {
         ConnectedFaceWalker::new(self, f)
     }
 }

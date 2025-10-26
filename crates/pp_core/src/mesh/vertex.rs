@@ -66,7 +66,7 @@ impl DoubleEndedIterator for DiskCycleWalker<'_> {
 impl super::Mesh {
     /// Walks the edges around a vertex. You must pass the ID of an edge to
     /// start the walk with.
-    pub fn iter_vert_edges(&self, e: id::EdgeId, v: id::VertexId) -> DiskCycleWalker {
+    pub fn iter_vert_edges(&'_ self, e: id::EdgeId, v: id::VertexId) -> DiskCycleWalker<'_> {
         DiskCycleWalker::new(self, e, v)
     }
 }
