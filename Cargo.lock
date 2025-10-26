@@ -2479,14 +2479,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pp_export"
-version = "0.0.1"
-dependencies = [
- "pp_core",
- "pp_draw",
-]
-
-[[package]]
 name = "pp_protocol"
 version = "0.0.1"
 dependencies = [
