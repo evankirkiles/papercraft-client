@@ -22,6 +22,6 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { selection_mode: Default::default(), t: 0.0, is_xray: false, is_dirty: false }
+        Self { selection_mode: Default::default(), t: 1.0, is_xray: false, is_dirty: false }
     }
 }

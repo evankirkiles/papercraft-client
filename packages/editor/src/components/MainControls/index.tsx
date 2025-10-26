@@ -6,7 +6,10 @@ export default function MainControls() {
   const engine = useEngine();
 
   return (
-    <div className={styles.container} aria-label="Main Controls Panel">
+    <div
+      className="absolute top-4 left-4 flex gap-2"
+      aria-label="Main Controls Panel"
+    >
       <button className={styles.control_main}>
         <svg
           className={styles.icon}

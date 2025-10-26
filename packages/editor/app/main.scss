@@ -1,6 +1,3 @@
-@use "@/styles/globals";
-@use "@/styles/global/theme";
-
 html,
 body,
 #root {
@@ -8,8 +5,7 @@ body,
   position: relative;
   inline-size: 100%;
   block-size: 100%;
+  padding: 2px;
   margin: 0;
-  background-color: theme.color("bg");
-  color: theme.color("fg");
   overscroll-behavior: none;
 }

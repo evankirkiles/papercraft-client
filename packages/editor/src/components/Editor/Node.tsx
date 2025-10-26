@@ -1,5 +1,5 @@
 import { ViewTreeNode } from "@paperarium/client";
-import Split from "../Split/Split";
+import Split from "./Split";
 
 interface NodeProps {
   node: ViewTreeNode;
