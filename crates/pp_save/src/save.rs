@@ -23,7 +23,9 @@ impl Saveable for pp_core::State {
         // Step 1: Save images (skip default image)
         let mut image_ids = HashMap::new();
         let mut images = Vec::new();
-        for (img_id, img) in self.images.iter() {
+        let mut sorted_images: Vec<_> = self.images.iter().collect();
+        sorted_images.sort_by_key(|(id, _)| *id);
+        for (img_id, img) in sorted_images {
             if img_id == self.defaults.image {
                 continue;
             }
@@ -36,7 +38,9 @@ impl Saveable for pp_core::State {
         // Step 2: Save samplers (skip default sampler)
         let mut sampler_ids = HashMap::new();
         let mut samplers = Vec::new();
-        for (samp_id, samp) in self.samplers.iter() {
+        let mut sorted_samplers: Vec<_> = self.samplers.iter().collect();
+        sorted_samplers.sort_by_key(|(id, _)| *id);
+        for (samp_id, samp) in sorted_samplers {
             if samp_id == self.defaults.sampler {
                 continue;
             }
@@ -49,7 +53,9 @@ impl Saveable for pp_core::State {
         // Step 3: Save textures (skip default texture)
         let mut texture_ids = HashMap::new();
         let mut textures = Vec::new();
-        for (tex_id, tex) in self.textures.iter() {
+        let mut sorted_textures: Vec<_> = self.textures.iter().collect();
+        sorted_textures.sort_by_key(|(id, _)| *id);
+        for (tex_id, tex) in sorted_textures {
             if tex_id == self.defaults.texture {
                 continue;
             }
@@ -68,7 +74,9 @@ impl Saveable for pp_core::State {
         // Step 4: Save materials (skip default material)
         let mut material_ids = HashMap::new();
         let mut materials = Vec::new();
-        for (mat_id, mat) in self.materials.iter() {
+        let mut sorted_materials: Vec<_> = self.materials.iter().collect();
+        sorted_materials.sort_by_key(|(id, _)| *id);
+        for (mat_id, mat) in sorted_materials {
             if mat_id == self.defaults.material {
                 continue;
             }
@@ -80,7 +88,9 @@ impl Saveable for pp_core::State {
 
         // Step 5: Save mesh geometries
         let mut meshes = Vec::new();
-        for mesh in self.meshes.values() {
+        let mut sorted_meshes: Vec<_> = self.meshes.iter().collect();
+        sorted_meshes.sort_by_key(|(id, _)| *id);
+        for (_, mesh) in sorted_meshes {
             let gltf_mesh = standard::mesh::save_mesh(mesh, &material_ids, &mut gltf_builder);
             meshes.push(gltf_mesh);
         }

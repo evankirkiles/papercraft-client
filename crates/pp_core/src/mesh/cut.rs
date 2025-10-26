@@ -70,8 +70,10 @@ impl super::Mesh {
             return;
         }
         // What we're interested in are the pieces of each adjacent face
+        log::info!("Making cut at: {:?}", e_id);
         if let Some((f_1, f_2)) = self.get_adjacent_two_faces(e_id) {
             let (p_1, p_2) = (self[f_1].p, self[f_2].p);
+            log::info!("Cut between pieces: {:?}, {:?}", p_1, p_2);
             match (p_1, p_2) {
                 // If faces were from the same piece, create a new piece starting
                 // from the face which no longer has a path back to the piece root.
@@ -128,7 +130,7 @@ impl super::Mesh {
                     // piece now must have a cycle. Our iterator needs to be able
                     // to not fall infinitely into that cycle (check this).
                     if p_1 == p_2 {
-                        let _ = self.clear_piece(p_1);
+                        self.clear_piece(p_1);
                     } else {
                         // If faces were from different pieces, we can just clear
                         // one of the pieces and rope all of its faces into the

@@ -20,16 +20,6 @@ impl SelectCommand {
         state.select_all(action);
         Self { before, after: Box::new(state.selection.clone()) }
     }
-
-    // Selects a single element inside of the provided select buffer
-    // pub fn select_single(
-    //     state: &mut crate::State,
-    //     cursor_pos: PhysicalPosition<f64>,
-    //     action: SelectionActionType,
-    // ) -> Result<Self, ()> {
-    //     let before = state.selection.clone();
-    //     Self { before, after: state.selection.clone() }
-    // }
 }
 
 impl Command for SelectCommand {

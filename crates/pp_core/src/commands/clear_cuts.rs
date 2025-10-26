@@ -41,7 +41,7 @@ impl Command for ClearCutsCommand {
         // Group edges by mesh
         let mut edges_by_mesh: HashMap<MeshId, Vec<id::EdgeId>> = HashMap::new();
         self.edges.iter().for_each(|(mesh_id, edge_id)| {
-            edges_by_mesh.entry(*mesh_id).or_insert_with(Vec::new).push(*edge_id);
+            edges_by_mesh.entry(*mesh_id).or_default().push(*edge_id);
         });
 
         // Clear the cuts for each mesh in forward order
@@ -57,7 +57,7 @@ impl Command for ClearCutsCommand {
         // Group edges by mesh
         let mut edges_by_mesh: HashMap<MeshId, Vec<id::EdgeId>> = HashMap::new();
         self.edges.iter().for_each(|(mesh_id, edge_id)| {
-            edges_by_mesh.entry(*mesh_id).or_insert_with(Vec::new).push(*edge_id);
+            edges_by_mesh.entry(*mesh_id).or_default().push(*edge_id);
         });
 
         // Make the cuts for each mesh in reverse order

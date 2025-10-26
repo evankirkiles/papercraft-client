@@ -114,18 +114,17 @@ impl EventHandler for Editor {
             event::UserEvent::MouseInput(event::MouseInputEvent::Down(
                 event::MouseButton::Left,
             )) => {
-                return Some(Ok(EventHandleSuccess::set_tool(Some(Tool::SelectBox(
-                    SelectBoxTool {
-                        start_pos: ctx.last_mouse_pos.unwrap() * ctx.surface_dpi,
-                        end_pos: ctx.last_mouse_pos.unwrap() * ctx.surface_dpi,
-                        action: if ctx.modifiers.shift_pressed() {
-                            SelectionActionType::Invert
-                        } else {
-                            SelectionActionType::Select
+                return ctx.last_mouse_pos.map(|mouse_pos| {
+                    Ok(EventHandleSuccess::set_tool(Some(Tool::SelectBox(SelectBoxTool {
+                        start_pos: mouse_pos * ctx.surface_dpi,
+                        end_pos: mouse_pos * ctx.surface_dpi,
+                        action: match ctx.modifiers.shift_pressed() {
+                            true => SelectionActionType::Invert,
+                            false => SelectionActionType::Select,
                         },
                         is_dirty: true,
-                    },
-                )))));
+                    }))))
+                });
             }
             _ => {}
         };

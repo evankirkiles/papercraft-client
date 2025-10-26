@@ -1,6 +1,6 @@
 use bitflags::bitflags;
 use stable_vec::StableVec;
-use std::{collections::HashMap, ops};
+use std::{collections::BTreeMap, ops};
 
 use crate::id::{EdgeId, FaceId, Id, LoopId, VertexId};
 
@@ -61,9 +61,10 @@ pub struct Mesh {
     pub faces: StableVec<Face>,
     pub loops: StableVec<Loop>,
 
-    // Things that are actually modified by the editor
-    pub cuts: HashMap<EdgeId, Cut>,
-    pub pieces: HashMap<FaceId, Piece>,
+    // Things that are actually modified by the editor. We use BTrees instead
+    // of HashMaps because we need to be able to iterate in a well-defined order.
+    pub cuts: BTreeMap<EdgeId, Cut>,
+    pub pieces: BTreeMap<FaceId, Piece>,
 
     /// Indicates which type of element has changed in this mesh
     pub elem_dirty: MeshElementType,

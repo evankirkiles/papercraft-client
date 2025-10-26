@@ -45,7 +45,7 @@ impl super::Mesh {
     /// Tries to create a new piece from all the faces connected to a given face
     pub fn expand_piece(&mut self, root_f_id: id::FaceId) -> Result<(), PieceCreationError> {
         self.assert_face_can_make_piece(root_f_id)?;
-        self.pieces.entry(root_f_id).or_insert(Default::default());
+        self.pieces.entry(root_f_id).or_default();
         let f_ids: Vec<_> = self.iter_connected_faces(root_f_id).collect();
         f_ids.iter().for_each(|f_id| self[*f_id].p = Some(root_f_id));
         // Face and loop resources need to be recreated

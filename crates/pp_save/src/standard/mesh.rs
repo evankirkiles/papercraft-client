@@ -1,8 +1,8 @@
 use gltf::{buffer::Data, Accessor, Semantic};
 use ordered_float::OrderedFloat;
 use pp_core::{
-    id::{self, FaceId, Id, VertexId},
-    mesh::{cut::Cut, face::FaceDescriptor, Mesh},
+    id::{self, FaceId, VertexId},
+    mesh::{face::FaceDescriptor, Mesh},
     MaterialId,
 };
 use serde_json::value::RawValue;
@@ -35,7 +35,7 @@ pub fn save_mesh(
     let mut normals = Vec::with_capacity(loops.len());
     let mut tex_coords = Vec::with_capacity(loops.len());
     // Primitives are grouped by material
-    let mut primitives_by_material: HashMap<Option<MaterialId>, Vec<u32>> = HashMap::new();
+    let mut primitives_by_material: BTreeMap<Option<MaterialId>, Vec<u32>> = BTreeMap::new();
 
     // The below lookup table allows us to get (one of) a vertex's GLTF buffer
     // indices by its vertex ID, necessary for identifying the verts in an edge
@@ -117,6 +117,7 @@ pub fn save_mesh(
     );
 
     // Create a primitive for each material
+    // BTreeMap iterates in sorted order, ensuring deterministic ordering
     let primitives = primitives_by_material
         .iter()
         .map(|(mat_id, indices)| mesh::Primitive {

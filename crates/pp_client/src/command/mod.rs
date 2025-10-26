@@ -7,10 +7,6 @@ use crate::command::sync::SyncConnectionConfig;
 
 pub mod sync;
 
-pub struct MultiplayerSyncConfig<'a> {
-    server_url: &'a str,
-}
-
 #[derive(Debug, Default)]
 pub struct MultiplayerCommandStack {
     commands: pp_core::CommandStack,

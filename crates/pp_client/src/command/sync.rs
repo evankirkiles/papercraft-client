@@ -130,6 +130,10 @@ impl SyncManager {
 
     /// Send a command to the server
     pub fn send_command(&self, command: &CommandType, rollback: bool) -> Result<(), JsValue> {
+        // Do not transmit select commands to the server (later, we'll use a match)
+        if let CommandType::Select(_) = command {
+            return Ok(());
+        };
         let msg = ClientMessage::Command { command: command.clone(), rollback };
         let json = serde_json::to_string(&msg).map_err(|e| {
             log::error!("{:?}", e);
