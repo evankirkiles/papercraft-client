@@ -1,0 +1,24 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [],
+      "project": []
+    },
+    "crates/pp_client": {
+      "entry": [],
+      "project": ["ts/**/*.ts"]
+    },
+    "packages/eslint-config": {
+      "entry": ["*.ts"],
+      "project": ["*.ts"]
+    },
+    "packages/editor": {
+      "entry": ["app/main.tsx", "src/index.tsx"],
+      "project": ["src/**/*.ts", "src/**/*.tsx"]
+    }
+  },
+  "ignore": ["**/*.d.ts", "dist/**", "node_modules/**", ".turbo/**"],
+  "ignoreDependencies": ["lint-staged", "turborepo", "tailwindcss"],
+  "ignoreExportsUsedInFile": true
+}
