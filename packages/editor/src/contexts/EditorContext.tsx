@@ -1,10 +1,11 @@
+import { Editor } from "@paperarium/client";
 import {
   createContext,
   PropsWithChildren,
   useContext,
   useSyncExternalStore,
 } from "react";
-import { Editor } from "@paperarium/client";
+
 import { useEngine } from "./EngineContext";
 
 export const EditorContext = createContext<Editor | undefined>(undefined);

@@ -1,10 +1,11 @@
 import { CircleHelpIcon } from "lucide-react";
+
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Kbd, KbdGroup } from "@/components/ui/kbd";
 
 export default function HelpButton() {
   return (

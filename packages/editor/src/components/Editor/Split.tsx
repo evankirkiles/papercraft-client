@@ -1,12 +1,14 @@
-import { useEditor } from "@/contexts/EditorContext";
-import { useEngine } from "@/contexts/EngineContext";
 import { SplitId } from "@paperarium/client";
-import Node from "./Node";
+
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import { useEditor } from "@/contexts/EditorContext";
+import { useEngine } from "@/contexts/EngineContext";
+
+import Node from "./Node";
 
 interface SplitProps {
   id: SplitId;
@@ -27,14 +29,16 @@ export default function Split({ id }: SplitProps) {
 
   return (
     <ResizablePanelGroup
-      direction={isVertical ? "vertical" : "horizontal"}
-      onLayout={(layout) => engine?.update_split(toFFI(id), layout[0] / 100)}
+      orientation={isVertical ? "vertical" : "horizontal"}
+      onLayoutChange={(layout) => {
+        engine?.update_split(toFFI(id), layout[`${id.idx}_0`] / 100);
+      }}
     >
-      <ResizablePanel>
+      <ResizablePanel id={`${id.idx}_0`}>
         <Node node={split.first} />
       </ResizablePanel>
       <ResizableHandle />
-      <ResizablePanel>
+      <ResizablePanel id={`${id.idx}_1`}>
         <Node node={split.second} />
       </ResizablePanel>
     </ResizablePanelGroup>

@@ -1,11 +1,10 @@
-import path from "path";
-import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import tsconfigPaths from "vite-tsconfig-paths";
-import dts from "vite-plugin-dts";
-import wasm from "vite-plugin-wasm";
-import topLevelAwait from "vite-plugin-top-level-await";
+import react from "@vitejs/plugin-react";
+import path from "path";
 import { defineConfig } from "vite";
+import dts from "vite-plugin-dts";
+import topLevelAwait from "vite-plugin-top-level-await";
+import wasm from "vite-plugin-wasm";
 
 export default defineConfig({
   resolve: {
@@ -18,7 +17,6 @@ export default defineConfig({
     react(),
     tailwindcss(),
     topLevelAwait(),
-    tsconfigPaths(),
     dts({
       include: ["src/**/*.{ts,tsx}"],
       beforeWriteFile: (filePath, content) => ({

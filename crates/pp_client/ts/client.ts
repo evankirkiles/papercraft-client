@@ -1,5 +1,5 @@
-import { App, Editor, PressedState } from "./wasm/client";
 import { ModifierKeys } from "./modifiers";
+import { App, Editor, PressedState } from "./wasm/client";
 
 // TODO: Clean this up
 const DOCUMENT_EVENTS = [

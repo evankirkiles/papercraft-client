@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
-import { useEngine } from "@/contexts/EngineContext";
+
 import { useEditor } from "@/contexts/EditorContext";
+import { useEngine } from "@/contexts/EngineContext";
+
 import Node from "./Node";
 
 const CANVAS_ID = "paperarium-engine";

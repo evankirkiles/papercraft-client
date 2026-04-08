@@ -1,10 +1,11 @@
-import { useEngine } from "@/contexts/EngineContext";
 import { SelectionMode } from "@paperarium/client";
+
+import { Button } from "@/components/ui/button";
 import {
   RadioGroupIcon,
   RadioGroupIconItem,
 } from "@/components/ui/radio-group-icon";
-import { Button } from "@/components/ui/button";
+import { useEngine } from "@/contexts/EngineContext";
 
 export default function MainControls() {
   const engine = useEngine();

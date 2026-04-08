@@ -1,11 +1,10 @@
 {
   "$schema": "https://turborepo.com/schema.json",
+  "ui": "tui",
   "tasks": {
     "lint": {},
     "typecheck": {},
     "dev": {
-      "dependsOn": ["@paperarium/client#build:dev"],
-      "with": ["pp_server#dev"],
       "persistent": true,
       "cache": false
     },
