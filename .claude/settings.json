@@ -1,0 +1,38 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(echo $CLAUDE_TOOL_INPUT | jq -r '.file_path // empty'); if [[ -z \"$FILE\" ]]; then exit 0; fi; if [[ $FILE == *.ts || $FILE == *.tsx || $FILE == *.css || $FILE == *.md ]]; then pnpm --dir /Users/evan/Desktop/Personal/Projects/papercraft-client prettier --write \"$FILE\" 2>&1; elif [[ $FILE == *.rs ]]; then rustfmt \"$FILE\" 2>&1; fi"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CMD=$(echo $CLAUDE_TOOL_INPUT | jq -r '.command // empty'); if echo \"$CMD\" | grep -qE 'push --force|reset --hard|clean -f|branch -D'; then echo 'Blocked destructive git command. Ask the user first.' >&2; exit 2; fi"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/evan/Desktop/Personal/Projects/papercraft-client && pnpm typecheck 2>&1 | tail -30",
+            "timeout": 90000
+          }
+        ]
+      }
+    ]
+  }
+}
+
