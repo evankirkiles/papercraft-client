@@ -47,6 +47,11 @@ pub struct Editor {
     pub dimensions: Dimensions<f32>,
     /// The DPI of this editor
     pub dpr: f32,
+
+    /// Whether the editor's state has changed since the last snapshot was
+    /// sent to JS, used to know when to fire the `on_editor_state_change`
+    /// callback.
+    pub is_dirty: bool,
 }
 
 impl Default for Editor {
@@ -62,6 +67,7 @@ impl Default for Editor {
             active_viewport: None,
             is_xray: false,
             is_presentation: false,
+            is_dirty: false,
             settings: Default::default(),
             root_node: ViewTreeNode::Split(splits.insert(Split {
                 ratio: 0.5,

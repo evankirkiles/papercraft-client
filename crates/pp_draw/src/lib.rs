@@ -125,7 +125,7 @@ impl<'window> Renderer<'window> {
     }
 
     /// Draws all of the renderables to the screen in each viewport
-    pub fn render(&self, state: &pp_core::State) {
+    pub fn render(&self, state: &pp_core::State, editor: &pp_editor::Editor) {
         let output = self.ctx.surface.get_current_texture().unwrap();
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor {
             format: (self.ctx.view_format != self.ctx.config.format)
@@ -172,7 +172,9 @@ impl<'window> Renderer<'window> {
                 use cache::viewport::ViewportGPU;
                 viewport.bind(&mut render_pass);
                 match viewport {
-                    ViewportGPU::Folding(_) => self.draw_folding(&state.settings, &mut render_pass),
+                    ViewportGPU::Folding(_) => {
+                        self.draw_folding(&state.settings, editor.is_xray, &mut render_pass)
+                    }
                     ViewportGPU::Cutting(_) => self.draw_cutting(&state.settings, &mut render_pass),
                 }
                 self.draw_cache.active_tool.as_ref().filter(|tool| tool.viewport == v_id).inspect(

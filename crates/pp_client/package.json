@@ -20,7 +20,8 @@
   },
   "scripts": {
     "compile-wasm": "wasm-pack build ./ --target web --out-name client --out-dir ./ts/wasm",
-    "dev": "pnpm compile-wasm --dev && rollup -c --watch",
+    "watch-wasm": "pnpm compile-wasm --dev && chokidar \"src/**/*.rs\" \"../pp_core/src/**/*.rs\" \"../pp_editor/src/**/*.rs\" \"../pp_draw/src/**/*.rs\" \"../pp_save/src/**/*.rs\" \"../pp_protocol/src/**/*.rs\" -c \"pnpm compile-wasm --dev\"",
+    "dev": "concurrently -n wasm,rollup -c yellow,cyan \"pnpm watch-wasm\" \"rollup -c --watch\"",
     "build": "pnpm compile-wasm && rollup -c",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
@@ -30,6 +31,8 @@
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-typescript": "^12.3.0",
     "@types/node": "^25.5.2",
+    "chokidar-cli": "^3.0.0",
+    "concurrently": "^10.0.4",
     "eslint": "^10.2.0",
     "rollup": "^4.60.1",
     "rollup-plugin-copy": "^3.5.0",

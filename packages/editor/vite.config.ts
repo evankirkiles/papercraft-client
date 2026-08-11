@@ -26,6 +26,18 @@ export default defineConfig({
     }),
   ],
   assetsInclude: ["**/*.wasm"],
+  optimizeDeps: {
+    // Workspace package rebuilt on every Rust/TS change during `pnpm dev` -
+    // don't pre-bundle/cache it, always import the fresh build from disk.
+    exclude: ["@paperarium/client"],
+  },
+  server: {
+    watch: {
+      // Vite's watcher ignores node_modules by default, but this workspace
+      // package is a live-rebuilt local symlink, not a real dependency.
+      ignored: ["!**/node_modules/@paperarium/client/**"],
+    },
+  },
   build: {
     minify: false,
     target: "esnext",

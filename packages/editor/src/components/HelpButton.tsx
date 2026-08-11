@@ -1,5 +1,6 @@
 import { CircleHelpIcon, LucidePrinter } from "lucide-react";
 
+import SettingsMenu from "@/components/SettingsMenu";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import {
@@ -11,6 +12,7 @@ import {
 export default function HelpButton() {
   return (
     <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2">
+      <SettingsMenu />
       <Button
         size="sm"
         onClick={() => {

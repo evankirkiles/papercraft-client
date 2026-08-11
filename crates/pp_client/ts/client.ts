@@ -26,8 +26,19 @@ export class PaperClient
   private abortController: AbortController | undefined;
   private modifiers = new ModifierKeys();
 
-  // The
   public editor: Editor = super.get_editor_snapshot();
+
+  /**
+   * Registers a callback for editor state changes, refreshing the cached
+   * `editor` snapshot (passed directly by Rust - see `on_editor_state_change`)
+   * before notifying the caller.
+   */
+  subscribeEditor(update: () => void) {
+    return this.on_editor_state_change((snapshot: Editor) => {
+      this.editor = snapshot;
+      update();
+    }) as unknown as () => void;
+  }
 
   /**
    * Attachs the app to an HTML Canvas.

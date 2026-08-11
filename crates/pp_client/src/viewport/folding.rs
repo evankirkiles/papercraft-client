@@ -16,9 +16,10 @@ impl ViewportEventHandler for FoldingViewport {
         match ev {
             UserEvent::KeyboardInput(event::KeyboardInputEvent::Down(key)) => match key {
                 keyboard::Key::Named(keyboard::NamedKey::Tab) => {
-                    let mut state = ctx.state.borrow_mut();
-                    state.settings.is_xray = !state.settings.is_xray;
-                    return Some(Ok(event::EventHandleSuccess::stop_propagation()));
+                    return Some(Ok(event::EventHandleSuccess {
+                        toggle_xray: true,
+                        ..event::EventHandleSuccess::stop_propagation()
+                    }));
                 }
                 _ => (),
             },

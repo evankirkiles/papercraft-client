@@ -117,6 +117,7 @@ pub(crate) trait EventHandler {
 #[derive(Debug, Default, Clone)]
 pub struct EventHandleSuccess {
     pub set_tool: Option<Option<tool::Tool>>,
+    pub toggle_xray: bool,
     pub stop_propagation: bool,
     pub external: ExternalEventHandleSuccess,
 }
@@ -125,6 +126,7 @@ impl EventHandleSuccess {
     pub fn set_tool(tool: Option<tool::Tool>) -> Self {
         Self {
             set_tool: Some(tool),
+            toggle_xray: false,
             stop_propagation: true,
             external: ExternalEventHandleSuccess::StopPropagation,
         }
@@ -133,6 +135,7 @@ impl EventHandleSuccess {
     pub fn stop_internal_propagation() -> Self {
         Self {
             set_tool: None,
+            toggle_xray: false,
             stop_propagation: true,
             external: ExternalEventHandleSuccess::ContinuePropagation,
         }
@@ -141,6 +144,7 @@ impl EventHandleSuccess {
     pub fn stop_propagation() -> Self {
         Self {
             set_tool: None,
+            toggle_xray: false,
             stop_propagation: true,
             external: ExternalEventHandleSuccess::StopPropagation,
         }

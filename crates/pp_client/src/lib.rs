@@ -129,6 +129,11 @@ impl App {
         let mut renderer = self.renderer.borrow_mut();
         let renderer = renderer.as_mut().ok_or(AppError::NoCanvasAttached)?;
         renderer.select_poll();
+        if self.editor.is_dirty {
+            self.editor.is_dirty = false;
+            let snapshot = serde_wasm_bindgen::to_value(&self.editor)?;
+            self.fire_editor_callbacks(&snapshot);
+        }
         Ok(())
     }
 
@@ -139,7 +144,7 @@ impl App {
         let renderer = renderer.as_mut().ok_or(AppError::NoCanvasAttached)?;
         let state = state.deref_mut();
         renderer.prepare(state, &mut self.editor);
-        renderer.render(state);
+        renderer.render(state, &self.editor);
         Ok(())
     }
 
@@ -173,6 +178,12 @@ impl App {
     pub fn set_select_mode(&mut self, select_mode: pp_core::settings::SelectionMode) {
         let mut state = self.state.borrow_mut();
         state.settings.selection_mode = select_mode;
+    }
+
+    /// Sets the x-ray mode of the application
+    pub fn set_is_xray(&mut self, is_xray: bool) {
+        self.editor.is_xray = is_xray;
+        self.editor.is_dirty = true;
     }
 
     /// Internal function used to route an event to the viewport a user is currently
@@ -216,6 +227,11 @@ impl App {
                 // Apply any active tool passed from the handler
                 if let Some(active_tool) = res.set_tool {
                     self.editor.active_tool = active_tool;
+                }
+                // Apply any x-ray toggle passed from the handler
+                if res.toggle_xray {
+                    self.editor.is_xray = !self.editor.is_xray;
+                    self.editor.is_dirty = true;
                 }
                 res.stop_propagation.then_some(Ok(res.external))
             }

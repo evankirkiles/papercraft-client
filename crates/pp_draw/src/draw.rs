@@ -8,7 +8,12 @@ use crate::{
 
 impl<'window> Renderer<'window> {
     /// Draws the "folding" view of a viewport, plus any active tool in the viewport
-    pub(crate) fn draw_folding(&self, settings: &Settings, render_pass: &mut wgpu::RenderPass) {
+    pub(crate) fn draw_folding(
+        &self,
+        settings: &Settings,
+        is_xray: bool,
+        render_pass: &mut wgpu::RenderPass,
+    ) {
         let Renderer { draw_cache, engine_ink, engine_overlay, .. } = &self;
         engine_overlay.grid_circle.draw(&self.ctx, render_pass);
         draw_cache.common.piece_identity.bind(render_pass);
@@ -19,7 +24,7 @@ impl<'window> Renderer<'window> {
             });
         });
         draw_cache.meshes.values().for_each(|mesh| {
-            engine_ink.draw_mesh(&self.ctx, settings, render_pass, mesh, settings.is_xray);
+            engine_ink.draw_mesh(&self.ctx, settings, render_pass, mesh, is_xray);
         });
         self.draw_cutting(settings, render_pass);
     }
