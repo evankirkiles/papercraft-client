@@ -1,6 +1,5 @@
 import { SelectionMode } from "@paperarium/client";
 
-import { Button } from "@/components/ui/button";
 import {
   RadioGroupIcon,
   RadioGroupIconItem,
@@ -26,22 +25,6 @@ export default function MainControls() {
       className="absolute top-4 left-4 flex gap-2"
       aria-label="Main Controls Panel"
     >
-      <Button variant="outline" size="icon-xl">
-        <svg
-          width="2em"
-          height="2em"
-          viewBox="0 0 294 344"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="opacity-70 size-7"
-        >
-          <path
-            d="M4 88.0804V256.339L147 339M4 88.0804L147 170.741M4 88.0804L147 5L290 88.0804M147 170.741V339M147 170.741L290 88.0804M147 170.741L180 190L272 138.5L290 88.0804M147 339L290 256.339V88.0804"
-            stroke="currentColor"
-            strokeWidth="20"
-          />
-        </svg>
-      </Button>
       <RadioGroupIcon
         defaultValue="verts"
         onValueChange={handleSelectionModeChange}

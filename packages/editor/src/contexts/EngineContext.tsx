@@ -1,4 +1,4 @@
-import { init, PaperClient,SyncConnectionConfig } from "@paperarium/client";
+import { init, PaperClient, SyncConnectionConfig } from "@paperarium/client";
 import { useQuery } from "@tanstack/react-query";
 import { createContext, PropsWithChildren, useContext } from "react";
 
@@ -18,7 +18,7 @@ export function EngineProvider({ children }: PropsWithChildren) {
         const app = new PaperClient();
         // Connect to multiplayer server (to move out of here, eventually)
         const URI = "ws://localhost:8080";
-        const config = new SyncConnectionConfig(URI, "villager");
+        const config = new SyncConnectionConfig(URI, "Rock");
         app.load_live(config);
         return app;
       }),

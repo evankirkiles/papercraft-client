@@ -28,7 +28,7 @@ function RadioGroupIconItem({
     <RadioGroupPrimitive.Item
       data-slot="radio-group-icon-item"
       className={cn(
-        "flex items-center justify-center p-2 cursor-pointer transition-all border-r border-border last:border-r-0",
+        "flex items-center justify-center p-2 cursor-pointer border-r border-border last:border-r-0",
         "first:rounded-l-lg last:rounded-r-lg",
         "hover:bg-muted/50",
         "data-[state=checked]:bg-muted data-[state=checked]:text-foreground",
