@@ -1,4 +1,4 @@
-use pp_editor::settings::Settings;
+use pp_editor::preferences::Preferences;
 use theme::ThemeUniform;
 
 use crate::gpu::{self, shared::bind_group_layouts::BindGroup};
@@ -32,7 +32,7 @@ impl SettingsGPU {
         }
     }
 
-    pub fn prepare(&mut self, ctx: &gpu::Context, source: &mut Settings) {
+    pub fn prepare(&mut self, ctx: &gpu::Context, source: &mut Preferences) {
         if source.is_dirty {
             self.buf.update(ctx, &[ThemeUniform::from(&source.theme)]);
             source.is_dirty = false;

@@ -108,6 +108,7 @@ pub(crate) trait EventHandler {
     fn handle_event(
         &mut self,
         ctx: &EventContext,
+        editor_state: &mut pp_editor::state::EditorState,
         ev: &UserEvent,
     ) -> Option<Result<EventHandleSuccess, EventHandleError>>;
 }

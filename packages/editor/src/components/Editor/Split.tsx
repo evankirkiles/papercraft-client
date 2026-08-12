@@ -23,7 +23,7 @@ function toFFI({ idx, version }: { idx: number; version: number }): bigint {
 export default function Split({ id }: SplitProps) {
   const engine = useEngine();
   const editor = useEditor();
-  const split = editor?.splits[id.idx].value;
+  const split = editor?.layout.splits[id.idx].value;
   if (!split) return null;
   const isVertical = split.direction === "Vertical";
 

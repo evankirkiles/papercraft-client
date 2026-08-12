@@ -1,5 +1,5 @@
 use hex_color::HexColor;
-use pp_editor::settings::theme::{Theme, ThemeColors, ThemeSizes};
+use pp_editor::preferences::theme::{Theme, ThemeColors, ThemeSizes};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]

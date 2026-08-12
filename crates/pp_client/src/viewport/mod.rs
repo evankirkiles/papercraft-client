@@ -14,6 +14,7 @@ pub(crate) trait ViewportEventHandler {
     fn handle_event(
         &mut self,
         ctx: &EventContext,
+        editor_state: &mut pp_editor::state::EditorState,
         ev: &UserEvent,
         bounds: &ViewportBounds,
     ) -> Option<Result<EventHandleSuccess, EventHandleError>>;
@@ -23,12 +24,13 @@ impl EventHandler for Viewport {
     fn handle_event(
         &mut self,
         ctx: &crate::EventContext,
+        editor_state: &mut pp_editor::state::EditorState,
         ev: &crate::UserEvent,
     ) -> Option<Result<crate::event::EventHandleSuccess, crate::event::EventHandleError>> {
         use pp_editor::viewport::ViewportContent;
         let res = match &mut self.content {
-            ViewportContent::Folding(vp) => vp.handle_event(ctx, ev, &self.bounds),
-            ViewportContent::Cutting(vp) => vp.handle_event(ctx, ev, &self.bounds),
+            ViewportContent::Folding(vp) => vp.handle_event(ctx, editor_state, ev, &self.bounds),
+            ViewportContent::Cutting(vp) => vp.handle_event(ctx, editor_state, ev, &self.bounds),
         };
         if res.is_some() {
             return res;

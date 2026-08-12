@@ -12,7 +12,7 @@ use web_sys::{Blob, Url};
 
 use crate::{
     event::{self, EventHandleSuccess},
-    keyboard, EventHandler,
+    keyboard,
 };
 
 /// Triggers a file download in the browser
@@ -44,7 +44,19 @@ fn trigger_download(data: &[u8], filename: &str) -> Result<(), JsValue> {
     Ok(())
 }
 
-impl EventHandler for Editor {
+/// A variant of `EventHandler` just for `Editor` itself. Unlike other
+/// implementors, `Editor` already owns its own `EditorState` (`self.state`),
+/// so it can't also receive it as a disjoint `&mut` parameter the way tools
+/// and viewports (which live *inside* `Editor`) do.
+pub(crate) trait EditorEventHandler {
+    fn handle_event(
+        &mut self,
+        ctx: &crate::EventContext,
+        ev: &crate::UserEvent,
+    ) -> Option<Result<crate::event::EventHandleSuccess, crate::event::EventHandleError>>;
+}
+
+impl EditorEventHandler for Editor {
     fn handle_event(
         &mut self,
         ctx: &crate::EventContext,

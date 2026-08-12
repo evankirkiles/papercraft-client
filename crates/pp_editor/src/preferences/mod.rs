@@ -5,15 +5,15 @@ use theme::Theme;
 
 pub mod theme;
 
-/// Settings represent user-specific configurations of the editor.
+/// Long-term user preferences that persist across sessions.
 #[derive(Debug, Tsify, Serialize)]
-pub struct Settings {
+pub struct Preferences {
     pub theme: Theme,
-    /// Have settings changed?
+    /// Have preferences changed, requiring a GPU re-upload?
     pub is_dirty: bool,
 }
 
-impl Default for Settings {
+impl Default for Preferences {
     fn default() -> Self {
         Self { theme: Default::default(), is_dirty: true }
     }

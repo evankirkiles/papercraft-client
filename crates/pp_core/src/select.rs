@@ -20,15 +20,6 @@ pub enum SelectionActiveElement {
     Face((MeshId, id::FaceId)),
 }
 
-#[derive(Default, Debug, Clone)]
-pub enum SelectionMode {
-    #[default]
-    Vert,
-    Edge,
-    Face,
-    Piece,
-}
-
 impl From<bool> for SelectionActionType {
     fn from(value: bool) -> Self {
         if value {

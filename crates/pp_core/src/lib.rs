@@ -7,7 +7,6 @@ pub mod measures;
 pub mod mesh;
 pub mod print;
 pub mod select;
-pub mod settings;
 
 pub use commands::*;
 
@@ -52,8 +51,6 @@ pub struct State {
 
     /// User-specific selection state, to be moved out of this struct
     pub selection: select::SelectionState,
-    /// User-specific editor settings, to be moved into `editor`
-    pub settings: settings::Settings,
 }
 
 impl Default for State {
@@ -93,7 +90,6 @@ impl Default for State {
             text_boxes: Default::default(),
             image_boxes: Default::default(),
             selection: Default::default(),
-            settings: Default::default(),
             defaults: StateDefaults { material, texture, sampler, image },
         }
     }

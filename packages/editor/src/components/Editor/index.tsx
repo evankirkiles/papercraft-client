@@ -27,7 +27,7 @@ export default function Viewport() {
         id={CANVAS_ID}
         ref={canvasRef}
       />
-      {editor && <Node node={editor.root_node} />}
+      {editor && <Node node={editor.layout.root_node} />}
     </section>
   );
 }

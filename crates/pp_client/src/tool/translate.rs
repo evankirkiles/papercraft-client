@@ -7,6 +7,7 @@ impl EventHandler for pp_editor::tool::TranslateTool {
     fn handle_event(
         &mut self,
         ctx: &event::EventContext,
+        _editor_state: &mut pp_editor::state::EditorState,
         event: &event::UserEvent,
     ) -> Option<Result<event::EventHandleSuccess, event::EventHandleError>> {
         let state = &mut ctx.state.borrow_mut();

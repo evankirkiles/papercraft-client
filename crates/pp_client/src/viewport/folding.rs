@@ -9,6 +9,7 @@ impl ViewportEventHandler for FoldingViewport {
     fn handle_event(
         &mut self,
         ctx: &crate::EventContext,
+        editor_state: &mut pp_editor::state::EditorState,
         ev: &crate::UserEvent,
         _: &ViewportBounds,
     ) -> Option<Result<crate::event::EventHandleSuccess, crate::event::EventHandleError>> {
@@ -30,8 +31,8 @@ impl ViewportEventHandler for FoldingViewport {
                 } else if ctx.modifiers.super_pressed() {
                     self.camera.dolly(delta.y * 0.5);
                 } else if ctx.modifiers.ctrl_pressed() {
-                    let new_t = (state.settings.t + (delta.y * 0.01)).clamp(0.0, 1.0);
-                    state.settings.t = new_t;
+                    let new_t = (editor_state.t + (delta.y * 0.01)).clamp(0.0, 1.0);
+                    editor_state.t = new_t;
                     state.meshes.iter_mut().for_each(|(_, mesh)| {
                         mesh.elem_dirty |= MeshElementType::all();
                         mesh.pieces.iter_mut().for_each(|(_, piece)| {

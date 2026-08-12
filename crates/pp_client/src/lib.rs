@@ -1,3 +1,4 @@
+use editor::EditorEventHandler;
 use event::{
     EventContext, EventHandleSuccess, EventHandler, ExternalEventHandleError,
     ExternalEventHandleSuccess, PressedState, UserEvent,
@@ -167,7 +168,7 @@ impl App {
     /// Updates the split ratio between two viewports
     pub fn update_split(&mut self, id: u64, ratio: f32) {
         let id: SplitId = KeyData::from_ffi(id).into();
-        if let Some(split) = self.editor.splits.get_mut(id) {
+        if let Some(split) = self.editor.layout.splits.get_mut(id) {
             split.ratio = ratio;
             split.is_dirty = true;
             self.editor.update();
@@ -175,14 +176,13 @@ impl App {
     }
 
     /// Sets the select mode of the application
-    pub fn set_select_mode(&mut self, select_mode: pp_core::settings::SelectionMode) {
-        let mut state = self.state.borrow_mut();
-        state.settings.selection_mode = select_mode;
+    pub fn set_select_mode(&mut self, select_mode: pp_editor::state::SelectionMode) {
+        self.editor.state.selection_mode = select_mode;
     }
 
     /// Sets the x-ray mode of the application
     pub fn set_is_xray(&mut self, is_xray: bool) {
-        self.editor.is_xray = is_xray;
+        self.editor.state.is_xray = is_xray;
         self.editor.is_dirty = true;
     }
 
@@ -194,15 +194,23 @@ impl App {
         ev: &UserEvent,
     ) -> Result<ExternalEventHandleSuccess, ExternalEventHandleError> {
         // 1. If a tool is active, it gets all input until canceled
-        let res =
-            self.editor.active_tool.as_mut().and_then(|t| t.handle_event(&self.event_context, ev));
+        let res = match self.editor.active_tool.as_mut() {
+            Some(t) => t.handle_event(&self.event_context, &mut self.editor.state, ev),
+            None => None,
+        };
         if let Some(result) = res.and_then(|res| self.process_event(res)) {
             return result;
         }
 
         // 2. Otherwise, pass input into the viewport
-        let viewport = self.editor.active_viewport.and_then(|v| self.editor.viewports.get_mut(v));
-        let res = viewport.and_then(|viewport| viewport.handle_event(&self.event_context, ev));
+        let viewport =
+            self.editor.active_viewport.and_then(|v| self.editor.layout.viewports.get_mut(v));
+        let res = match viewport {
+            Some(viewport) => {
+                viewport.handle_event(&self.event_context, &mut self.editor.state, ev)
+            }
+            None => None,
+        };
         if let Some(result) = res.and_then(|res| self.process_event(res)) {
             return result;
         }
@@ -230,7 +238,7 @@ impl App {
                 }
                 // Apply any x-ray toggle passed from the handler
                 if res.toggle_xray {
-                    self.editor.is_xray = !self.editor.is_xray;
+                    self.editor.state.is_xray = !self.editor.state.is_xray;
                     self.editor.is_dirty = true;
                 }
                 res.stop_propagation.then_some(Ok(res.external))
@@ -248,7 +256,7 @@ impl App {
         y: f32,
     ) -> Result<event::ExternalEventHandleSuccess, event::ExternalEventHandleError> {
         let pos = cgmath::Point2::new(x, y);
-        self.editor.active_viewport = self.editor.viewport_at(pos * self.editor.dpr);
+        self.editor.active_viewport = self.editor.viewport_at(pos * self.editor.layout.dpr);
         self.event_context.last_mouse_pos = None;
         self.handle_event(&UserEvent::Pointer(event::PointerEvent::Enter))
     }
@@ -259,7 +267,7 @@ impl App {
         y: f32,
     ) -> Result<event::ExternalEventHandleSuccess, event::ExternalEventHandleError> {
         let pos = cgmath::Point2::new(x, y);
-        let curr_viewport = self.editor.viewport_at(pos * self.editor.dpr);
+        let curr_viewport = self.editor.viewport_at(pos * self.editor.layout.dpr);
 
         // If the user left an active viewport, notify the old viewport
         if let Some(active) = self.editor.active_viewport {

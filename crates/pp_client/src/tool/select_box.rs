@@ -6,10 +6,10 @@ use pp_core::{
     id::{self, Id},
     select::SelectionActionType,
     select_elements::SelectCommand,
-    settings::SelectionMode,
     MeshId,
 };
 use pp_draw::select::{self, PixelData, SelectionMask, SelectionQueryArea, SelectionQueryResult};
+use pp_editor::state::SelectionMode;
 use slotmap::KeyData;
 
 use crate::{
@@ -21,6 +21,7 @@ impl EventHandler for pp_editor::tool::SelectBoxTool {
     fn handle_event(
         &mut self,
         ctx: &crate::EventContext,
+        editor_state: &mut pp_editor::state::EditorState,
         event: &crate::UserEvent,
     ) -> Option<Result<event::EventHandleSuccess, event::EventHandleError>> {
         match event {
@@ -34,9 +35,9 @@ impl EventHandler for pp_editor::tool::SelectBoxTool {
                 // adding an entry onto the history stack for undoing the changes
                 MouseButton::Left => {
                     if self.start_pos.distance(self.end_pos) < 10.0 * ctx.surface_dpi {
-                        let _ = self.select_single(ctx);
+                        let _ = self.select_single(ctx, editor_state);
                     } else {
-                        let _ = self.select_multiple(ctx);
+                        let _ = self.select_multiple(ctx, editor_state);
                     }
                     return Some(Ok(event::EventHandleSuccess::set_tool(None)));
                 }
@@ -61,14 +62,21 @@ impl EventHandler for pp_editor::tool::SelectBoxTool {
 pub trait MultiselectTool {
     fn get_cursor_pos(&self) -> cgmath::Point2<f32>;
     fn get_action(&self) -> SelectionActionType;
-    fn select_multiple(&mut self, ctx: &event::EventContext) -> Result<(), ()>;
+    fn select_multiple(
+        &mut self,
+        ctx: &event::EventContext,
+        editor_state: &pp_editor::state::EditorState,
+    ) -> Result<(), ()>;
 
-    fn select_single(&self, ctx: &event::EventContext) -> Result<(), ()> {
+    fn select_single(
+        &self,
+        ctx: &event::EventContext,
+        editor_state: &pp_editor::state::EditorState,
+    ) -> Result<(), ()> {
         let action = self.get_action();
         let cursor_pos = self.get_cursor_pos();
         let query = {
-            let state = ctx.state.borrow();
-            let select_radius = match state.settings.selection_mode {
+            let select_radius = match editor_state.selection_mode {
                 SelectionMode::Face | SelectionMode::Piece => 2.0, // Face / piece selection is near-exact
                 _ => 50.0,                                         // Vert / edge selection is fuzzy
             } * ctx.surface_dpi;
@@ -79,7 +87,7 @@ pub trait MultiselectTool {
                     width: select_radius as u32 * 2,
                     height: select_radius as u32 * 2,
                 },
-                mask: match state.settings.selection_mode {
+                mask: match editor_state.selection_mode {
                     SelectionMode::Vert => pp_draw::select::SelectionMask::VERTS,
                     SelectionMode::Edge => pp_draw::select::SelectionMask::EDGES,
                     SelectionMode::Face => pp_draw::select::SelectionMask::FACES,
@@ -153,10 +161,14 @@ pub trait MultiselectTool {
 }
 
 impl MultiselectTool for pp_editor::tool::SelectBoxTool {
-    fn select_multiple(&mut self, ctx: &event::EventContext) -> Result<(), ()> {
+    fn select_multiple(
+        &mut self,
+        ctx: &event::EventContext,
+        editor_state: &pp_editor::state::EditorState,
+    ) -> Result<(), ()> {
         let query = select::SelectionQueryArea {
             rect: Rect::between(self.start_pos, self.end_pos).into(),
-            mask: match ctx.state.borrow().settings.selection_mode {
+            mask: match editor_state.selection_mode {
                 SelectionMode::Vert => pp_draw::select::SelectionMask::VERTS,
                 SelectionMode::Edge => pp_draw::select::SelectionMask::EDGES,
                 SelectionMode::Face => pp_draw::select::SelectionMask::FACES,

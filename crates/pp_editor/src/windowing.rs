@@ -38,8 +38,8 @@ pub enum ViewTreeNode {
 impl Editor {
     pub fn iter_nodes(&self) -> WindowingNodeWalker<'_> {
         WindowingNodeWalker {
-            frontier: Vec::from([(self.dimensions.into(), &self.root_node)]),
-            splits: &self.splits,
+            frontier: Vec::from([(self.layout.dimensions.into(), &self.layout.root_node)]),
+            splits: &self.layout.splits,
         }
     }
 }

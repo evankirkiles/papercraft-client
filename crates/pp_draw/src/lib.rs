@@ -172,10 +172,14 @@ impl<'window> Renderer<'window> {
                 use cache::viewport::ViewportGPU;
                 viewport.bind(&mut render_pass);
                 match viewport {
-                    ViewportGPU::Folding(_) => {
-                        self.draw_folding(&state.settings, editor.is_xray, &mut render_pass)
+                    ViewportGPU::Folding(_) => self.draw_folding(
+                        &editor.state.selection_mode,
+                        editor.state.is_xray,
+                        &mut render_pass,
+                    ),
+                    ViewportGPU::Cutting(_) => {
+                        self.draw_cutting(&editor.state.selection_mode, &mut render_pass)
                     }
-                    ViewportGPU::Cutting(_) => self.draw_cutting(&state.settings, &mut render_pass),
                 }
                 self.draw_cache.active_tool.as_ref().filter(|tool| tool.viewport == v_id).inspect(
                     |tool| {

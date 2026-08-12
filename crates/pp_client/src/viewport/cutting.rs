@@ -12,6 +12,7 @@ impl ViewportEventHandler for CuttingViewport {
     fn handle_event(
         &mut self,
         ctx: &crate::EventContext,
+        _editor_state: &mut pp_editor::state::EditorState,
         ev: &crate::UserEvent,
         bounds: &ViewportBounds,
     ) -> Option<Result<crate::event::EventHandleSuccess, crate::event::EventHandleError>> {

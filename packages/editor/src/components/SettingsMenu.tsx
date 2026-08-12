@@ -39,7 +39,7 @@ export default function SettingsMenu() {
               <span className="text-muted-foreground">X-Ray mode</span>
               <Switch
                 id="settings-xray"
-                checked={editor?.is_xray ?? false}
+                checked={editor?.state.is_xray ?? false}
                 onCheckedChange={(checked) => engine?.set_is_xray(checked)}
               />
             </label>

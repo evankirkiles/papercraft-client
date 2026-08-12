@@ -108,6 +108,7 @@ impl DrawCache {
     /// Ensures that all draw cache viewports have been synchronized
     pub(crate) fn prepare_viewports(&mut self, ctx: &gpu::Context, editor: &mut pp_editor::Editor) {
         editor
+            .layout
             .viewports
             .iter_mut()
             .filter(|(_, viewport)| viewport.bounds.area.has_area())
@@ -155,6 +156,6 @@ impl DrawCache {
     }
 
     pub(crate) fn prepare_settings(&mut self, ctx: &gpu::Context, editor: &mut pp_editor::Editor) {
-        self.settings.prepare(ctx, &mut editor.settings);
+        self.settings.prepare(ctx, &mut editor.preferences);
     }
 }
