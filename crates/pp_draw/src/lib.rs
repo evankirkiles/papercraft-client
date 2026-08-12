@@ -86,7 +86,7 @@ impl<'window> Renderer<'window> {
         if adapter.get_downlevel_capabilities().is_webgpu_compliant() {
             format = format.remove_srgb_suffix();
             view_format = format.add_srgb_suffix();
-            clear_color = wgpu::Color { r: 0.005, g: 0.005, b: 0.005, a: 0.0 };
+            clear_color = wgpu::Color { r: 0.0, g: 0.0, b: 0.0, a: 0.0 };
         }
 
         let config = wgpu::SurfaceConfiguration {

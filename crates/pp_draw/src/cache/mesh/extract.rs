@@ -39,7 +39,7 @@ pub struct EdgeFlapInfo {
 
 /// Helper functions for extracting VBOs from a Mesh
 pub mod vbo {
-    use cgmath::{InnerSpace, Matrix4, Rad, Transform, Vector3};
+    use cgmath::{EuclideanSpace, InnerSpace, Matrix4, Rad, Transform, Vector3};
     use pp_core::{
         id::{self, EdgeId, Id, LoopId},
         mesh::cut::FlapPosition,
@@ -54,7 +54,8 @@ pub mod vbo {
 
     /// Reloads the pos VBO from the mesh's data
     pub fn pos(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
-        let data: Vec<_> = mesh.iter_loops().map(|l| mesh[mesh[l].v].po).collect();
+        let data: Vec<_> =
+            mesh.iter_loops().map(|l| Into::<[f32; 3]>::into(mesh.vert_pos(mesh[l].v))).collect();
         vbo.update(ctx, data.as_slice());
     }
 
@@ -67,7 +68,8 @@ pub mod vbo {
             .flat_map(|item| {
                 mesh.iter_face_loops(item.f).map(move |l| {
                     Into::<[f32; 3]>::into(
-                        item.affine.transform_point(cgmath::Point3::from(mesh[mesh[l].v].po)),
+                        item.affine
+                            .transform_point(cgmath::Point3::from_vec(mesh.vert_pos(mesh[l].v))),
                     )
                 })
             })
@@ -77,29 +79,37 @@ pub mod vbo {
 
     /// Reloads the vertex selection idx from the mesh
     pub fn edge_pos(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
-        let data: Vec<_> =
-            mesh.edges.values().map(|e| [mesh[e.v[0]].po, mesh[e.v[1]].po]).collect();
+        let data: Vec<_> = mesh
+            .edges
+            .values()
+            .map(|e| {
+                [
+                    Into::<[f32; 3]>::into(mesh.vert_pos(e.v[0])),
+                    Into::<[f32; 3]>::into(mesh.vert_pos(e.v[1])),
+                ]
+            })
+            .collect();
         vbo.update(ctx, data.as_slice())
     }
 
     /// Reloads the piece vertex positons VBO from the mesh's data
     pub fn piece_edge_pos(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
-        let data: Vec<_> =
-            mesh.iter_pieces()
-                .flat_map(|f_id| mesh.iter_piece_faces_unfolded(*f_id))
-                .flat_map(|item| {
-                    mesh.iter_face_loops(item.f).map(move |l| {
-                        [
-                            Into::<[f32; 3]>::into(item.affine.transform_point(
-                                cgmath::Point3::from(mesh[mesh[mesh[l].e].v[0]].po),
-                            )),
-                            Into::<[f32; 3]>::into(item.affine.transform_point(
-                                cgmath::Point3::from(mesh[mesh[mesh[l].e].v[1]].po),
-                            )),
-                        ]
-                    })
+        let data: Vec<_> = mesh
+            .iter_pieces()
+            .flat_map(|f_id| mesh.iter_piece_faces_unfolded(*f_id))
+            .flat_map(|item| {
+                mesh.iter_face_loops(item.f).map(move |l| {
+                    [
+                        Into::<[f32; 3]>::into(item.affine.transform_point(
+                            cgmath::Point3::from_vec(mesh.vert_pos(mesh[mesh[l].e].v[0])),
+                        )),
+                        Into::<[f32; 3]>::into(item.affine.transform_point(
+                            cgmath::Point3::from_vec(mesh.vert_pos(mesh[mesh[l].e].v[1])),
+                        )),
+                    ]
                 })
-                .collect();
+            })
+            .collect();
         vbo.update(ctx, data.as_slice());
     }
 
@@ -351,8 +361,8 @@ pub mod vbo {
 
                         // 1. Get current positions of v0, v1 in untransformed space
                         // to determine the shared edge axis we need to rotate face 2 around
-                        let v0 = Vector3::from(mesh[v0_id].po);
-                        let v1 = Vector3::from(mesh[v1_id].po);
+                        let v0 = mesh.vert_pos(v0_id);
+                        let v1 = mesh.vert_pos(v1_id);
                         let axis = (v1 - v0).normalize();
 
                         // 2. Compare face normals to determine the angle we need to rotate face 2
@@ -380,7 +390,8 @@ pub mod vbo {
                             .map(|l| mesh[l].v)
                             .find(|v| *v != v0_id && *v != v1_id)
                             .unwrap();
-                        let v3_pos = affine.transform_point(cgmath::Point3::from(mesh[v3].po));
+                        let v3_pos =
+                            affine.transform_point(cgmath::Point3::from_vec(mesh.vert_pos(v3)));
 
                         // Here, we have the face and correct vertex positions.
                         EdgeFlapInfo { v3_pos: v3_pos.into(), flags: EdgeFlapFlags::EXISTS.bits() }

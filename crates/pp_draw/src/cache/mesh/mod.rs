@@ -78,6 +78,11 @@ pub struct MeshGPU {
     // in the piece VBOs.
     pieces: HashMap<id::FaceId, PieceGPU>,
 
+    /// The mesh's own model transform (translate + rotate), bound in place of
+    /// the shared identity uniform when drawing the whole mesh (never used
+    /// for piece draws, which always bind their own `PieceGPU`).
+    model: PieceGPU,
+
     // Likewise, material slots own their ranges in the material index buffers
     mat_ranges: SecondaryMap<MaterialId, MaterialGPUVBORange>,
 
@@ -87,7 +92,7 @@ pub struct MeshGPU {
 
 impl MeshGPU {
     /// Creates the GPU representation of a mesh and populates its buffers
-    pub fn new(mesh: &Mesh) -> Self {
+    pub fn new(ctx: &gpu::Context, mesh: &Mesh) -> Self {
         let mesh_lbl = mesh.label.clone().unwrap_or_default();
         Self {
             is_dirty: true,
@@ -95,6 +100,7 @@ impl MeshGPU {
             vbo_pieces: MeshGPUVBOs::new(&format!("{mesh_lbl}.vbo_pieces)")),
             pieces: HashMap::new(),
             mat_ranges: SecondaryMap::new(),
+            model: PieceGPU::new(ctx, &format!("{mesh_lbl}.model")),
         }
     }
 
@@ -107,6 +113,7 @@ impl MeshGPU {
         default_mat: &MaterialId,
         selection: &SelectionState,
     ) {
+        self.model.sync_from_mesh(ctx, mesh);
         let elem_dirty = if self.is_dirty { &MeshElementType::all() } else { &mesh.elem_dirty };
         let index_dirty = if self.is_dirty { &MeshElementType::all() } else { &mesh.index_dirty };
         if elem_dirty.intersects(MeshElementType::VERTS) {
@@ -218,6 +225,12 @@ impl MeshGPU {
         mesh.elem_dirty = MeshElementType::empty();
         mesh.index_dirty = MeshElementType::empty();
         self.is_dirty = false;
+    }
+
+    /// Binds this mesh's own model transform uniform (bind group 2), for use
+    /// when drawing the whole mesh (not its pieces, which bind their own).
+    pub(crate) fn bind_model(&self, render_pass: &mut wgpu::RenderPass) {
+        self.model.bind(render_pass);
     }
 }
 

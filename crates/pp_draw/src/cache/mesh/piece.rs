@@ -1,7 +1,5 @@
 use std::{mem, ops::Range};
 
-use cgmath::SquareMatrix;
-
 use crate::gpu::{self, shared::bind_group_layouts::BindGroup};
 
 #[repr(C)]
@@ -10,15 +8,13 @@ pub struct PieceUniform {
     affine: [[f32; 4]; 4],
 }
 
-impl Default for PieceUniform {
-    fn default() -> Self {
-        Self { affine: cgmath::Matrix4::identity().into() }
-    }
-}
-
 impl PieceUniform {
     fn new(piece: &pp_core::mesh::piece::Piece) -> Self {
-        Self { affine: piece.transform.into() }
+        Self::from_matrix(piece.transform)
+    }
+
+    fn from_matrix(m: cgmath::Matrix4<f32>) -> Self {
+        Self { affine: m.into() }
     }
 
     pub fn bind_group_layout_entry(binding: u32) -> wgpu::BindGroupLayoutEntry {
@@ -73,23 +69,16 @@ impl PieceGPU {
         }
     }
 
-    pub fn bind(&self, render_pass: &mut wgpu::RenderPass) {
-        render_pass.set_bind_group(BindGroup::Piece.value(), &self.bind_group, &[]);
+    /// Syncs this uniform buffer against a mesh's own model transform (used
+    /// for the single per-mesh model uniform, not per-piece uniforms).
+    pub fn sync_from_mesh(&mut self, ctx: &gpu::Context, mesh: &mut pp_core::mesh::Mesh) {
+        if mesh.uniform_dirty {
+            self.buf.update(ctx, &[PieceUniform::from_matrix(mesh.transform)]);
+            mesh.uniform_dirty = false;
+        }
     }
 
-    /// Creates an identity piece uniform, used to supply consistent uniform data
-    /// for non-piece views without creating entirely separate pipelines.
-    pub fn identity(ctx: &gpu::Context) -> Self {
-        let label = "PieceGPU.identity".to_string();
-        let buf = gpu::UniformBuf::init(ctx, label, &[PieceUniform::default()]);
-        Self {
-            bind_group: ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("PieceGPU.identity"),
-                layout: &ctx.shared.bind_group_layouts.piece,
-                entries: &[wgpu::BindGroupEntry { binding: 0, resource: buf.binding_resource() }],
-            }),
-            buf,
-            range: 0..0,
-        }
+    pub fn bind(&self, render_pass: &mut wgpu::RenderPass) {
+        render_pass.set_bind_group(BindGroup::Piece.value(), &self.bind_group, &[]);
     }
 }

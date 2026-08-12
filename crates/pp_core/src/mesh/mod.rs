@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use cgmath::SquareMatrix;
 use stable_vec::StableVec;
 use std::{collections::BTreeMap, ops};
 
@@ -10,6 +11,7 @@ pub mod face;
 pub mod loop_;
 pub mod piece;
 mod primitives;
+mod transform;
 mod vertex;
 
 use cut::*;
@@ -51,7 +53,7 @@ impl From<MeshElementType> for bool {
 ///  - Use "faces.mat_nr" to buld IBOs
 ///
 /// @see https://developer.blender.org/docs/features/objects/mesh/bmesh/
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Mesh {
     pub label: Option<String>,
 
@@ -69,6 +71,34 @@ pub struct Mesh {
     /// Indicates which type of element has changed in this mesh
     pub elem_dirty: MeshElementType,
     pub index_dirty: MeshElementType,
+
+    /// The affine transformation of this mesh (translation + rotation only,
+    /// no scale). Applied only in the whole-mesh 3D view, never to pieces.
+    pub transform: cgmath::Matrix4<f32>,
+    /// Uniform scale factor, applied across all axes. Affects the mesh's own
+    /// geometry as well as its derived pieces.
+    pub scale: f32,
+    /// Indicates if this mesh's model-matrix uniform data has changed
+    pub uniform_dirty: bool,
+}
+
+impl Default for Mesh {
+    fn default() -> Self {
+        Self {
+            label: None,
+            verts: Default::default(),
+            edges: Default::default(),
+            faces: Default::default(),
+            loops: Default::default(),
+            cuts: Default::default(),
+            pieces: Default::default(),
+            elem_dirty: Default::default(),
+            index_dirty: Default::default(),
+            transform: cgmath::Matrix4::identity(),
+            scale: 1.0,
+            uniform_dirty: true,
+        }
+    }
 }
 
 impl Mesh {
@@ -135,5 +165,39 @@ mod test {
         assert_eq!(mesh.edges.num_elements(), 3);
         assert_eq!(mesh.loops.num_elements(), 3);
         assert_eq!(mesh.faces.num_elements(), 1);
+    }
+
+    #[test]
+    fn scale_mesh_affects_vert_pos_and_dirties_verts_and_pieces() {
+        let mut mesh = Mesh::new(String::from("test"));
+        let v1 = mesh.add_vertex([2.0, 0.0, 0.0]);
+        mesh.elem_dirty = MeshElementType::empty();
+
+        mesh.scale_mesh(2.0);
+
+        assert_eq!(mesh.scale, 2.0);
+        assert_eq!(mesh.vert_pos(v1), cgmath::Vector3::new(4.0, 0.0, 0.0));
+        assert!(mesh.elem_dirty.contains(MeshElementType::VERTS));
+        assert!(mesh.elem_dirty.contains(MeshElementType::PIECES));
+
+        mesh.scale_mesh(0.5);
+        assert_eq!(mesh.scale, 1.0);
+    }
+
+    #[test]
+    fn transform_mesh_rolls_back_via_inverse() {
+        use cgmath::Transform;
+
+        let mut mesh = Mesh::new(String::from("test"));
+        let delta = cgmath::Matrix4::from_translation(cgmath::Vector3::new(1.0, 2.0, 3.0));
+
+        mesh.transform_mesh(delta);
+        assert!(mesh.uniform_dirty);
+        assert_ne!(mesh.transform, cgmath::Matrix4::identity());
+
+        mesh.uniform_dirty = false;
+        mesh.transform_mesh(delta.inverse_transform().unwrap());
+        assert_eq!(mesh.transform, cgmath::Matrix4::identity());
+        assert!(mesh.uniform_dirty);
     }
 }

@@ -18,6 +18,13 @@ impl super::Mesh {
         self.elem_dirty |= MeshElementType::VERTS;
         id::VertexId::from_usize(self.verts.push(Vertex { e: None, po }))
     }
+
+    /// Returns the position of a vertex with the mesh's uniform scale applied.
+    /// Use this instead of reading `.po` directly anywhere the position feeds
+    /// rendering or piece unfolding, so scale is respected consistently.
+    pub fn vert_pos(&self, v: id::VertexId) -> cgmath::Vector3<f32> {
+        cgmath::Vector3::from(self[v].po) * self.scale
+    }
 }
 
 // --- Section: Disk Cycle ---

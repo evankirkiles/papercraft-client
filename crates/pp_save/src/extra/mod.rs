@@ -22,6 +22,16 @@ pub struct PapercraftMeshExtra {
     pub cuts: CutPrimitiveAttributes,
     /// Pieces in the 3D geometry, indicated by a "root" face
     pub pieces: PiecePrimitiveAttributes,
+    /// The mesh's own affine transform (translation + rotation, column-major).
+    /// Absent on save files written before this field existed.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transform: Option<[[f32; 4]; 4]>,
+    /// The mesh's uniform scale factor. Absent on save files written before
+    /// this field existed.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scale: Option<f32>,
 }
 
 /// Custom data for the papercraft unfolding system, stored inside the save file

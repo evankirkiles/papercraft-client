@@ -178,7 +178,7 @@ impl<'mesh> UnfoldedPieceFaceWalker<'mesh> {
             Matrix4::from_axis_angle(axis.normalize(), angle * *t)
         };
         // 2. Translate point to lie on Z = 0
-        let rotated_point = rotation.transform_vector(Vector3::from(mesh[mesh[mesh[f].l].v].po));
+        let rotated_point = rotation.transform_vector(mesh.vert_pos(mesh[mesh[f].l].v));
         let translation = Matrix4::from_translation(Vector3::new(0.0, 0.0, -rotated_point.z * t));
         let affine_final = translation * rotation;
 
@@ -221,8 +221,8 @@ impl Iterator for UnfoldedPieceFaceWalker<'_> {
 
                     // 1. Get current positions of v0, v1 in untransformed space
                     // to determine the shared edge axis we need to rotate face 2 around
-                    let v0 = Vector3::from(self.mesh[self.mesh[l.e].v[0]].po);
-                    let v1 = Vector3::from(self.mesh[self.mesh[l.e].v[1]].po);
+                    let v0 = self.mesh.vert_pos(self.mesh[l.e].v[0]);
+                    let v1 = self.mesh.vert_pos(self.mesh[l.e].v[1]);
                     let axis = (v1 - v0).normalize();
 
                     // 2. Compare face normals to determine the angle we need to rotate face 2

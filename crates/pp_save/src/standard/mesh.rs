@@ -185,7 +185,12 @@ pub fn save_mesh(
         weights: Default::default(),
         extensions: Default::default(),
         extras: serde_json::to_string(&MeshExtras {
-            papercraft: Some(PapercraftMeshExtra { cuts, pieces }),
+            papercraft: Some(PapercraftMeshExtra {
+                cuts,
+                pieces,
+                transform: Some(mesh.transform.into()),
+                scale: Some(mesh.scale),
+            }),
         })
         .ok()
         .and_then(|str| RawValue::from_string(str).ok()),
@@ -311,6 +316,15 @@ pub fn load_mesh(
     else {
         return Ok(pp_mesh);
     };
+
+    // 0. Restore the mesh's own transform/scale, if present (absent on save
+    // files written before these fields existed).
+    if let Some(t) = extras.transform {
+        pp_mesh.transform = cgmath::Matrix4::from(t);
+    }
+    if let Some(s) = extras.scale {
+        pp_mesh.scale = s;
+    }
 
     // 1. Load cuts and apply them to real edges in the model. Do *not* use our
     // internal functions which also create pieces / edges - we'll do that manually.

@@ -10,7 +10,6 @@ use viewport::{BindableViewport, ViewportGPU};
 
 pub(crate) use mesh::MeshGPU;
 
-mod common;
 pub mod material;
 pub mod mesh;
 pub mod print;
@@ -26,8 +25,6 @@ pub mod viewport;
 ///   2. For each DrawCache item (meshes.for_each), if it's not in the AppState, remove it
 #[derive(Debug)]
 pub(crate) struct DrawCache {
-    /// Shared GPU resources
-    pub common: common::CommonGPUResources,
     pub settings: SettingsGPU,
 
     // State-specific GPU resources
@@ -49,7 +46,6 @@ impl DrawCache {
     pub(crate) fn new(ctx: &gpu::Context) -> Self {
         Self {
             settings: SettingsGPU::new(ctx),
-            common: common::CommonGPUResources::new(ctx),
             meshes: SecondaryMap::new(),
             materials: SecondaryMap::new(),
             samplers: SecondaryMap::new(),
@@ -64,7 +60,7 @@ impl DrawCache {
     pub(crate) fn prepare_meshes(&mut self, ctx: &gpu::Context, state: &mut pp_core::State) {
         // Ensure state meshes are all synced in the DrawCache
         state.meshes.iter_mut().for_each(|(m_id, mesh)| {
-            self.meshes.entry(m_id).unwrap().or_insert(MeshGPU::new(mesh)).sync(
+            self.meshes.entry(m_id).unwrap().or_insert(MeshGPU::new(ctx, mesh)).sync(
                 ctx,
                 m_id,
                 mesh,

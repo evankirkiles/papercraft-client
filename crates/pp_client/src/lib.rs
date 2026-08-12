@@ -186,6 +186,26 @@ impl App {
         self.editor.is_dirty = true;
     }
 
+    /// Returns the current uniform scale of the model, i.e. the first mesh in
+    /// the document. Meshes default to a scale of 1.0.
+    pub fn get_mesh_scale(&self) -> f32 {
+        self.state.borrow().meshes.values().next().map_or(1.0, |mesh| mesh.scale)
+    }
+
+    /// Applies an incremental uniform scale factor to every mesh in the
+    /// document, e.g. `new_scale / old_scale` computed by the caller.
+    pub fn scale_mesh(&mut self, factor: f32) {
+        let meshes = self.state.borrow().meshes.keys().collect();
+        let cmd = pp_core::CommandType::ScaleMesh(pp_core::commands::scale_mesh::ScaleMeshCommand {
+            meshes,
+            factor,
+        });
+        self.history
+            .borrow_mut()
+            .execute(&mut self.state.borrow_mut(), cmd)
+            .expect("scale_mesh command should never fail");
+    }
+
     /// Internal function used to route an event to the viewport a user is currently
     /// interacting with, e.g. where their mouse is hovered. If the event still
     /// propagated, then the controller can maybe do some last-minute processing.

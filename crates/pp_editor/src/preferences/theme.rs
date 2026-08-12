@@ -42,7 +42,7 @@ macro_rules! define_theme_colors {
 }
 
 define_theme_colors! {
-    background: "#121212",
+    background: "#000000",
     grid: "#303030",
     grid_axis_x: "#ff0000",
     grid_axis_y: "#00ff00",
