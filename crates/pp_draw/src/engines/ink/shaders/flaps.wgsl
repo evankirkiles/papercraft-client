@@ -135,8 +135,11 @@ fn _vs_clip_pos(in: VertexInput, _out: VertexOutput) -> VertexOutput {
 fn _vs_clip_pos_edge(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     var out = _out;
 
-    // If flap doesn't exist, return early with offscreen coordinate
-    if (bool(in.flap_flags ^ F_FLAG_EXISTS)) {
+    // Side 0 of the trapezoid is its base, which lies right on the piece edge
+    // the flap hangs off of. That seam is a fold rather than a cut, so leave it
+    // to the edge line pipeline and only outline the three free sides.
+    let side = u32(in.vertex_index / 6);
+    if (side == 0u || !bool(in.flap_flags & F_FLAG_EXISTS)) {
         out.clip_position.z = -100.0;
         return out;
     }
@@ -145,8 +148,8 @@ fn _vs_clip_pos_edge(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     let corners = _compute_flap_corners(in);
 
     // Get the current vertex and the next vertex
-    let p0 = corners[u32(in.vertex_index / 6)];
-    let p1 = corners[(u32(in.vertex_index / 6) + 1) % 4];
+    let p0 = corners[side];
+    let p1 = corners[(side + 1u) % 4u];
     let world_p0 = p0 + normalize(camera.eye.xyz - p0) * camera.eye.w * 0.001;
     let world_p1 = p1 + normalize(camera.eye.xyz - p1) * camera.eye.w * 0.001;
 

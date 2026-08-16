@@ -43,8 +43,11 @@ impl FlapsLinesProgram {
                     depth_write_enabled: true,
                     depth_compare: wgpu::CompareFunction::Less,
                     stencil: wgpu::StencilState::default(),
+                    // Same layer as `ink3.lines`, so a flap outline reads with
+                    // the same weight as an edge line instead of being partly
+                    // eaten by the flap fill sitting one layer behind it.
                     bias: wgpu::DepthBiasState {
-                        constant: super::DepthBiasLayer::BackgroundTopMiddle as i32,
+                        constant: super::DepthBiasLayer::ForegroundMiddle as i32,
                         slope_scale: 0.03,
                         ..Default::default()
                     },

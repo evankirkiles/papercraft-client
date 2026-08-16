@@ -27,13 +27,23 @@ impl ThemeUniform {
     }
 }
 
+/// Whether fold (mountain / valley) lines are drawn in the cutting view. When
+/// off, the only strokes left are the piece silhouette — the mesh boundary and
+/// cut edges with no flap on that side. Edges a flap folds along stay blank,
+/// same as any other fold.
+///
+/// TODO: promote to a user preference once the settings UI has a home for it.
+const RENDER_FOLD_LINES: bool = true;
+
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct ThemeSizesUniform {
     line_width: f32,
     line_width_thick: f32,
     point_size: f32,
-    padding: f32,
+    /// Occupies the slot this struct needs for 16-byte alignment anyway. Read
+    /// as a boolean by `lines.wgsl`; every other shader ignores it.
+    fold_lines: f32,
 }
 
 impl From<&ThemeSizes> for ThemeSizesUniform {
@@ -42,7 +52,7 @@ impl From<&ThemeSizes> for ThemeSizesUniform {
             line_width: value.line_width,
             line_width_thick: value.line_width_thick,
             point_size: value.point_size,
-            padding: 0.0,
+            fold_lines: if RENDER_FOLD_LINES { 1.0 } else { 0.0 },
         }
     }
 }

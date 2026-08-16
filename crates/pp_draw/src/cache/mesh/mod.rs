@@ -141,9 +141,15 @@ impl MeshGPU {
         }
         if elem_dirty.intersects(MeshElementType::EDGES) {
             vbo::edge_flags(ctx, m_id, mesh, selection, &mut self.vbo.edge_flags);
+            // Cutting an edge changes its CUT flag on both of its piece-side
+            // instances, which the PIECES branch below won't catch if the cut
+            // didn't restructure any piece.
+            vbo::piece_edge_flags(ctx, m_id, mesh, selection, &mut self.vbo_pieces.edge_flags);
         }
         if elem_dirty.intersects(MeshElementType::FLAPS) {
             vbo::piece_edge_flap(ctx, mesh, &mut self.vbo_pieces.edge_flap);
+            // Moving a flap to the other side of a cut moves its HAS_FLAP flag too
+            vbo::piece_edge_flags(ctx, m_id, mesh, selection, &mut self.vbo_pieces.edge_flags);
         }
         if index_dirty.intersects(MeshElementType::VERTS) {
             vbo::vert_idx(ctx, m_id, mesh, &mut self.vbo.vert_idx);

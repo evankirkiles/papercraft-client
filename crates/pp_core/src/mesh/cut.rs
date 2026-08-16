@@ -164,4 +164,25 @@ impl super::Mesh {
     pub fn edge_is_cut(&self, id: &id::EdgeId) -> bool {
         self.cuts.get(id).is_some_and(|cut| !cut.is_dead)
     }
+
+    /// Tells whether the flap for this loop's edge extends over this loop's face.
+    /// The two radial loops of an edge start at opposite endpoints, so `l.v` is
+    /// what picks out which side of the cut we're on.
+    pub fn loop_has_flap(&self, l_id: id::LoopId) -> bool {
+        let l = self[l_id];
+        // Boundary edge: only one radial loop, so there's nothing to flap onto
+        if l_id == l.radial_next {
+            return false;
+        }
+        let e = self[l.e];
+        self.cuts.get(&l.e).is_some_and(|cut| {
+            !cut.is_dead
+                && match cut.flap_position {
+                    FlapPosition::FirstFace => l.v != e.v[0],
+                    FlapPosition::SecondFace => l.v != e.v[1],
+                    FlapPosition::BothFaces => true,
+                    FlapPosition::None => false,
+                }
+        })
+    }
 }

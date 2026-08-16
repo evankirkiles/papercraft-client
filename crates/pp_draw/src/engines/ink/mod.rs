@@ -111,7 +111,14 @@ impl InkEngine {
         mesh: &cache::MeshGPU,
     ) {
         self.tris.draw_piece_mesh(ctx, render_pass, mesh);
-        self.lines.draw_piece_mesh(ctx, render_pass, mesh);
+        // Fold annotations describe the printout, so they only belong in Piece
+        // mode. While editing verts / edges / faces, the plain wireframe is what
+        // you need to see and click on.
+        if *selection_mode == SelectionMode::Piece {
+            self.lines.draw_piece_mesh_folds(ctx, render_pass, mesh);
+        } else {
+            self.lines.draw_piece_mesh(ctx, render_pass, mesh);
+        }
         self.flaps.draw_piece_mesh(ctx, render_pass, mesh);
         self.flaps_lines.draw_piece_mesh(ctx, render_pass, mesh);
         if *selection_mode == SelectionMode::Vert {

@@ -1,4 +1,10 @@
+use cgmath::{InnerSpace, Vector3};
+
 use crate::id::{self, Id};
+
+/// Edges whose dihedral deviates from flat by less than this (in radians) are
+/// treated as unfolded, and so are neither a mountain nor a valley fold.
+pub const FLAT_EDGE_ANGLE_EPSILON: f32 = 0.0175; // ~1 degree
 
 /// An edge, formed by two vertices.
 #[derive(Debug, Clone, Copy, Default)]
@@ -162,5 +168,30 @@ impl super::Mesh {
     /// Walks the loops including an edge (faces)
     pub fn iter_edge_loops(&'_ self, e: id::EdgeId) -> Option<RadialCycleWalker<'_>> {
         Some(RadialCycleWalker::new(self, self[e].l?))
+    }
+
+    /// The signed dihedral fold angle of an edge, in radians. Positive is a
+    /// MOUNTAIN fold (the edge is convex), negative is a VALLEY fold (concave),
+    /// and a magnitude near zero means the adjacent faces are coplanar.
+    ///
+    /// Returns `None` for boundary / dangling edges, which have no dihedral.
+    ///
+    /// Note that the sign assumes consistently outward-wound faces, which is
+    /// what the GLTF import gives us. A model with inverted normals would read
+    /// as mountains and valleys swapped.
+    pub fn edge_fold_angle(&self, e_id: id::EdgeId) -> Option<f32> {
+        let e = self[e_id];
+        let mut loops = self.iter_edge_loops(e_id)?;
+        let (l_a, l_b) = (loops.next()?, loops.next()?);
+        // Face A is the one whose loop traverses the edge from `e.v[0]` to
+        // `e.v[1]`, so the sign never depends on arbitrary radial ordering.
+        let (l_a, l_b) = if self[l_a].v == e.v[0] { (l_a, l_b) } else { (l_b, l_a) };
+
+        let axis = (self.vert_pos(e.v[1]) - self.vert_pos(e.v[0])).normalize();
+        let n_a = Vector3::from(self[self[l_a].f].no);
+        let n_b = Vector3::from(self[self[l_b].f].no);
+        // The same signed-angle form used to unfold pieces in `piece.rs`,
+        // negated so that a convex edge reads positive.
+        Some(-axis.dot(n_b.cross(n_a)).atan2(n_b.dot(n_a)))
     }
 }

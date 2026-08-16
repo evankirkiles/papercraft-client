@@ -21,6 +21,13 @@ bitflags! {
         const V1_SELECTED = 1 << 3;
         const CUT = 1 << 4;
         const BORDER = 1 << 5;
+        /// The edge's dihedral is convex, so it folds away from the viewer
+        const MOUNTAIN = 1 << 6;
+        /// The edge's dihedral is concave, so it folds toward the viewer
+        const VALLEY = 1 << 7;
+        /// A flap extends over this side of the edge. Per-loop, so this is only
+        /// ever set in the piecewise VBO.
+        const HAS_FLAP = 1 << 8;
     }
 
     #[repr(C)]
@@ -42,7 +49,7 @@ pub mod vbo {
     use cgmath::{EuclideanSpace, InnerSpace, Matrix4, Rad, Transform, Vector3};
     use pp_core::{
         id::{self, EdgeId, Id, LoopId},
-        mesh::cut::FlapPosition,
+        mesh::edge::FLAT_EDGE_ANGLE_EPSILON,
         select::SelectionActiveElement,
         MeshId,
     };
@@ -226,6 +233,11 @@ pub mod vbo {
         if e.l.is_none_or(|l| mesh[l].radial_next == l) {
             flags |= EdgeFlags::BORDER;
         }
+        match mesh.edge_fold_angle(e_id) {
+            Some(angle) if angle > FLAT_EDGE_ANGLE_EPSILON => flags |= EdgeFlags::MOUNTAIN,
+            Some(angle) if angle < -FLAT_EDGE_ANGLE_EPSILON => flags |= EdgeFlags::VALLEY,
+            _ => {}
+        }
         if selection.active_element.as_ref().is_some_and(|el| match el {
             SelectionActiveElement::Edge(active_id) => id == *active_id,
             _ => false,
@@ -261,7 +273,13 @@ pub mod vbo {
     ) {
         let data: Vec<_> = mesh
             .iter_piece_loops()
-            .map(|l| _edge_flags(m_id, mesh, selection, mesh[l].e))
+            .map(|l| {
+                let mut flags = _edge_flags(m_id, mesh, selection, mesh[l].e);
+                if mesh.loop_has_flap(l) {
+                    flags |= EdgeFlags::HAS_FLAP.bits();
+                }
+                flags
+            })
             .collect();
         vbo.update(ctx, data.as_slice());
     }
@@ -337,19 +355,7 @@ pub mod vbo {
 
                         // If edge is not cut or there's no flap here, just return the default,
                         // which will not render / render an invisible flap
-                        if l_id == l.radial_next
-                            || mesh.cuts.get(&l.e).is_none_or(|cut| {
-                                if cut.is_dead {
-                                    return true;
-                                };
-                                match cut.flap_position {
-                                    FlapPosition::FirstFace => l.v == e.v[0],
-                                    FlapPosition::SecondFace => l.v == e.v[1],
-                                    FlapPosition::BothFaces => false,
-                                    FlapPosition::None => true,
-                                }
-                            })
-                        {
+                        if !mesh.loop_has_flap(l_id) {
                             return EdgeFlapInfo::default();
                         }
 

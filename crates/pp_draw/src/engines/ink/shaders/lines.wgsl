@@ -1,5 +1,5 @@
-struct ThemeSizes { line_width: f32, line_width_thick: f32, point_size: f32 };
-struct ThemeColors { 
+struct ThemeSizes { line_width: f32, line_width_thick: f32, point_size: f32, fold_lines: f32 };
+struct ThemeColors {
   background: vec4<f32>,
   grid: vec4<f32>,
   grid_axis_x: vec4<f32>,
@@ -28,8 +28,14 @@ struct VertexInput {
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
+    // Screen-space distance along the segment from v0, in pixels. Interpolated
+    // linearly so the dash phase doesn't get perspective-warped.
+    @location(0) @interpolate(linear) dash_t: f32,
     @location(1) color: vec4<f32>,
-    @location(2) @interpolate(flat) select_idx: vec4<u32>
+    @location(2) @interpolate(flat) select_idx: vec4<u32>,
+    @location(3) @interpolate(flat) edge_flags: u32,
+    // Total screen-space length of the segment, in pixels
+    @location(4) @interpolate(flat) seg_len: f32
 };
 
 // Edge flags
@@ -39,6 +45,9 @@ const FLAG_V0_SELECTED: u32 = (u32(1) << 2);
 const FLAG_V1_SELECTED: u32 = (u32(1) << 3);
 const FLAG_CUT: u32 = (u32(1) << 4);
 const FLAG_BOUNDARY: u32 = (u32(1) << 5);
+const FLAG_MOUNTAIN: u32 = (u32(1) << 6);
+const FLAG_VALLEY: u32 = (u32(1) << 7);
+const FLAG_HAS_FLAP: u32 = (u32(1) << 8);
 
 // Calculates the colors of edges as would be seen on-screen.
 fn _vs_color(in: VertexInput, _out: VertexOutput) -> VertexOutput {
@@ -96,6 +105,12 @@ fn _vs_clip_pos(in: VertexInput, _out: VertexOutput, size: f32) -> VertexOutput 
     var clip = mix(clip_v0, clip_v1, in.offset.x);
     out.clip_position = vec4<f32>(clip.w * (2.0 * pt / viewport.dimensions - 1.0), clip.z, clip.w);
 
+    // Carry the screen-space run of the line so `fs_fold` can stipple it. Inert
+    // for every other fragment stage.
+    out.seg_len = length(basis_x);
+    out.dash_t = in.offset.x * out.seg_len;
+    out.edge_flags = in.flags;
+
     // Move thick lines offscreen if not cut or boundary
     if (size == theme.sizes.line_width_thick && !bool(in.flags & (FLAG_CUT | FLAG_BOUNDARY))) { 
       out.clip_position.z = -100.0;
@@ -138,4 +153,64 @@ fn fs_xray(in: VertexOutput) -> @location(0) vec4<f32> {
 @fragment
 fn fs_select(in: VertexOutput) -> @location(0) vec4<u32> {
     return in.select_idx;
+}
+
+// Dash geometry, in screen-space pixels. A mountain is a short even dash and a
+// valley a long dash-dot, so the two stay tellable apart even on a piece that
+// only has one kind of fold on it. Keep the dash lengths — and the valley's
+// dash / dot ratio — far apart if you retune these.
+const MOUNTAIN_DASH_LEN: f32 = 7.0;
+const VALLEY_DASH_LEN: f32 = 16.0;
+const DASH_GAP: f32 = 7.0;
+const DOT_LEN: f32 = 3.0;
+
+// Scales a dash pattern so a whole number of periods fits the segment exactly,
+// keeping dashes flush with the edge's vertices instead of clipped mid-stroke.
+fn _fitted_scale(seg_len: f32, period: f32) -> f32 {
+    let n = max(1.0, round(seg_len / period));
+    return seg_len / (n * period);
+}
+
+// Tells whether a fragment falls on an inked part of the edge's fold pattern.
+fn _fold_visible(flags: u32, t: f32, seg_len: f32) -> bool {
+    let lineless = theme.sizes.fold_lines < 0.5;
+
+    // Selection highlights stay legible as continuous lines, in both modes
+    if (bool(flags & (FLAG_SELECTED | FLAG_ACTIVE))) { return true; }
+
+    // Piece silhouette: the mesh boundary, or a cut edge with no flap on this
+    // side. A cut that does carry a flap is the line the flap folds along, so
+    // it's a fold and not part of the silhouette.
+    if (bool(flags & FLAG_BOUNDARY) ||
+        (bool(flags & FLAG_CUT) && !bool(flags & FLAG_HAS_FLAP))) { return true; }
+
+    // Lineless mode draws nothing but the silhouette
+    if (lineless) { return false; }
+
+    // Mountain folds are a short even dash
+    if (bool(flags & FLAG_MOUNTAIN)) {
+        let base = MOUNTAIN_DASH_LEN + DASH_GAP;
+        let s = _fitted_scale(seg_len, base);
+        return (t % (base * s)) < MOUNTAIN_DASH_LEN * s;
+    }
+
+    // Valley folds are a longer dash followed by a dot
+    if (bool(flags & FLAG_VALLEY)) {
+        let base = VALLEY_DASH_LEN + DASH_GAP + DOT_LEN + DASH_GAP;
+        let s = _fitted_scale(seg_len, base);
+        let p = t % (base * s);
+        return p < VALLEY_DASH_LEN * s
+            || (p >= (VALLEY_DASH_LEN + DASH_GAP) * s
+                && p < (VALLEY_DASH_LEN + DASH_GAP + DOT_LEN) * s);
+    }
+
+    // Flat enough to not be a fold at all, so no line
+    return false;
+}
+
+// [FS.4] Fold-annotated rendering, for the piece / cutting view
+@fragment
+fn fs_fold(in: VertexOutput) -> @location(0) vec4<f32> {
+    if (!_fold_visible(in.edge_flags, in.dash_t, in.seg_len)) { discard; }
+    return in.color;
 }

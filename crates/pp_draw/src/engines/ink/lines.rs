@@ -5,6 +5,7 @@ use crate::gpu;
 pub(super) struct LinesProgram {
     pipeline: wgpu::RenderPipeline,
     pipeline_xray: wgpu::RenderPipeline,
+    pipeline_fold: wgpu::RenderPipeline,
 }
 
 impl LinesProgram {
@@ -51,6 +52,31 @@ impl LinesProgram {
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
                     entry_point: Some("fs_main"),
+                    targets: &targets,
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                }),
+                layout,
+                primitive,
+                multisample,
+                multiview,
+                cache,
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: gpu::Texture::DEPTH_FORMAT,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::Less,
+                    stencil: wgpu::StencilState::default(),
+                    bias,
+                }),
+            }),
+            // Annotates each line with its fold type (mountain / valley / none)
+            // by stippling it in the fragment stage. Used for the 2D piece view,
+            // where the lines double as fold instructions for the printout.
+            pipeline_fold: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("ink3.lines.fold"),
+                vertex: vertex.clone(),
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: Some("fs_fold"),
                     targets: &targets,
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 }),
@@ -123,6 +149,18 @@ impl LinesProgram {
         mesh: &cache::MeshGPU,
     ) {
         render_pass.set_pipeline(&self.pipeline);
+        mesh.draw_piece_edit_lines_instanced(ctx, render_pass);
+    }
+
+    /// As `draw_piece_mesh`, but annotating each edge with its fold type
+    /// (mountain / valley / none) instead of drawing every edge solid.
+    pub(super) fn draw_piece_mesh_folds(
+        &self,
+        ctx: &gpu::Context,
+        render_pass: &mut wgpu::RenderPass,
+        mesh: &cache::MeshGPU,
+    ) {
+        render_pass.set_pipeline(&self.pipeline_fold);
         mesh.draw_piece_edit_lines_instanced(ctx, render_pass);
     }
 }
