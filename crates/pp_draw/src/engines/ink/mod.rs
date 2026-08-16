@@ -21,6 +21,7 @@ pub enum DepthBiasLayer {
     #[default]
     Default,
     BackgroundTop,
+    BackgroundTopMiddle,
     BackgroundMiddle,
     BackgroundBottom,
 }
@@ -110,9 +111,7 @@ impl InkEngine {
         mesh: &cache::MeshGPU,
     ) {
         self.tris.draw_piece_mesh(ctx, render_pass, mesh);
-        if *selection_mode != SelectionMode::Piece {
-            self.lines.draw_piece_mesh(ctx, render_pass, mesh);
-        }
+        self.lines.draw_piece_mesh(ctx, render_pass, mesh);
         self.flaps.draw_piece_mesh(ctx, render_pass, mesh);
         self.flaps_lines.draw_piece_mesh(ctx, render_pass, mesh);
         if *selection_mode == SelectionMode::Vert {

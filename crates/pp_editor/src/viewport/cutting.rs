@@ -1,4 +1,4 @@
-use cgmath::{ElementWise, Transform};
+use cgmath::{ElementWise, EuclideanSpace, Transform};
 use pp_core::{id::FaceId, MeshId};
 use serde::{Deserialize, Serialize};
 
@@ -38,7 +38,8 @@ impl CuttingViewport {
                 let mesh = &state.meshes[m_id];
                 mesh.iter_face_loops(item.f).map(move |l| {
                     piece_affine.transform_point(
-                        item.affine.transform_point(cgmath::Point3::from(mesh[mesh[l].v].po)),
+                        item.affine
+                            .transform_point(cgmath::Point3::from_vec(mesh.vert_pos(mesh[l].v))),
                     )
                 })
             })

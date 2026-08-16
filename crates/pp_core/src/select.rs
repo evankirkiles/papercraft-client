@@ -206,11 +206,19 @@ impl State {
                 .filter_map(|l| {
                     let e_id = mesh[l].e;
                     let edge_selected = self.selection.edges.contains(&(m_id, e_id));
-                    if selected != edge_selected {
-                        Some((m_id, e_id))
-                    } else {
-                        None
+                    if selected == edge_selected {
+                        return None;
                     }
+                    // Don't deselect an edge that's still owned by another selected face.
+                    if !selected
+                        && mesh.iter_edge_loops(e_id).into_iter().flatten().any(|l| {
+                            let other_f = mesh[l].f;
+                            other_f != f_id && self.selection.faces.contains(&(m_id, other_f))
+                        })
+                    {
+                        return None;
+                    }
+                    Some((m_id, e_id))
                 })
                 .collect();
             updated_edges.iter().for_each(|id| self.select_edge(id, select_mode, false, false));

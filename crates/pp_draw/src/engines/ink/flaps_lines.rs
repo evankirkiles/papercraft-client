@@ -44,7 +44,7 @@ impl FlapsLinesProgram {
                     depth_compare: wgpu::CompareFunction::Less,
                     stencil: wgpu::StencilState::default(),
                     bias: wgpu::DepthBiasState {
-                        constant: super::DepthBiasLayer::BackgroundTop as i32,
+                        constant: super::DepthBiasLayer::BackgroundTopMiddle as i32,
                         slope_scale: 0.03,
                         ..Default::default()
                     },
