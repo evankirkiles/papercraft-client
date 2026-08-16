@@ -1,4 +1,4 @@
-use crate::{engines::ink::DepthBiasLayer, gpu};
+use crate::{cache::print::PrintLayoutGPU, engines::ink::DepthBiasLayer, gpu};
 
 #[derive(Debug)]
 pub struct GridRectProgram {
@@ -17,6 +17,7 @@ impl GridRectProgram {
                     bind_group_layouts: &[
                         &ctx.shared.bind_group_layouts.settings,
                         &ctx.shared.bind_group_layouts.viewport,
+                        &ctx.shared.bind_group_layouts.print_layout,
                     ],
                     push_constant_ranges: &[],
                 })),
@@ -75,8 +76,14 @@ impl GridRectProgram {
         }
     }
 
-    /// Draws the grid (only done once)
-    pub fn draw(&self, ctx: &gpu::Context, render_pass: &mut wgpu::RenderPass) {
+    /// Draws the grid, fit to the document's page size.
+    pub fn draw(
+        &self,
+        ctx: &gpu::Context,
+        print: &PrintLayoutGPU,
+        render_pass: &mut wgpu::RenderPass,
+    ) {
+        print.bind(render_pass);
         render_pass.set_pipeline(&self.pipeline);
         render_pass.set_vertex_buffer(0, ctx.shared.buffers.rect.slice(..));
         render_pass.draw(0..4, 0..1);

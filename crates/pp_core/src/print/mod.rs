@@ -8,6 +8,10 @@ pub use text_box::*;
 
 use crate::{measures::Dimensions, PageId};
 
+/// Centimeters per inch, used to express physical page sizes (traditionally
+/// specified in inches) in the document's world units (1 unit = 1 cm).
+pub const CM_PER_INCH: f32 = 2.54;
+
 #[derive(Debug, Default, Clone)]
 pub enum PageSize {
     #[default]
@@ -19,8 +23,8 @@ pub enum PageSize {
 impl PageSize {
     pub fn dimensions(&self) -> Dimensions<f32> {
         match self {
-            PageSize::A4 => Dimensions { width: 8.5, height: 11.0 },
-            PageSize::Letter => Dimensions { width: 8.5, height: 11.0 },
+            PageSize::A4 => Dimensions { width: 21.0, height: 29.7 },
+            PageSize::Letter => Dimensions { width: 8.5 * CM_PER_INCH, height: 11.0 * CM_PER_INCH },
             PageSize::Custom(dims) => *dims,
         }
     }
@@ -59,8 +63,8 @@ impl Default for PrintLayout {
         // pages.insert(Page { pos: cgmath::Point2 { x: 1.05, y: 0.0 }, label: None });
         Self {
             page_size: Default::default(),
-            page_margin_start: cgmath::Point2 { x: 0.5, y: 0.5 },
-            page_margin_end: cgmath::Point2 { x: 0.5, y: 0.5 },
+            page_margin_start: cgmath::Point2 { x: 0.5 * CM_PER_INCH, y: 0.5 * CM_PER_INCH },
+            page_margin_end: cgmath::Point2 { x: 0.5 * CM_PER_INCH, y: 0.5 * CM_PER_INCH },
             pages,
             elem_dirty: true,
             is_dirty: true,

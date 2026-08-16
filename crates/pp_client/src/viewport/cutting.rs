@@ -40,7 +40,8 @@ impl ViewportEventHandler for CuttingViewport {
             },
             UserEvent::MouseWheel { delta } => {
                 if ctx.modifiers.super_pressed() {
-                    self.camera.zoom(delta.y * 0.5);
+                    let fit_radius = ctx.state.borrow().world_bounds().bounding_radius();
+                    self.camera.zoom(delta.y * 0.5, fit_radius);
                 } else {
                     self.camera.pan(delta);
                 };

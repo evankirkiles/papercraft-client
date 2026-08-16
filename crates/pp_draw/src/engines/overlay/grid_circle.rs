@@ -1,4 +1,4 @@
-use crate::{engines::ink::DepthBiasLayer, gpu};
+use crate::{cache, engines::ink::DepthBiasLayer, gpu};
 
 #[derive(Debug)]
 pub struct GridCircleProgram {
@@ -12,14 +12,7 @@ impl GridCircleProgram {
         Self {
             pipeline: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("overlay.grid_circle"),
-                layout: Some(&ctx.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("overlay.grid_circle"),
-                    bind_group_layouts: &[
-                        &ctx.shared.bind_group_layouts.settings,
-                        &ctx.shared.bind_group_layouts.viewport,
-                    ],
-                    push_constant_ranges: &[],
-                })),
+                layout: Some(&ctx.shared.pipeline_layouts.grid_and_bounds),
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: Some("vs_main"),
@@ -75,8 +68,14 @@ impl GridCircleProgram {
         }
     }
 
-    /// Draws the grid (only done once)
-    pub fn draw(&self, ctx: &gpu::Context, render_pass: &mut wgpu::RenderPass) {
+    /// Draws the grid, fit to the document's current bounds.
+    pub fn draw(
+        &self,
+        ctx: &gpu::Context,
+        draw_cache: &cache::DrawCache,
+        render_pass: &mut wgpu::RenderPass,
+    ) {
+        draw_cache.bounds.bind(render_pass);
         render_pass.set_pipeline(&self.pipeline);
         render_pass.set_vertex_buffer(0, ctx.shared.buffers.rect.slice(..));
         render_pass.draw(0..4, 0..1);

@@ -122,6 +122,9 @@ impl<'window> Renderer<'window> {
         self.draw_cache.prepare_settings(&self.ctx, editor);
         self.draw_cache.prepare_viewports(&self.ctx, editor);
         self.draw_cache.prepare_tool(&self.ctx, editor);
+        let bounds = self.draw_cache.prepare_bounds(&self.ctx, state);
+        self.engine_overlay.bbox.prepare(&self.ctx, &bounds);
+        editor.sync_camera_bounds(bounds.bounding_radius());
     }
 
     /// Draws all of the renderables to the screen in each viewport

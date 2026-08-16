@@ -1,5 +1,6 @@
 use slotmap::{new_key_type, SlotMap};
 
+pub mod bounds;
 pub mod commands;
 pub mod id;
 pub mod material;
@@ -100,5 +101,11 @@ impl State {
         let mut state = Self::default();
         state.meshes.insert(mesh::Mesh::new_cube());
         state
+    }
+
+    /// The world-space bounding box of every mesh in the document, or
+    /// `Aabb3::EMPTY` if there are no meshes / vertices.
+    pub fn world_bounds(&self) -> bounds::Aabb3 {
+        self.meshes.values().fold(bounds::Aabb3::EMPTY, |acc, m| acc.union(&m.world_aabb()))
     }
 }

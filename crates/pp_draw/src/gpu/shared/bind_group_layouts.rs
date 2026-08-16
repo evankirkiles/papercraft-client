@@ -1,4 +1,5 @@
 use crate::cache::{
+    bounds::BoundsGPU,
     material::MaterialGPU,
     mesh::piece::PieceGPU,
     print::PrintLayoutGPU,
@@ -17,6 +18,7 @@ pub enum BindGroup {
     PrintLayout,
     Material,
     Tool,
+    Bounds,
 }
 
 impl BindGroup {
@@ -31,6 +33,8 @@ impl BindGroup {
             BindGroup::Tool => 2,
             // Print path
             BindGroup::PrintLayout => 2,
+            // Grid / bounds-wireframe path
+            BindGroup::Bounds => 2,
         }
     }
 }
@@ -52,6 +56,7 @@ pub struct SharedBindGroupLayouts {
     pub material: wgpu::BindGroupLayout,
     pub print_layout: wgpu::BindGroupLayout,
     pub tool: ToolBindGroupLayouts,
+    pub bounds: wgpu::BindGroupLayout,
 }
 
 impl SharedBindGroupLayouts {
@@ -67,6 +72,7 @@ impl SharedBindGroupLayouts {
                 rotate: RotateToolGPU::create_bind_group_layout(device),
                 translate: TranslateToolGPU::create_bind_group_layout(device),
             },
+            bounds: BoundsGPU::create_bind_group_layout(device),
         }
     }
 }

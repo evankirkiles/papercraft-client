@@ -26,6 +26,9 @@ const ORTHO_SPEED_DOLLY: f32 = 0.03;
 const ORTHO_SPEED_PAN: f32 = 0.003;
 const ORTHO_MAX_ZOOM: f32 = 10.0;
 const ORTHO_MIN_ZOOM: f32 = 0.05;
+/// Extra breathing room around the model's bounding sphere when computing
+/// how far out zooming is allowed to go.
+const ORTHO_FIT_MARGIN: f32 = 1.3;
 
 impl Camera for OrthographicCamera {
     fn view_proj(&self, dims: Dimensions<f32>) -> cgmath::Matrix4<f32> {
@@ -61,9 +64,47 @@ impl OrthographicCamera {
         self.is_dirty = true;
     }
 
-    pub fn zoom(&mut self, delta: f32) {
+    /// Applies an incremental zoom step. `fit_radius` is the radius of the
+    /// model's bounding sphere (world units); the minimum zoom (i.e. how far
+    /// out the camera can go) relaxes automatically so the whole model always
+    /// stays reachable, even if it's larger than [`ORTHO_MIN_ZOOM`] was tuned
+    /// for.
+    pub fn zoom(&mut self, delta: f32, fit_radius: f32) {
         let new_zoom = self.zoom * (1.0 + delta * ORTHO_SPEED_DOLLY);
-        self.zoom = new_zoom.clamp(ORTHO_MIN_ZOOM, ORTHO_MAX_ZOOM);
+        self.zoom = new_zoom.clamp(Self::min_zoom_for(fit_radius), ORTHO_MAX_ZOOM);
         self.is_dirty = true;
+    }
+
+    fn min_zoom_for(fit_radius: f32) -> f32 {
+        if fit_radius <= 0.0 {
+            return ORTHO_MIN_ZOOM;
+        }
+        (1.0 / (fit_radius * ORTHO_FIT_MARGIN)).min(ORTHO_MIN_ZOOM)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn small_model_keeps_default_min_zoom() {
+        assert_eq!(OrthographicCamera::min_zoom_for(0.5), ORTHO_MIN_ZOOM);
+    }
+
+    #[test]
+    fn zoom_clamps_out_far_enough_to_fit_a_large_model() {
+        // A 200x200x200 cm cube, as produced by scaling the dimensions panel.
+        let fit_radius = (200.0_f32.powi(2) * 3.0).sqrt() / 2.0;
+        let mut camera = OrthographicCamera { zoom: ORTHO_MAX_ZOOM, ..Default::default() };
+        // Zoom out as far as the input allows.
+        for _ in 0..10_000 {
+            camera.zoom(-1.0, fit_radius);
+        }
+        let half_height = 1.0 / camera.zoom;
+        assert!(
+            half_height >= fit_radius,
+            "half_height {half_height} should be able to fit fit_radius {fit_radius}"
+        );
     }
 }

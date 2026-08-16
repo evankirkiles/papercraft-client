@@ -36,7 +36,7 @@ struct VertexOutput {
 };
 
 // Rendering constants (to move to uniform)
-const MAX_FLAP_HEIGHT: f32 = 0.05;
+const MAX_FLAP_HEIGHT: f32 = 0.3; // (in CM)
 
 // Edge flags
 const E_FLAG_SELECTED: u32 = (u32(1) << 0);

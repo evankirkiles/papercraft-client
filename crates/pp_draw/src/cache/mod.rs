@@ -1,4 +1,5 @@
 use crate::gpu;
+use bounds::BoundsGPU;
 use material::{image::ImageGPU, sampler::SamplerGPU, texture::TextureGPU, MaterialGPU};
 use pp_core::{ImageId, MaterialId, MeshId, SamplerId, TextureId};
 use pp_editor::{tool::Tool, ViewportId};
@@ -10,6 +11,7 @@ use viewport::{BindableViewport, ViewportGPU};
 
 pub(crate) use mesh::MeshGPU;
 
+pub mod bounds;
 pub mod material;
 pub mod mesh;
 pub mod print;
@@ -26,6 +28,7 @@ pub mod viewport;
 #[derive(Debug)]
 pub(crate) struct DrawCache {
     pub settings: SettingsGPU,
+    pub bounds: BoundsGPU,
 
     // State-specific GPU resources
     pub meshes: SecondaryMap<MeshId, MeshGPU>,
@@ -46,6 +49,7 @@ impl DrawCache {
     pub(crate) fn new(ctx: &gpu::Context) -> Self {
         Self {
             settings: SettingsGPU::new(ctx),
+            bounds: BoundsGPU::new(ctx),
             meshes: SecondaryMap::new(),
             materials: SecondaryMap::new(),
             samplers: SecondaryMap::new(),
@@ -153,5 +157,15 @@ impl DrawCache {
 
     pub(crate) fn prepare_settings(&mut self, ctx: &gpu::Context, editor: &mut pp_editor::Editor) {
         self.settings.prepare(ctx, &mut editor.preferences);
+    }
+
+    /// Ensures the document's world-space bounds are synchronized, returning
+    /// them for use by the bounding-box wireframe.
+    pub(crate) fn prepare_bounds(
+        &mut self,
+        ctx: &gpu::Context,
+        state: &pp_core::State,
+    ) -> pp_core::bounds::Aabb3 {
+        self.bounds.prepare(ctx, state)
     }
 }

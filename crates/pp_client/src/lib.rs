@@ -7,9 +7,11 @@ use keyboard::ModifierKeys;
 use pp_core::measures::Dimensions;
 use pp_editor::SplitId;
 use pp_save::{load::Loadable, SaveFile};
+use serde::{Deserialize, Serialize};
 use slotmap::KeyData;
 use std::{cell::RefCell, io::Cursor, ops::DerefMut, rc::Rc};
 use store::AppCallbacks;
+use tsify::Tsify;
 use wasm_bindgen::prelude::*;
 
 use crate::command::sync::SyncConnectionConfig;
@@ -27,6 +29,15 @@ const SLOTMAP_TYPES: &'static str = r#"
 export type KeyData = { idx: number; version: number };
 export type SlotMap<T, U> = { value: U, version: number }[];
 "#;
+
+/// The real-world dimensions of the document's bounding box, in centimeters.
+#[derive(Debug, Default, Clone, Copy, Tsify, Serialize, Deserialize)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+pub struct MeshBoundsCm {
+    pub width: f32,
+    pub depth: f32,
+    pub height: f32,
+}
 
 #[wasm_bindgen]
 #[derive(Debug, Default)]
@@ -186,24 +197,31 @@ impl App {
         self.editor.is_dirty = true;
     }
 
-    /// Returns the current uniform scale of the model, i.e. the first mesh in
-    /// the document. Meshes default to a scale of 1.0.
-    pub fn get_mesh_scale(&self) -> f32 {
-        self.state.borrow().meshes.values().next().map_or(1.0, |mesh| mesh.scale)
-    }
-
     /// Applies an incremental uniform scale factor to every mesh in the
     /// document, e.g. `new_scale / old_scale` computed by the caller.
     pub fn scale_mesh(&mut self, factor: f32) {
         let meshes = self.state.borrow().meshes.keys().collect();
-        let cmd = pp_core::CommandType::ScaleMesh(pp_core::commands::scale_mesh::ScaleMeshCommand {
-            meshes,
-            factor,
-        });
+        let cmd =
+            pp_core::CommandType::ScaleMesh(pp_core::commands::scale_mesh::ScaleMeshCommand {
+                meshes,
+                factor,
+            });
         self.history
             .borrow_mut()
             .execute(&mut self.state.borrow_mut(), cmd)
             .expect("scale_mesh command should never fail");
+    }
+
+    /// Returns the real-world dimensions of the document's world-space
+    /// bounding box, in centimeters (1 world unit = 1 cm). All-zero if there
+    /// are no meshes / vertices. Unit formatting (cm vs. m) is left to JS.
+    pub fn get_mesh_bounds(&self) -> MeshBoundsCm {
+        let aabb = self.state.borrow().world_bounds();
+        if aabb.is_empty() {
+            return MeshBoundsCm::default();
+        }
+        let size = aabb.size();
+        MeshBoundsCm { width: size.x, depth: size.y, height: size.z }
     }
 
     /// Internal function used to route an event to the viewport a user is currently

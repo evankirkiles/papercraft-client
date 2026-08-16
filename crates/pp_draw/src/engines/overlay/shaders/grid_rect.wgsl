@@ -15,6 +15,14 @@ struct Viewport { position: vec2<f32>, dimensions: vec2<f32> };
 struct Camera { view_proj: mat4x4<f32>, eye: vec4<f32> };
 @group(1) @binding(0) var<uniform> viewport: Viewport;
 @group(1) @binding(1) var<uniform> camera: Camera;
+struct PageLayout {
+  margin_start: vec2<f32>,
+  margin_end: vec2<f32>,
+  dimensions: vec2<f32>,
+  padding: vec2<f32>,
+};
+@group(2) @binding(0) var<uniform> page: PageLayout;
+
 
 struct VertexInput {
    @location(0) offset: vec2<f32>
@@ -29,9 +37,9 @@ struct VertexOutput {
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
 
-    // Constants defining dimensions of the rectangle (will change)
-    let PAD = 2.0;
-    let DIMS = vec2<f32>(8.0, 8.0);
+    // Pad the grid out past the page's own edges.
+    let PAD = 5.0;
+    let DIMS = page.dimensions;
 
     var p = ((in.offset * (DIMS + PAD * 2)) - PAD) * vec2<f32>(1.0, -1.0);
     out.world_position = vec3<f32>(p, 0.0);
@@ -41,8 +49,8 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 // Fragment shader
 fn grid(pos: vec3<f32>, scale: f32) -> vec4<f32> {
-    let width = 8.0;
-    let height = 8.0;
+    let width = page.dimensions.x;
+    let height = page.dimensions.y;
     let fade_radius = 1.5;
     var distance = length(pos.xy - clamp(pos.xy, vec2<f32>(0, -1 * height), vec2<f32>(width, 0)));
     var fade = smoothstep(fade_radius, 0.0, distance);
@@ -74,5 +82,6 @@ fn grid(pos: vec3<f32>, scale: f32) -> vec4<f32> {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return grid(in.world_position, 2.0);
+    // 1 world unit = 1 cm, so a scale of 1.0 spaces grid lines every centimeter.
+    return grid(in.world_position, 1.0);
 }

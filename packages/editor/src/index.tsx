@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useMemo } from "react";
 
+import BoundsPanel from "./components/BoundsPanel";
 import Viewport from "./components/Editor";
 import HelpButton from "./components/HelpButton";
 import MainControls from "./components/MainControls";
@@ -22,6 +23,7 @@ export function Engine() {
                 <MainControls />
               </div>
               <HelpButton />
+              <BoundsPanel />
             </section>
           </EditorProvider>
         </EngineProvider>

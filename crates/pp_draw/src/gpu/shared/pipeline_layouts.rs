@@ -6,6 +6,9 @@ use super::bind_group_layouts::SharedBindGroupLayouts;
 pub struct SharedPipelineLayouts {
     pub mesh_surface: wgpu::PipelineLayout,
     pub mesh_overlays: wgpu::PipelineLayout,
+    /// Used by the folding grid and the bounds wireframe, neither of which
+    /// bind a per-mesh `piece` transform since they operate in world space.
+    pub grid_and_bounds: wgpu::PipelineLayout,
 }
 
 impl SharedPipelineLayouts {
@@ -27,6 +30,15 @@ impl SharedPipelineLayouts {
                     &bind_group_layouts.settings,
                     &bind_group_layouts.viewport,
                     &bind_group_layouts.piece,
+                ],
+                push_constant_ranges: &[],
+            }),
+            grid_and_bounds: device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("grid_and_bounds"),
+                bind_group_layouts: &[
+                    &bind_group_layouts.settings,
+                    &bind_group_layouts.viewport,
+                    &bind_group_layouts.bounds,
                 ],
                 push_constant_ranges: &[],
             }),

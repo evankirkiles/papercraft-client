@@ -5,6 +5,7 @@ use std::{collections::BTreeMap, ops};
 
 use crate::id::{EdgeId, FaceId, Id, LoopId, VertexId};
 
+mod bounds;
 pub mod cut;
 pub mod edge;
 pub mod face;

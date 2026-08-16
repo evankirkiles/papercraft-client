@@ -118,4 +118,16 @@ impl Editor {
             .find(|(_, viewport)| viewport.bounds.area.contains(&pos))
             .map(|(id, _)| id)
     }
+
+    /// Refreshes every folding viewport's camera with the document's current
+    /// bounding-sphere radius, called once per frame by the renderer so the
+    /// far plane and dolly-out limit track the model even without the user
+    /// interacting with the camera first (e.g. right after loading a model).
+    pub fn sync_camera_bounds(&mut self, fit_radius: f32) {
+        self.layout.viewports.values_mut().for_each(|viewport| {
+            if let viewport::ViewportContent::Folding(folding) = &mut viewport.content {
+                folding.camera.sync_fit_radius(fit_radius);
+            }
+        });
+    }
 }

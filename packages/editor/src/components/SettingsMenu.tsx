@@ -6,27 +6,84 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { useEditor } from "@/contexts/EditorContext";
 import { useEngine } from "@/contexts/EngineContext";
+
+interface Dimensions {
+  width: number;
+  depth: number;
+  height: number;
+}
+
+const DIMENSION_FIELDS: (keyof Dimensions)[] = ["width", "depth", "height"];
 
 export default function SettingsMenu() {
   const engine = useEngine();
   const editor = useEditor();
 
-  // The model's scale is stored on the Rust side as an absolute value, but
-  // `scale_mesh` is incremental, so we track the last-committed absolute
-  // value here to compute the factor to apply on each change.
-  const [modelScale, setModelScale] = useState(1);
-  const lastCommittedScale = useRef(1);
+  // The model's real-world dimensions (cm), as last read from the Rust side.
+  // Editing a field computes a uniform scale factor (newValue / current) and
+  // applies it via `scale_mesh`, rather than an arbitrary scale slider.
+  const [dims, setDims] = useState<Dimensions | null>(null);
+  const [drafts, setDrafts] = useState<Record<keyof Dimensions, string>>({
+    width: "",
+    depth: "",
+    height: "",
+  });
+  // Which field (if any) the user is actively typing in, so the polling loop
+  // below doesn't clobber their in-progress edit.
+  const editingField = useRef<keyof Dimensions | null>(null);
+  const lastKey = useRef<string>("");
 
+  // The engine reference is stable even when a new document streams in over
+  // the websocket (e.g. loading a saved model), so a one-shot effect would
+  // only ever see the bounds at mount time. Poll every frame instead, same
+  // as BoundsPanel, so dimensions stay in sync once a model finishes loading.
   useEffect(() => {
     if (!engine) return;
-    const scale = engine.get_mesh_scale();
-    setModelScale(scale);
-    lastCommittedScale.current = scale;
+    let raf: number;
+    const tick = () => {
+      try {
+        const bounds = engine.get_mesh_bounds();
+        const key = `${bounds.width}|${bounds.depth}|${bounds.height}`;
+        if (key !== lastKey.current) {
+          lastKey.current = key;
+          setDims(bounds);
+          setDrafts((prev) => {
+            const next = { ...prev };
+            DIMENSION_FIELDS.forEach((field) => {
+              if (editingField.current !== field) {
+                next[field] = bounds[field].toFixed(1);
+              }
+            });
+            return next;
+          });
+        }
+      } catch {
+        // engine not fully attached yet; ignore, retry next frame
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
   }, [engine]);
+
+  const commitDimension = (field: keyof Dimensions) => {
+    editingField.current = null;
+    if (!engine || !dims) return;
+    const next = parseFloat(drafts[field]);
+    const current = dims[field];
+    if (!Number.isFinite(next) || next <= 0 || current <= 0) {
+      setDrafts((d) => ({ ...d, [field]: current.toFixed(1) }));
+      return;
+    }
+    const factor = next / current;
+    if (Math.abs(factor - 1) > 1e-4) {
+      engine.scale_mesh(factor);
+    }
+    // The polling loop above will pick up the new bounds on the next frame.
+  };
 
   return (
     <Popover>
@@ -59,31 +116,40 @@ export default function SettingsMenu() {
               />
             </label>
             <div>
-              <div className="flex items-center justify-between">
-                <label
-                  htmlFor="settings-scale"
-                  className="text-muted-foreground"
-                >
-                  Model scale
-                </label>
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  {modelScale.toFixed(2)}x
-                </span>
+              <span className="text-muted-foreground">Dimensions (cm)</span>
+              <div className="mt-2 grid grid-cols-3 gap-1.5">
+                {DIMENSION_FIELDS.map((field) => (
+                  <div key={field} className="space-y-0.5">
+                    <label
+                      htmlFor={`settings-dim-${field}`}
+                      className="block text-[10px] uppercase tracking-wide text-muted-foreground/70"
+                    >
+                      {field}
+                    </label>
+                    <input
+                      id={`settings-dim-${field}`}
+                      type="number"
+                      min={0}
+                      step={0.1}
+                      className="w-full rounded-none border bg-background px-1.5 py-1 text-xs tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
+                      value={drafts[field]}
+                      disabled={!dims}
+                      onFocus={() => {
+                        editingField.current = field;
+                      }}
+                      onChange={(e) =>
+                        setDrafts((d) => ({ ...d, [field]: e.target.value }))
+                      }
+                      onBlur={() => commitDimension(field)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.currentTarget.blur();
+                        }
+                      }}
+                    />
+                  </div>
+                ))}
               </div>
-              <Slider
-                id="settings-scale"
-                className="mt-2"
-                min={0.1}
-                max={5}
-                step={0.01}
-                value={[modelScale]}
-                onValueChange={([value]) => setModelScale(value)}
-                onValueCommit={([value]) => {
-                  const factor = value / lastCommittedScale.current;
-                  lastCommittedScale.current = value;
-                  engine?.scale_mesh(factor);
-                }}
-              />
             </div>
           </div>
         </div>

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "papercraft-editor",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@paperarium/editor", "dev"],
+      "port": 5173
+    }
+  ]
+}

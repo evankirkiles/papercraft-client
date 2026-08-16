@@ -1,3 +1,4 @@
+use bbox::BboxProgram;
 use grid_circle::GridCircleProgram;
 use grid_rect::GridRectProgram;
 use page::PageProgram;
@@ -7,6 +8,7 @@ use tool_translate::ToolTranslateProgram;
 
 use crate::{cache::tool::ToolGPU, gpu};
 
+pub mod bbox;
 pub mod grid_circle;
 pub mod grid_rect;
 pub mod page;
@@ -23,6 +25,7 @@ pub struct OverlayEngine {
     pub page: PageProgram,
     pub grid_circle: GridCircleProgram,
     pub grid_rect: GridRectProgram,
+    pub bbox: BboxProgram,
 }
 
 impl OverlayEngine {
@@ -34,6 +37,7 @@ impl OverlayEngine {
             tool_translate: ToolTranslateProgram::new(ctx),
             grid_circle: GridCircleProgram::new(ctx),
             grid_rect: GridRectProgram::new(ctx),
+            bbox: BboxProgram::new(ctx),
         }
     }
 

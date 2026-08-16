@@ -15,6 +15,11 @@ struct Viewport { position: vec2<f32>, dimensions: vec2<f32> };
 struct Camera { view_proj: mat4x4<f32>, eye: vec4<f32> };
 @group(1) @binding(0) var<uniform> viewport: Viewport;
 @group(1) @binding(1) var<uniform> camera: Camera;
+// Bounds.min.w carries the grid's precomputed fitted radius (see
+// BoundsUniform::from). Cell size is a fixed constant below, not derived from
+// bounds, so the grid always represents the same physical unit size.
+struct Bounds { min: vec4<f32>, max: vec4<f32> };
+@group(2) @binding(0) var<uniform> bounds: Bounds;
 
 struct VertexInput {
    @location(0) offset: vec2<f32>
@@ -29,7 +34,9 @@ struct VertexOutput {
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
 
-    var p = (in.offset * 2 - 1) * 8.0;
+    // The quad must extend past the visible circle (whose edge fades out at
+    // `fade_radius`), so pad it out further than the radius itself.
+    var p = (in.offset * 2 - 1) * (bounds.min.w * 1.6);
     out.world_position = vec3<f32>(p, 0.0);
     out.clip_position = camera.view_proj * vec4<f32>(out.world_position, 1.0);
     return out;
@@ -37,7 +44,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 // Fragment shader
 fn grid(pos: vec3<f32>, scale: f32) -> vec4<f32> {
-    let fade_radius = 5.0;
+    let fade_radius = bounds.min.w;
     var distance = length(pos.xy);
     var fade = smoothstep(fade_radius, 0.0, distance);
     // Scale the world-space position for the grid
@@ -66,5 +73,8 @@ fn grid(pos: vec3<f32>, scale: f32) -> vec4<f32> {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return grid(in.world_position, 2.0);
+    // 1 world unit = 1 cm, so a scale of 1.0 spaces grid lines every
+    // centimeter — matching the cutting viewport's page grid (grid_rect.wgsl)
+    // so both viewports read at the same physical scale.
+    return grid(in.world_position, 1.0);
 }

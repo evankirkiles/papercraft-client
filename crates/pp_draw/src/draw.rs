@@ -15,7 +15,7 @@ impl<'window> Renderer<'window> {
         render_pass: &mut wgpu::RenderPass,
     ) {
         let Renderer { draw_cache, engine_ink, engine_overlay, .. } = &self;
-        engine_overlay.grid_circle.draw(&self.ctx, render_pass);
+        engine_overlay.grid_circle.draw(&self.ctx, draw_cache, render_pass);
         draw_cache.materials.iter().for_each(|(id, mat)| {
             mat.bind(render_pass);
             draw_cache.meshes.values().for_each(|mesh| {
@@ -27,6 +27,7 @@ impl<'window> Renderer<'window> {
             mesh.bind_model(render_pass);
             engine_ink.draw_mesh(&self.ctx, selection_mode, render_pass, mesh, is_xray);
         });
+        engine_overlay.bbox.draw(&self.ctx, render_pass);
         // self.draw_cutting(selection_mode, render_pass);
     }
 
@@ -37,7 +38,7 @@ impl<'window> Renderer<'window> {
         render_pass: &mut wgpu::RenderPass,
     ) {
         let Renderer { draw_cache, engine_ink, engine_overlay, ctx, .. } = &self;
-        engine_overlay.grid_rect.draw(&self.ctx, render_pass);
+        engine_overlay.grid_rect.draw(&self.ctx, &draw_cache.printing, render_pass);
         engine_overlay.page.draw(ctx, render_pass, &draw_cache.printing);
         draw_cache.materials.iter().for_each(|(id, mat)| {
             mat.bind(render_pass);
