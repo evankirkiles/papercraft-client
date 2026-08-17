@@ -94,10 +94,18 @@ impl EventHandler for SelectPaintTool {
                 self.set_radius(self.radius + delta.y * RADIUS_SPEED, ctx.surface_dpi);
                 return Some(Ok(event::EventHandleSuccess::stop_propagation()));
             }
-            // ESC: Leave paint mode
+            // ESC / Enter: Leave paint mode, keeping whatever was painted
             event::UserEvent::KeyboardInput(event::KeyboardInputEvent::Down(
-                keyboard::Key::Named(keyboard::NamedKey::Escape),
+                keyboard::Key::Named(keyboard::NamedKey::Escape | keyboard::NamedKey::Enter),
             )) => {
+                // A stroke still in progress would otherwise lose its undo step
+                self.action = None;
+                if let Some(before) = self.stroke_start.take() {
+                    let after = Box::new(ctx.state.borrow().selection.clone());
+                    ctx.history
+                        .borrow_mut()
+                        .add(pp_core::CommandType::Select(SelectCommand { before, after }));
+                }
                 editor_state.select_tool = SelectTool::Box;
                 return Some(Ok(event::EventHandleSuccess::set_tool(None).mark_dirty()));
             }
