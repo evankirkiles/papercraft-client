@@ -29,6 +29,9 @@ const ORTHO_MIN_ZOOM: f32 = 0.05;
 /// Extra breathing room around the model's bounding sphere when computing
 /// how far out zooming is allowed to go.
 const ORTHO_FIT_MARGIN: f32 = 1.3;
+/// How much farther than the nominal limit the camera may pull back, i.e. the
+/// factor by which the maximum viewable area's half-extent grows.
+const ORTHO_MAX_DISTANCE_SCALE: f32 = 2.0;
 
 impl Camera for OrthographicCamera {
     fn view_proj(&self, dims: Dimensions<f32>) -> cgmath::Matrix4<f32> {
@@ -76,10 +79,12 @@ impl OrthographicCamera {
     }
 
     fn min_zoom_for(fit_radius: f32) -> f32 {
-        if fit_radius <= 0.0 {
-            return ORTHO_MIN_ZOOM;
-        }
-        (1.0 / (fit_radius * ORTHO_FIT_MARGIN)).min(ORTHO_MIN_ZOOM)
+        let nominal = if fit_radius <= 0.0 {
+            ORTHO_MIN_ZOOM
+        } else {
+            (1.0 / (fit_radius * ORTHO_FIT_MARGIN)).min(ORTHO_MIN_ZOOM)
+        };
+        nominal / ORTHO_MAX_DISTANCE_SCALE
     }
 }
 
@@ -89,7 +94,10 @@ mod tests {
 
     #[test]
     fn small_model_keeps_default_min_zoom() {
-        assert_eq!(OrthographicCamera::min_zoom_for(0.5), ORTHO_MIN_ZOOM);
+        assert_eq!(
+            OrthographicCamera::min_zoom_for(0.5),
+            ORTHO_MIN_ZOOM / ORTHO_MAX_DISTANCE_SCALE
+        );
     }
 
     #[test]
