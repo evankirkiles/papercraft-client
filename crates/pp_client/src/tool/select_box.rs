@@ -125,7 +125,7 @@ pub trait MultiselectTool {
         let Some(renderer) = renderer.deref_mut() else {
             return Err(());
         };
-        renderer.select_query(query, Box::new(callback)).map_err(|_| ())
+        renderer.select_query(query, editor_state.is_xray, Box::new(callback)).map_err(|_| ())
     }
 }
 
@@ -142,13 +142,16 @@ impl MultiselectTool for pp_editor::tool::SelectBoxTool {
         let callback = {
             let state = ctx.state.clone();
             let history = ctx.history.clone();
-            let action = self.action;
+            // Holding shift during a box select is purely additive—the "Invert"
+            // (toggle) behavior of a shift-click only applies to click select.
+            let additive = self.action == SelectionActionType::Invert;
+            let action = if additive { SelectionActionType::Select } else { self.action };
             move |area: &SelectionQueryArea, result: &SelectionQueryResult| {
                 let mut state = state.borrow_mut();
                 let prev_state = state.selection.clone();
-                // Actions which are not "Invert" clear the selection state
+                // Additive selections keep the existing selection state
                 // NOTE: This might fit better in a different place
-                if action != SelectionActionType::Invert {
+                if !additive {
                     state.select_all(SelectionActionType::Deselect);
                 }
                 // Collect all the pixels found in the box
@@ -182,7 +185,7 @@ impl MultiselectTool for pp_editor::tool::SelectBoxTool {
         let Some(renderer) = renderer.deref_mut() else {
             return Err(());
         };
-        renderer.select_query(query, Box::new(callback)).map_err(|_| ())
+        renderer.select_query(query, editor_state.is_xray, Box::new(callback)).map_err(|_| ())
     }
 
     fn get_cursor_pos(&self) -> cgmath::Point2<f32> {

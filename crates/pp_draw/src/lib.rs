@@ -231,12 +231,23 @@ impl<'window> Renderer<'window> {
     }
 
     /// Queries the selection manager to prepare the supplied rect.
+    ///
+    /// `is_xray` comes from the caller rather than the cached `select_is_xray`
+    /// so a query made in the same frame the setting was toggled still renders
+    /// under the mode the user is actually looking at.
     pub fn select_query<F: Fn(&SelectionQueryArea, &SelectionQueryResult) + 'static>(
         &mut self,
         area: select::SelectionQueryArea,
+        is_xray: bool,
         callback: Box<F>,
     ) -> Result<(), select::SelectionQueryError> {
-        self.select.query(&self.ctx, &self.draw_cache, area, callback)
+        // `prepare` only sees the toggle once a frame, so drop a buffer captured
+        // under the other mode before it can be reused for this query
+        if is_xray != self.select_is_xray {
+            self.select.invalidate();
+            self.select_is_xray = is_xray;
+        }
+        self.select.query(&self.ctx, &self.draw_cache, area, is_xray, callback)
     }
 
     /// Discards any cached selection buffer so the next query re-renders it.

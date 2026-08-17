@@ -167,6 +167,7 @@ impl SelectManager {
         ctx: &gpu::Context,
         draw_cache: &cache::DrawCache,
         area: SelectionQueryArea,
+        is_xray: bool,
         callback: Box<F>,
     ) -> Result<(), SelectionQueryError> {
         // An empty rect has nothing to read back, and the readback arithmetic
@@ -250,7 +251,7 @@ impl SelectManager {
                 viewport.bind(&mut render_pass);
                 match viewport {
                     ViewportGPU::Folding(_) => {
-                        self.draw_folding(ctx, draw_cache, mask, &mut render_pass)
+                        self.draw_folding(ctx, draw_cache, mask, is_xray, &mut render_pass)
                     }
                     ViewportGPU::Cutting(_) => {
                         self.draw_cutting(ctx, draw_cache, mask, &mut render_pass)

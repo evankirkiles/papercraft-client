@@ -47,7 +47,11 @@ pub(crate) fn capture_select_buffer(
     let mut renderer = ctx.renderer.borrow_mut();
     let Some(renderer) = renderer.deref_mut() else { return };
     renderer.select_invalidate();
-    let _ = renderer.select_query(capture_area(ctx, editor_state), Box::new(|_: &_, _: &_| {}));
+    let _ = renderer.select_query(
+        capture_area(ctx, editor_state),
+        editor_state.is_xray,
+        Box::new(|_: &_, _: &_| {}),
+    );
 }
 
 impl EventHandler for SelectPaintTool {
@@ -139,7 +143,7 @@ impl MultiselectTool for SelectPaintTool {
         let Some(renderer) = renderer.deref_mut() else {
             return Err(());
         };
-        renderer.select_query(query, Box::new(callback)).map_err(|_| ())
+        renderer.select_query(query, editor_state.is_xray, Box::new(callback)).map_err(|_| ())
     }
 
     fn get_cursor_pos(&self) -> cgmath::Point2<f32> {

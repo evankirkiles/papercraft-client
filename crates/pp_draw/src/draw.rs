@@ -58,12 +58,12 @@ impl SelectManager {
         ctx: &gpu::Context,
         draw_cache: &cache::DrawCache,
         mask: SelectionMask,
+        is_xray: bool,
         render_pass: &mut wgpu::RenderPass,
     ) {
-        let xray_mode = false;
         draw_cache.meshes.values().for_each(|mesh| {
             mesh.bind_model(render_pass);
-            self.select_engine.draw_mesh(ctx, render_pass, mesh, mask, xray_mode);
+            self.select_engine.draw_mesh(ctx, render_pass, mesh, mask, is_xray);
         });
     }
 

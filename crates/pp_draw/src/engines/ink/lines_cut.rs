@@ -47,7 +47,7 @@ impl LinesCutProgram {
                 vertex: vertex.clone(),
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
-                    entry_point: Some("fs_main"),
+                    entry_point: Some("fs_cut"),
                     targets: &targets,
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 }),
@@ -72,7 +72,7 @@ impl LinesCutProgram {
                 vertex,
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
-                    entry_point: Some("fs_xray"),
+                    entry_point: Some("fs_cut_xray"),
                     targets: &targets,
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 }),

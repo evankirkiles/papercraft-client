@@ -67,7 +67,11 @@ struct VertexOutput {
     @location(2) @interpolate(flat) select_idx: vec4<u32>,
     @location(3) @interpolate(flat) edge_flags: u32,
     // Total screen-space length of the segment, in pixels
-    @location(4) @interpolate(flat) seg_len: f32
+    @location(4) @interpolate(flat) seg_len: f32,
+    // The wireframe color of the edge, drawn as a thin core inside thick lines
+    @location(5) inner_color: vec4<f32>,
+    // Position across the width of the line, from 0.0 to 1.0
+    @location(6) cross: f32
 };
 
 // Edge flags
@@ -119,6 +123,7 @@ fn _vs_color_thick(in: VertexInput, _out: VertexOutput) -> VertexOutput {
 // Calculates the clip position of edge vertices based on the width of the line
 fn _vs_clip_pos(in: VertexInput, _out: VertexOutput, size: f32) -> VertexOutput {
     var out = _out;
+    out.cross = in.offset.y;
 
     // Find screen-space positions of each vertex
     var clip_v0 = camera.view_proj * piece.affine * vec4<f32>(in.v0_pos, 1.0);
@@ -153,6 +158,7 @@ fn _vs_clip_pos(in: VertexInput, _out: VertexOutput, size: f32) -> VertexOutput 
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     out = _vs_color(in, out);
+    out.inner_color = out.color;
     out = _vs_clip_pos(in, out, theme.sizes.line_width);
     return out;
 }
@@ -161,6 +167,10 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 @vertex
 fn vs_cut(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
+    // The wireframe color is kept around so the thick line can draw it as a thin
+    // core, keeping the edge's select status visible underneath the annotation.
+    out = _vs_color(in, out);
+    out.inner_color = out.color;
     out = _vs_color_thick(in, out);
     out = _vs_clip_pos(in, out, theme.sizes.line_width_thick);
     return out;
@@ -178,7 +188,29 @@ fn fs_xray(in: VertexOutput) -> @location(0) vec4<f32> {
     return in.color * vec4<f32>(1.0, 1.0, 1.0, 0.3);
 }
 
-// [FS.3] Select index rendering
+// Blends the thin wireframe color into the center of a thick line, so that the
+// select status of a cut / boundary edge stays readable.
+fn _fs_cut_color(in: VertexOutput) -> vec4<f32> {
+    let inner = 0.5 * theme.sizes.line_width / theme.sizes.line_width_thick;
+    if (abs(in.cross - 0.5) < inner) {
+      return in.inner_color;
+    }
+    return in.color;
+}
+
+// [FS.3] Thick line rendering, with the wireframe color as an inner line
+@fragment
+fn fs_cut(in: VertexOutput) -> @location(0) vec4<f32> {
+    return _fs_cut_color(in);
+}
+
+// [FS.4] Thick line X-Ray rendering
+@fragment
+fn fs_cut_xray(in: VertexOutput) -> @location(0) vec4<f32> {
+    return _fs_cut_color(in) * vec4<f32>(1.0, 1.0, 1.0, 0.3);
+}
+
+// [FS.5] Select index rendering
 @fragment
 fn fs_select(in: VertexOutput) -> @location(0) vec4<u32> {
     return in.select_idx;
@@ -237,7 +269,7 @@ fn _fold_visible(flags: u32, t: f32, seg_len: f32) -> bool {
     return false;
 }
 
-// [FS.4] Fold-annotated rendering, for the piece / cutting view
+// [FS.6] Fold-annotated rendering, for the piece / cutting view
 @fragment
 fn fs_fold(in: VertexOutput) -> @location(0) vec4<f32> {
     if (!_fold_visible(in.edge_flags, in.dash_t, in.seg_len)) { discard; }
