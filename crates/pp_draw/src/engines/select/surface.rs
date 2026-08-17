@@ -1,5 +1,5 @@
 use crate::cache;
-use crate::engines::ink::DepthBiasLayer;
+use crate::engines::ink::DepthClass;
 use crate::gpu;
 use crate::select;
 
@@ -20,7 +20,7 @@ impl SurfaceProgram {
                     module: &shader,
                     entry_point: Some("vs_main"),
                     buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_SURFACE,
-                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    compilation_options: DepthClass::Surface.compilation_options(),
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
@@ -46,10 +46,7 @@ impl SurfaceProgram {
                     depth_write_enabled: true,
                     depth_compare: wgpu::CompareFunction::LessEqual,
                     stencil: wgpu::StencilState::default(),
-                    bias: wgpu::DepthBiasState {
-                        constant: DepthBiasLayer::BackgroundBottom as i32,
-                        ..Default::default()
-                    },
+                    bias: wgpu::DepthBiasState::default(),
                 }),
                 multisample: wgpu::MultisampleState {
                     count: 1,

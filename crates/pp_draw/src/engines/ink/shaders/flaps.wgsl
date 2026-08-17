@@ -15,8 +15,40 @@ struct Viewport { position: vec2<f32>, dimensions: vec2<f32> };
 struct Camera { view_proj: mat4x4<f32>, eye: vec4<f32> };
 @group(1) @binding(0) var<uniform> viewport: Viewport;
 @group(1) @binding(1) var<uniform> camera: Camera;
-struct Piece { affine: mat4x4<f32> };
+struct Piece { affine: mat4x4<f32>, depth_slot: f32 };
 @group(2) @binding(0) var<uniform> piece: Piece;
+
+// Where this pipeline's geometry sits in the stack of coplanar geometry, as a
+// `DepthClass` discriminant. Set per-pipeline; see `engines::ink::DepthClass`.
+override depth_class: f32 = 0.0;
+
+// How far one class lifts geometry toward the eye, as a fraction of that
+// geometry's own distance from the camera. Being *relative* is the point: it
+// holds at any zoom and on any model scale.
+const DEPTH_CLASS_STEP: f32 = 1.0 / 4096.0;
+
+// How much of a class step a piece's slot may use. Well under 1, so a slot only
+// ever breaks ties inside its own class and can't promote a piece into the next.
+const DEPTH_SLOT_SPAN: f32 = 0.5;
+
+// Lifts a projected position toward the viewer by its class, so that coplanar
+// geometry resolves by what it *is* rather than by draw order or by whichever
+// polygon happened to win the depth test.
+//
+// The lift is a fixed fraction of view depth, not a fixed amount of NDC depth.
+// NDC depth goes as ~1/z, so with this projection (near 0.1, far 100+) the whole
+// model lands in the top few percent of the depth range: a constant NDC offset
+// that looks tiny is in fact a large part of the model's depth extent, and it
+// stays constant as the camera dollies out while that extent keeps shrinking —
+// so far-side geometry punches through. `1 - ndc_z` is proportional to
+// `near / z_view`, so scaling by it turns the offset back into a constant
+// relative step, small against real depth differences at every distance.
+fn _apply_depth_offset(clip: vec4<f32>) -> vec4<f32> {
+    let ndc_z = clip.z / clip.w;
+    let units = depth_class + piece.depth_slot * DEPTH_SLOT_SPAN;
+    let offset = units * DEPTH_CLASS_STEP * max(1.0 - ndc_z, 0.0);
+    return vec4<f32>(clip.xy, (ndc_z - offset) * clip.w, clip.w);
+}
 
 struct VertexInput {
     @location(0) offset: vec2<f32>,
@@ -121,7 +153,8 @@ fn _vs_clip_pos(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     let base_pos = mix(corners[0], corners[1], in.offset.x);
     let top_pos = mix(corners[3], corners[2], in.offset.x);
     let pos = mix(base_pos, top_pos, in.offset.y);
-    out.clip_position = camera.view_proj * piece.affine * vec4<f32>(pos, 1.0);
+    out.clip_position =
+        _apply_depth_offset(camera.view_proj * piece.affine * vec4<f32>(pos, 1.0));
 
     // If flap doesn't exist, push it offscreen to avoid rasterization
     if (bool(in.flap_flags ^ F_FLAG_EXISTS)) {
@@ -150,12 +183,10 @@ fn _vs_clip_pos_edge(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     // Get the current vertex and the next vertex
     let p0 = corners[side];
     let p1 = corners[(side + 1u) % 4u];
-    let world_p0 = p0 + normalize(camera.eye.xyz - p0) * camera.eye.w * 0.001;
-    let world_p1 = p1 + normalize(camera.eye.xyz - p1) * camera.eye.w * 0.001;
 
     // Find screen-space positions of each vertex
-    var clip_v0 = camera.view_proj * piece.affine * vec4<f32>(world_p0, 1.0);
-    var clip_v1 = camera.view_proj * piece.affine * vec4<f32>(world_p1, 1.0);
+    var clip_v0 = camera.view_proj * piece.affine * vec4<f32>(p0, 1.0);
+    var clip_v1 = camera.view_proj * piece.affine * vec4<f32>(p1, 1.0);
     var screen_v0 = viewport.dimensions * (0.5 * clip_v0.xy / clip_v0.w + 0.5);
     var screen_v1 = viewport.dimensions * (0.5 * clip_v1.xy / clip_v1.w + 0.5);
 
@@ -164,7 +195,8 @@ fn _vs_clip_pos_edge(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     var basis_y = normalize(vec2<f32>(-basis_x.y, basis_x.x));
     var pt = screen_v0 + in.offset.x * basis_x + (0.5 - in.offset.y) * basis_y * theme.sizes.line_width;
     var clip = mix(clip_v0, clip_v1, in.offset.x);
-    out.clip_position = vec4<f32>(clip.w * (2.0 * pt / viewport.dimensions - 1.0), clip.z, clip.w);
+    out.clip_position = _apply_depth_offset(
+        vec4<f32>(clip.w * (2.0 * pt / viewport.dimensions - 1.0), clip.z, clip.w));
 
     return out;
 }

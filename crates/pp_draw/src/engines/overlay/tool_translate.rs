@@ -1,5 +1,4 @@
 use crate::cache::tool::translate::TranslateToolGPU;
-use crate::engines::ink::DepthBiasLayer;
 use crate::gpu;
 
 #[derive(Debug)]
@@ -61,12 +60,7 @@ impl ToolTranslateProgram {
                     depth_write_enabled: false,
                     depth_compare: wgpu::CompareFunction::Less,
                     stencil: wgpu::StencilState::default(),
-                    bias: {
-                        wgpu::DepthBiasState {
-                            constant: DepthBiasLayer::BackgroundBottom as i32,
-                            ..Default::default()
-                        }
-                    },
+                    bias: wgpu::DepthBiasState::default(),
                 }),
                 multisample: wgpu::MultisampleState {
                     count: (&ctx.settings.msaa_level).into(),

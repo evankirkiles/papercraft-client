@@ -1,7 +1,7 @@
 use crate::cache;
 use crate::gpu;
 
-use super::DepthBiasLayer;
+use super::DepthClass;
 
 #[derive(Debug)]
 pub(super) struct FlapsProgram {
@@ -19,7 +19,7 @@ impl FlapsProgram {
                     module: &shader,
                     entry_point: Some("vs_main"),
                     buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_FLAPS_INSTANCED,
-                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    compilation_options: DepthClass::FlapFill.compilation_options(),
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
@@ -45,11 +45,7 @@ impl FlapsProgram {
                     depth_write_enabled: true,
                     depth_compare: wgpu::CompareFunction::Less,
                     stencil: wgpu::StencilState::default(),
-                    bias: wgpu::DepthBiasState {
-                        constant: DepthBiasLayer::BackgroundMiddle as i32,
-                        slope_scale: 0.07,
-                        ..Default::default()
-                    },
+                    bias: wgpu::DepthBiasState::default(),
                 }),
                 multisample: wgpu::MultisampleState {
                     count: (&ctx.settings.msaa_level).into(),

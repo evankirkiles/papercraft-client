@@ -1,6 +1,6 @@
 use pp_core::bounds::Aabb3;
 
-use crate::{engines::ink::DepthBiasLayer, gpu};
+use crate::gpu;
 
 /// One edge of the wireframe box: its two world-space endpoints.
 #[repr(C)]
@@ -97,11 +97,7 @@ impl BboxProgram {
                     depth_write_enabled: false,
                     depth_compare: wgpu::CompareFunction::Less,
                     stencil: wgpu::StencilState::default(),
-                    bias: wgpu::DepthBiasState {
-                        constant: DepthBiasLayer::ForegroundBottom as i32,
-                        slope_scale: 0.03,
-                        ..Default::default()
-                    },
+                    bias: wgpu::DepthBiasState { slope_scale: 0.03, ..Default::default() },
                 }),
                 multiview: None,
                 cache: None,

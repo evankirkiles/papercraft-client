@@ -1,7 +1,7 @@
 use crate::cache;
 use crate::gpu;
 
-use super::DepthBiasLayer;
+use super::DepthClass;
 
 #[derive(Debug)]
 pub struct TrisProgram {
@@ -17,7 +17,7 @@ impl TrisProgram {
             module: &shader,
             entry_point: Some("vs_main"),
             buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_TRIS,
-            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            compilation_options: DepthClass::FaceOverlay.compilation_options(),
         };
         let targets = [Some(wgpu::ColorTargetState {
             format: ctx.view_format,
@@ -44,11 +44,6 @@ impl TrisProgram {
             mask: !0,
             alpha_to_coverage_enabled: false,
         };
-        let bias = wgpu::DepthBiasState {
-            constant: DepthBiasLayer::Default as i32,
-            slope_scale: 0.05,
-            ..Default::default()
-        };
         let multiview = None;
         let cache = None;
 
@@ -67,7 +62,7 @@ impl TrisProgram {
                     depth_write_enabled: true,
                     depth_compare: wgpu::CompareFunction::Less,
                     stencil: wgpu::StencilState::default(),
-                    bias,
+                    bias: wgpu::DepthBiasState::default(),
                 }),
             }),
             pipeline_xray: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -84,7 +79,7 @@ impl TrisProgram {
                     depth_write_enabled: false,
                     depth_compare: wgpu::CompareFunction::Greater,
                     stencil: wgpu::StencilState::default(),
-                    bias,
+                    bias: wgpu::DepthBiasState::default(),
                 }),
             }),
         }

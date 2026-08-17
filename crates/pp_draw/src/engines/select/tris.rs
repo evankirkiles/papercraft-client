@@ -1,4 +1,5 @@
 use crate::cache;
+use crate::engines::ink::DepthClass;
 use crate::gpu;
 use crate::select;
 
@@ -19,7 +20,7 @@ impl TrisProgram {
                     module: &shader,
                     entry_point: Some("vs_main"),
                     buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_TRIS,
-                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    compilation_options: DepthClass::FaceOverlay.compilation_options(),
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,

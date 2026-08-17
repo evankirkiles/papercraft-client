@@ -15,8 +15,40 @@ struct Viewport { position: vec2<f32>, dimensions: vec2<f32> };
 struct Camera { view_proj: mat4x4<f32>, eye: vec4<f32> };
 @group(1) @binding(0) var<uniform> viewport: Viewport;
 @group(1) @binding(1) var<uniform> camera: Camera;
-struct Piece { affine: mat4x4<f32> };
+struct Piece { affine: mat4x4<f32>, depth_slot: f32 };
 @group(2) @binding(0) var<uniform> piece: Piece;
+
+// Where this pipeline's geometry sits in the stack of coplanar geometry, as a
+// `DepthClass` discriminant. Set per-pipeline; see `engines::ink::DepthClass`.
+override depth_class: f32 = 0.0;
+
+// How far one class lifts geometry toward the eye, as a fraction of that
+// geometry's own distance from the camera. Being *relative* is the point: it
+// holds at any zoom and on any model scale.
+const DEPTH_CLASS_STEP: f32 = 1.0 / 4096.0;
+
+// How much of a class step a piece's slot may use. Well under 1, so a slot only
+// ever breaks ties inside its own class and can't promote a piece into the next.
+const DEPTH_SLOT_SPAN: f32 = 0.5;
+
+// Lifts a projected position toward the viewer by its class, so that coplanar
+// geometry resolves by what it *is* rather than by draw order or by whichever
+// polygon happened to win the depth test.
+//
+// The lift is a fixed fraction of view depth, not a fixed amount of NDC depth.
+// NDC depth goes as ~1/z, so with this projection (near 0.1, far 100+) the whole
+// model lands in the top few percent of the depth range: a constant NDC offset
+// that looks tiny is in fact a large part of the model's depth extent, and it
+// stays constant as the camera dollies out while that extent keeps shrinking —
+// so far-side geometry punches through. `1 - ndc_z` is proportional to
+// `near / z_view`, so scaling by it turns the offset back into a constant
+// relative step, small against real depth differences at every distance.
+fn _apply_depth_offset(clip: vec4<f32>) -> vec4<f32> {
+    let ndc_z = clip.z / clip.w;
+    let units = depth_class + piece.depth_slot * DEPTH_SLOT_SPAN;
+    let offset = units * DEPTH_CLASS_STEP * max(1.0 - ndc_z, 0.0);
+    return vec4<f32>(clip.xy, (ndc_z - offset) * clip.w, clip.w);
+}
 
 struct VertexInput { 
     @location(0) offset: vec2<f32>,
@@ -56,11 +88,10 @@ fn _vs_color(in: VertexInput, _out: VertexOutput) -> VertexOutput {
 // transformation (e.g. to use for pieces).
 fn _vs_clip_pos(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     var out = _out;
-    // Move points slightly towards camera (by 0.01 in world space)
-    var pos = in.pos + normalize(camera.eye.xyz - in.pos) * camera.eye.w * 0.001;
-    var clip_center = camera.view_proj * piece.affine * vec4<f32>(pos, 1.0);
+    var clip_center = camera.view_proj * piece.affine * vec4<f32>(in.pos, 1.0);
     var ndc_offset = theme.sizes.point_size * (0.5 - in.offset) / viewport.dimensions;
-    out.clip_position = (clip_center + vec4<f32>(ndc_offset * clip_center.w, 0.0, 0.0));
+    out.clip_position =
+        _apply_depth_offset(clip_center + vec4<f32>(ndc_offset * clip_center.w, 0.0, 0.0));
     return out;
 }
 

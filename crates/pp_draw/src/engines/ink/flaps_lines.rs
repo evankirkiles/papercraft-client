@@ -17,7 +17,7 @@ impl FlapsLinesProgram {
                     module: &shader,
                     entry_point: Some("vs_edge"),
                     buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_FLAPS_INSTANCED,
-                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    compilation_options: super::DepthClass::FlapOutline.compilation_options(),
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
@@ -43,14 +43,7 @@ impl FlapsLinesProgram {
                     depth_write_enabled: true,
                     depth_compare: wgpu::CompareFunction::Less,
                     stencil: wgpu::StencilState::default(),
-                    // Same layer as `ink3.lines`, so a flap outline reads with
-                    // the same weight as an edge line instead of being partly
-                    // eaten by the flap fill sitting one layer behind it.
-                    bias: wgpu::DepthBiasState {
-                        constant: super::DepthBiasLayer::ForegroundMiddle as i32,
-                        slope_scale: 0.03,
-                        ..Default::default()
-                    },
+                    bias: wgpu::DepthBiasState::default(),
                 }),
                 multisample: wgpu::MultisampleState {
                     count: (&ctx.settings.msaa_level).into(),

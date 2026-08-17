@@ -3,7 +3,7 @@ use pp_core::MaterialId;
 use crate::cache;
 use crate::gpu;
 
-use super::DepthBiasLayer;
+use super::DepthClass;
 
 /// `SurfaceProgram` renders possibly textured faces.
 #[derive(Debug)]
@@ -22,7 +22,7 @@ impl SurfaceProgram {
                     module: &shader,
                     entry_point: Some("vs_main"),
                     buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_SURFACE,
-                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    compilation_options: DepthClass::Surface.compilation_options(),
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
@@ -48,11 +48,7 @@ impl SurfaceProgram {
                     depth_write_enabled: true,
                     depth_compare: wgpu::CompareFunction::Less,
                     stencil: wgpu::StencilState::default(),
-                    bias: wgpu::DepthBiasState {
-                        constant: DepthBiasLayer::BackgroundTop as i32,
-                        slope_scale: 0.05,
-                        ..Default::default()
-                    },
+                    bias: wgpu::DepthBiasState::default(),
                 }),
                 multisample: wgpu::MultisampleState {
                     count: (&ctx.settings.msaa_level).into(),

@@ -1,3 +1,4 @@
+use crate::engines::ink::DepthClass;
 use crate::gpu;
 use crate::{cache, select};
 
@@ -18,7 +19,7 @@ impl PointsProgram {
                     module: &shader,
                     entry_point: Some("vs_main"),
                     buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_EDIT_POINTS_INSTANCED,
-                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    compilation_options: DepthClass::Vertex.compilation_options(),
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,

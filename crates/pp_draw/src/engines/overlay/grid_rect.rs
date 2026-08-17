@@ -1,4 +1,4 @@
-use crate::{cache::print::PrintLayoutGPU, engines::ink::DepthBiasLayer, gpu};
+use crate::{cache::print::PrintLayoutGPU, gpu};
 
 #[derive(Debug)]
 pub struct GridRectProgram {
@@ -64,11 +64,7 @@ impl GridRectProgram {
                     depth_write_enabled: false,
                     depth_compare: wgpu::CompareFunction::LessEqual,
                     stencil: wgpu::StencilState::default(),
-                    bias: wgpu::DepthBiasState {
-                        constant: DepthBiasLayer::BackgroundBottom as i32,
-                        slope_scale: 0.9,
-                        ..Default::default()
-                    },
+                    bias: wgpu::DepthBiasState { slope_scale: 0.9, ..Default::default() },
                 }),
                 multiview: None,
                 cache: None,

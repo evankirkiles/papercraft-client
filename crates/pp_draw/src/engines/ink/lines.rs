@@ -1,6 +1,8 @@
 use crate::cache;
 use crate::gpu;
 
+use super::DepthClass;
+
 #[derive(Debug)]
 pub(super) struct LinesProgram {
     pipeline: wgpu::RenderPipeline,
@@ -16,7 +18,7 @@ impl LinesProgram {
             module: &shader,
             entry_point: Some("vs_main"),
             buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_EDIT_LINES_INSTANCED,
-            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            compilation_options: DepthClass::FoldLine.compilation_options(),
         };
         let targets = [Some(wgpu::ColorTargetState {
             format: ctx.view_format,
@@ -36,11 +38,6 @@ impl LinesProgram {
             count: (&ctx.settings.msaa_level).into(),
             mask: !0,
             alpha_to_coverage_enabled: false,
-        };
-        let bias = wgpu::DepthBiasState {
-            constant: super::DepthBiasLayer::ForegroundMiddle as i32,
-            slope_scale: 0.03,
-            ..Default::default()
         };
         let multiview = None;
         let cache = None;
@@ -65,7 +62,7 @@ impl LinesProgram {
                     depth_write_enabled: true,
                     depth_compare: wgpu::CompareFunction::Less,
                     stencil: wgpu::StencilState::default(),
-                    bias,
+                    bias: wgpu::DepthBiasState::default(),
                 }),
             }),
             // Annotates each line with its fold type (mountain / valley / none)
@@ -90,7 +87,7 @@ impl LinesProgram {
                     depth_write_enabled: true,
                     depth_compare: wgpu::CompareFunction::Less,
                     stencil: wgpu::StencilState::default(),
-                    bias,
+                    bias: wgpu::DepthBiasState::default(),
                 }),
             }),
             // "XRay" depth tests for all the *occluded* lines in the scene. This allows
@@ -114,7 +111,7 @@ impl LinesProgram {
                     depth_write_enabled: false,
                     depth_compare: wgpu::CompareFunction::Greater,
                     stencil: wgpu::StencilState::default(),
-                    bias,
+                    bias: wgpu::DepthBiasState::default(),
                 }),
             }),
         }

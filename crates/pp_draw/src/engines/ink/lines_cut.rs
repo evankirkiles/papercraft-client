@@ -1,6 +1,8 @@
 use crate::cache;
 use crate::gpu;
 
+use super::DepthClass;
+
 #[derive(Debug)]
 pub(super) struct LinesCutProgram {
     pipeline: wgpu::RenderPipeline,
@@ -15,7 +17,7 @@ impl LinesCutProgram {
             module: &shader,
             entry_point: Some("vs_cut"),
             buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_EDIT_LINES_INSTANCED,
-            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            compilation_options: DepthClass::CutLine.compilation_options(),
         };
         let targets = [Some(wgpu::ColorTargetState {
             format: ctx.view_format,
@@ -35,11 +37,6 @@ impl LinesCutProgram {
             count: (&ctx.settings.msaa_level).into(),
             mask: !0,
             alpha_to_coverage_enabled: false,
-        };
-        let bias = wgpu::DepthBiasState {
-            constant: super::DepthBiasLayer::ForegroundBottom as i32,
-            slope_scale: 0.04,
-            ..Default::default()
         };
         let multiview = None;
         let cache = None;
@@ -64,7 +61,7 @@ impl LinesCutProgram {
                     depth_write_enabled: true,
                     depth_compare: wgpu::CompareFunction::Less,
                     stencil: wgpu::StencilState::default(),
-                    bias,
+                    bias: wgpu::DepthBiasState::default(),
                 }),
             }),
             // "XRay" depth tests for all the *occluded* lines in the scene. This allows
@@ -88,7 +85,7 @@ impl LinesCutProgram {
                     depth_write_enabled: false,
                     depth_compare: wgpu::CompareFunction::Greater,
                     stencil: wgpu::StencilState::default(),
-                    bias,
+                    bias: wgpu::DepthBiasState::default(),
                 }),
             }),
         }

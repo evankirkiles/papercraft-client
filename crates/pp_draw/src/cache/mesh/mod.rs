@@ -6,7 +6,7 @@ use pp_core::mesh::{Mesh, MeshElementType};
 use pp_core::select::SelectionState;
 use pp_core::{MaterialId, MeshId};
 use slotmap::SecondaryMap;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ops::Range;
 
 mod extract;
@@ -75,8 +75,9 @@ pub struct MeshGPU {
     vbo_pieces: MeshGPUVBOs,
 
     // Pieces own their own uniform buffers and the ranges of their vertices
-    // in the piece VBOs.
-    pieces: HashMap<id::FaceId, PieceGPU>,
+    // in the piece VBOs. Ordered, so that both draw order and the depth slot a
+    // piece is assigned stay stable from frame to frame.
+    pieces: BTreeMap<id::FaceId, PieceGPU>,
 
     /// The mesh's own model transform (translate + rotate), bound in place of
     /// the shared identity uniform when drawing the whole mesh (never used
@@ -98,7 +99,7 @@ impl MeshGPU {
             is_dirty: true,
             vbo: MeshGPUVBOs::new(&format!("{mesh_lbl}.vbo)")),
             vbo_pieces: MeshGPUVBOs::new(&format!("{mesh_lbl}.vbo_pieces)")),
-            pieces: HashMap::new(),
+            pieces: BTreeMap::new(),
             mat_ranges: SecondaryMap::new(),
             model: PieceGPU::new(ctx, &format!("{mesh_lbl}.model")),
         }
@@ -210,13 +211,16 @@ impl MeshGPU {
             }
         }
 
-        // If piece transforms have changed, make sure we sync all of them
+        // If piece transforms have changed, make sure we sync all of them.
+        // Iterate the GPU-side pieces rather than the mesh's: those are the
+        // live ones (the mesh keeps deleted pieces around for undo), and their
+        // ordinal is the depth slot that separates coplanar pieces. Adding or
+        // removing a piece reshuffles every slot, which `sync` picks up.
         if elem_dirty.intersects(MeshElementType::PIECES) {
-            mesh.pieces.iter_mut().for_each(|(p_id, piece)| {
-                if piece.elem_dirty {
-                    if let Some(piece_gpu) = self.pieces.get_mut(&p_id) {
-                        piece_gpu.sync(ctx, piece)
-                    }
+            let n_pieces = self.pieces.len().max(1) as f32;
+            self.pieces.iter_mut().enumerate().for_each(|(i, (p_id, piece_gpu))| {
+                if let Some(piece) = mesh.pieces.get_mut(p_id) {
+                    piece_gpu.sync(ctx, piece, i as f32 / n_pieces);
                     piece.elem_dirty = false;
                 }
             })

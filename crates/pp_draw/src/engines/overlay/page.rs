@@ -1,6 +1,5 @@
 use crate::{
     cache::print::{PageVertexAttributes, PrintLayoutGPU},
-    engines::ink::DepthBiasLayer,
     gpu,
 };
 
@@ -77,10 +76,7 @@ impl PageProgram {
                 depth_write_enabled: false,
                 depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState {
-                    constant: DepthBiasLayer::BackgroundBottom as i32,
-                    ..Default::default()
-                },
+                bias: wgpu::DepthBiasState::default(),
             }),
             multiview: None,
             cache: None,

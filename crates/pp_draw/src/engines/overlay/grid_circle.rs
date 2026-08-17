@@ -1,4 +1,4 @@
-use crate::{cache, engines::ink::DepthBiasLayer, gpu};
+use crate::{cache, gpu};
 
 #[derive(Debug)]
 pub struct GridCircleProgram {
@@ -56,11 +56,10 @@ impl GridCircleProgram {
                     depth_write_enabled: false,
                     depth_compare: wgpu::CompareFunction::LessEqual,
                     stencil: wgpu::StencilState::default(),
-                    bias: wgpu::DepthBiasState {
-                        constant: DepthBiasLayer::BackgroundBottom as i32,
-                        slope_scale: 0.9,
-                        ..Default::default()
-                    },
+                    // A ground plane seen at a grazing angle is the one place
+                    // slope-scaled offset earns its keep; the constant term is a
+                    // no-op on a float depth target, so it's gone.
+                    bias: wgpu::DepthBiasState { slope_scale: 0.9, ..Default::default() },
                 }),
                 multiview: None,
                 cache: None,

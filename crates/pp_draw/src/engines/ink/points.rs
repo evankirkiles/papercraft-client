@@ -1,6 +1,8 @@
 use crate::cache;
 use crate::gpu;
 
+use super::DepthClass;
+
 #[derive(Debug)]
 pub struct PointsProgram {
     pipeline: wgpu::RenderPipeline,
@@ -15,7 +17,7 @@ impl PointsProgram {
             module: &shader,
             entry_point: Some("vs_main"),
             buffers: cache::MeshGPU::BATCH_BUFFER_LAYOUT_EDIT_POINTS_INSTANCED,
-            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            compilation_options: DepthClass::Vertex.compilation_options(),
         };
         let targets = [Some(wgpu::ColorTargetState {
             format: ctx.view_format,
@@ -35,11 +37,6 @@ impl PointsProgram {
             count: (&ctx.settings.msaa_level).into(),
             mask: !0,
             alpha_to_coverage_enabled: false,
-        };
-        let bias = wgpu::DepthBiasState {
-            constant: super::DepthBiasLayer::ForegroundTop as i32,
-            slope_scale: 0.02,
-            ..Default::default()
         };
         let multiview = None;
         let cache = None;
@@ -64,7 +61,7 @@ impl PointsProgram {
                     depth_write_enabled: true,
                     depth_compare: wgpu::CompareFunction::Less,
                     stencil: wgpu::StencilState::default(),
-                    bias,
+                    bias: wgpu::DepthBiasState::default(),
                 }),
             }),
             pipeline_xray: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -86,7 +83,7 @@ impl PointsProgram {
                     depth_write_enabled: false,
                     depth_compare: wgpu::CompareFunction::Greater,
                     stencil: wgpu::StencilState::default(),
-                    bias,
+                    bias: wgpu::DepthBiasState::default(),
                 }),
             }),
         }
