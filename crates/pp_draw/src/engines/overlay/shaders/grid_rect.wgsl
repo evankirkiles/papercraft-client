@@ -19,7 +19,7 @@ struct PageLayout {
   margin_start: vec2<f32>,
   margin_end: vec2<f32>,
   dimensions: vec2<f32>,
-  padding: vec2<f32>,
+  grid_dimensions: vec2<f32>,
 };
 @group(2) @binding(0) var<uniform> page: PageLayout;
 
@@ -37,9 +37,10 @@ struct VertexOutput {
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
 
-    // Pad the grid out past the page's own edges.
+    // Pad the grid out past the outer edges of the whole page grid. Has to
+    // leave room for the longest fade the fragment stage draws, AXIS_FADE_RADIUS.
     let PAD = 5.0;
-    let DIMS = page.dimensions;
+    let DIMS = page.dimensions * page.grid_dimensions;
 
     var p = ((in.offset * (DIMS + PAD * 2)) - PAD) * vec2<f32>(1.0, -1.0);
     out.world_position = vec3<f32>(p, 0.0);
@@ -47,13 +48,16 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     return out;
 }
 
+// How far past the edges of the page grid the grid lines keep going before
+// they fade out, and the longer run the axes get. Both have to stay inside the
+// PAD the vertex stage builds the quad with.
+const GRID_FADE_RADIUS: f32 = 1.5;
+const AXIS_FADE_RADIUS: f32 = 4.0;
+
 // Fragment shader
 fn grid(pos: vec3<f32>, scale: f32) -> vec4<f32> {
-    let width = page.dimensions.x;
-    let height = page.dimensions.y;
-    let fade_radius = 1.5;
-    var distance = length(pos.xy - clamp(pos.xy, vec2<f32>(0, -1 * height), vec2<f32>(width, 0)));
-    var fade = smoothstep(fade_radius, 0.0, distance);
+    let width = page.dimensions.x * page.grid_dimensions.x;
+    let height = page.dimensions.y * page.grid_dimensions.y;
     // Scale the world-space position for the grid
     let coord = pos.xy * scale;
     // Compute screen-space derivatives for consistent line thickness
@@ -69,14 +73,26 @@ fn grid(pos: vec3<f32>, scale: f32) -> vec4<f32> {
     var axis_color = vec3<f32>(0.1, 0.1, 0.1);
 
     // Highlight axes
-    if abs(coord.y) < 0.05 { // X axis
+    let is_x_axis = abs(coord.y) < 0.05;
+    let is_y_axis = abs(coord.x) < 0.05;
+    if is_x_axis {
         axis_color = theme.colors.grid_axis_x.xyz;
-    } else if abs(coord.x) < 0.05 { // Y Axis
-        axis_color = theme.colors.grid_axis_y.xyz;;
+    } else if is_y_axis {
+        axis_color = theme.colors.grid_axis_y.xyz;
     // Highlight bounds (red for Y=0 (X axis), green for X=0 (Y axis))
     } else if abs(coord.y + height * scale) < 0.05 || abs(coord.x - width * scale) < 0.05 {
         axis_color = theme.colors.grid.xyz;
     }
+
+    // Fade the ink out past the edges of the pages. The axes get a longer run
+    // than the grid lines, but only outward into the printable quadrant, so
+    // they read as the quadrant's edges rather than as a cross through it.
+    let dist = length(pos.xy - clamp(pos.xy, vec2<f32>(0, -1 * height), vec2<f32>(width, 0)));
+    var fade_radius = GRID_FADE_RADIUS;
+    if (is_x_axis && pos.x > width) || (is_y_axis && pos.y < -1 * height) {
+        fade_radius = AXIS_FADE_RADIUS;
+    }
+    let fade = smoothstep(fade_radius, 0.0, dist);
     return vec4<f32>(axis_color, fade - min(line, fade));
 }
 

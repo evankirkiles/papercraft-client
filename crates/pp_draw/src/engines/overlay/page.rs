@@ -6,6 +6,7 @@ use crate::{
 #[derive(Debug)]
 pub struct PageProgram {
     pipeline: wgpu::RenderPipeline,
+    pipeline_outline: wgpu::RenderPipeline,
     pipeline_margins: wgpu::RenderPipeline,
 }
 
@@ -84,6 +85,17 @@ impl PageProgram {
 
         Self {
             pipeline: ctx.device.create_render_pipeline(&descriptor.clone()),
+            pipeline_outline: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                vertex: wgpu::VertexState {
+                    entry_point: Some("vs_outline"),
+                    ..vertex_state.clone()
+                },
+                fragment: Some(wgpu::FragmentState {
+                    entry_point: Some("fs_outline"),
+                    ..fragment_state.clone()
+                }),
+                ..descriptor.clone()
+            }),
             pipeline_margins: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 vertex: wgpu::VertexState { entry_point: Some("vs_margins"), ..vertex_state },
                 fragment: Some(wgpu::FragmentState {
@@ -110,6 +122,8 @@ impl PageProgram {
         render_pass.set_pipeline(&self.pipeline);
         render_pass.draw(0..4, 0..print.pages.len);
         render_pass.set_vertex_buffer(1, ctx.shared.buffers.rect_outline.slice(..));
+        render_pass.set_pipeline(&self.pipeline_outline);
+        render_pass.draw(0..24, 0..print.pages.len);
         render_pass.set_pipeline(&self.pipeline_margins);
         render_pass.draw(0..24, 0..print.pages.len);
     }

@@ -108,4 +108,12 @@ impl State {
     pub fn world_bounds(&self) -> bounds::Aabb3 {
         self.meshes.values().fold(bounds::Aabb3::EMPTY, |acc, m| acc.union(&m.world_aabb()))
     }
+
+    /// Grows or shrinks the printable page grid so that every piece in the
+    /// printable quadrant sits over a page. Cheap to call every frame: it only
+    /// marks the layout dirty when the number of pages actually changes.
+    pub fn fit_pages_to_pieces(&mut self) {
+        let bounds = self.piece_bounds_in_print_quadrant();
+        self.printing.fit_to_bounds(&bounds);
+    }
 }

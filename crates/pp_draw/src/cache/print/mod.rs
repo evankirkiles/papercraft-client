@@ -64,7 +64,10 @@ pub struct PrintLayoutUniform {
     page_margin_start: [f32; 2],
     page_margin_end: [f32; 2],
     page_dimensions: [f32; 2],
-    padding: [f32; 2],
+    /// Columns and rows in the page grid, so overlays that back the whole
+    /// sheet grid (e.g. the cutting viewport's grid) can size themselves to it
+    /// rather than to a single page.
+    grid_dimensions: [f32; 2],
 }
 
 impl PrintLayoutUniform {
@@ -73,7 +76,7 @@ impl PrintLayoutUniform {
             page_dimensions: value.page_size.dimensions().into(),
             page_margin_start: value.page_margin_start.into(),
             page_margin_end: value.page_margin_end.into(),
-            padding: [0.0, 0.0],
+            grid_dimensions: [value.cols as f32, value.rows as f32],
         }
     }
 

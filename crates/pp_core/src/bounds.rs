@@ -167,7 +167,9 @@ impl State {
     ///
     /// `faces_only` has the same meaning as in [`Self::selection_bounds`].
     pub fn selection_piece_bounds(&self, faces_only: bool) -> Aabb3 {
-        let select_all = self.selection_is_empty(faces_only);
+        if self.selection_is_empty(faces_only) {
+            return self.piece_bounds();
+        }
         let mut aabb = Aabb3::EMPTY;
         self.meshes.iter().for_each(|(m_id, mesh)| {
             mesh.iter_pieces().for_each(|root| {
@@ -179,7 +181,7 @@ impl State {
                         let loose_selected = !faces_only
                             && (self.selection.edges.contains(&(m_id, l.e))
                                 || self.selection.verts.contains(&(m_id, l.v)));
-                        if !select_all && !face_selected && !loose_selected {
+                        if !face_selected && !loose_selected {
                             return;
                         }
                         let p = piece.transform.transform_point(
@@ -191,6 +193,55 @@ impl State {
             })
         });
         aabb
+    }
+
+    /// The unfolded, piece-transformed bounds of every piece in the document:
+    /// the full extent of what the cutting viewport draws, regardless of what
+    /// is selected.
+    pub fn piece_bounds(&self) -> Aabb3 {
+        let mut aabb = Aabb3::EMPTY;
+        self.for_each_piece_bounds(|piece_aabb| aabb = aabb.union(&piece_aabb));
+        aabb
+    }
+
+    /// The unfolded bounds of the pieces that overlap the printable quadrant
+    /// (`x >= 0`, `y <= 0`), which is where [`crate::print::PrintLayout`] lays
+    /// its pages out. Pieces sitting entirely in another quadrant are ignored
+    /// rather than clamped, so parking a piece off to the side of the pages
+    /// doesn't drag the page grid out with it.
+    pub fn piece_bounds_in_print_quadrant(&self) -> Aabb3 {
+        let mut aabb = Aabb3::EMPTY;
+        self.for_each_piece_bounds(|piece_aabb| {
+            if piece_aabb.max.x > 0.0 && piece_aabb.min.y < 0.0 {
+                aabb = aabb.union(&piece_aabb);
+            }
+        });
+        aabb
+    }
+
+    /// Runs `f` once per piece with that piece's own unfolded bounding box.
+    ///
+    /// Callers that want a single box union the results; callers that need to
+    /// reason about pieces individually (e.g. "is this piece on the pages?")
+    /// can't, which is why this yields per-piece boxes rather than one box.
+    fn for_each_piece_bounds(&self, mut f: impl FnMut(Aabb3)) {
+        self.meshes.values().for_each(|mesh| {
+            mesh.iter_pieces().for_each(|root| {
+                let Some(piece) = mesh.pieces.get(root) else { return };
+                let mut aabb = Aabb3::EMPTY;
+                mesh.iter_piece_faces_unfolded(*root).for_each(|face| {
+                    mesh.iter_face_loops(face.f).for_each(|l| {
+                        let p = piece.transform.transform_point(
+                            face.affine.transform_point(Point3::from_vec(mesh.vert_pos(mesh[l].v))),
+                        );
+                        aabb.extend(p.to_vec());
+                    })
+                });
+                if !aabb.is_empty() {
+                    f(aabb);
+                }
+            })
+        });
     }
 
     /// The normalized mean normal of the selection, i.e. the direction the 3D
@@ -351,5 +402,28 @@ mod tests {
         let one = state.selection_piece_bounds(false);
         assert_eq!(one.size(), Vector3::new(0.0, 0.0, 0.0));
         assert!(one.min.x >= all.min.x - 1e-5 && one.max.x <= all.max.x + 1e-5);
+    }
+
+    /// Pieces parked outside the printable quadrant shouldn't drag the page
+    /// grid out to meet them.
+    #[test]
+    fn only_pieces_over_the_printable_quadrant_count() {
+        let mut state = crate::State::default();
+        let m_id = state.meshes.insert(crate::mesh::Mesh::new_tri());
+        let f_id = FaceId::from_usize(0);
+        state.meshes[m_id].expand_piece(f_id).unwrap();
+        let translate = |state: &mut crate::State, x, y| {
+            state.meshes[m_id]
+                .transform_piece(&f_id, cgmath::Matrix4::from_translation(Vector3::new(x, y, 0.0)))
+        };
+
+        // Well inside the quadrant: right of x = 0 and below y = 0
+        translate(&mut state, 30.0, -40.0);
+        assert_eq!(state.piece_bounds_in_print_quadrant(), state.piece_bounds());
+
+        // Straight up into the top-right quadrant, clear of the pages
+        translate(&mut state, 0.0, 100.0);
+        assert!(state.piece_bounds_in_print_quadrant().is_empty());
+        assert!(!state.piece_bounds().is_empty(), "the piece is still in the document");
     }
 }

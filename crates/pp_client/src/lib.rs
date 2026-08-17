@@ -176,6 +176,7 @@ impl App {
         let mut state = self.state.borrow_mut();
         let renderer = renderer.as_mut().ok_or(AppError::NoCanvasAttached)?;
         let state = state.deref_mut();
+        state.fit_pages_to_pieces();
         renderer.prepare(state, &mut self.editor);
         renderer.render(state, &self.editor);
         Ok(())
