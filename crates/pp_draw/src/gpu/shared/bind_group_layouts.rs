@@ -4,7 +4,10 @@ use crate::cache::{
     mesh::piece::PieceGPU,
     print::PrintLayoutGPU,
     settings::SettingsGPU,
-    tool::{rotate::RotateToolGPU, select_box::SelectBoxToolGPU, translate::TranslateToolGPU},
+    tool::{
+        rotate::RotateToolGPU, select_box::SelectBoxToolGPU, select_paint::SelectPaintToolGPU,
+        translate::TranslateToolGPU,
+    },
     viewport::ViewportGPU,
 };
 
@@ -42,6 +45,7 @@ impl BindGroup {
 #[derive(Debug)]
 pub struct ToolBindGroupLayouts {
     pub select_box: wgpu::BindGroupLayout,
+    pub select_paint: wgpu::BindGroupLayout,
     pub rotate: wgpu::BindGroupLayout,
     pub translate: wgpu::BindGroupLayout,
 }
@@ -69,6 +73,7 @@ impl SharedBindGroupLayouts {
             print_layout: PrintLayoutGPU::create_bind_group_layout(device),
             tool: ToolBindGroupLayouts {
                 select_box: SelectBoxToolGPU::create_bind_group_layout(device),
+                select_paint: SelectPaintToolGPU::create_bind_group_layout(device),
                 rotate: RotateToolGPU::create_bind_group_layout(device),
                 translate: TranslateToolGPU::create_bind_group_layout(device),
             },

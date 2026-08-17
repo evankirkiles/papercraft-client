@@ -3,7 +3,8 @@ use pp_core::{
     select_elements::SelectCommand, update_flaps::UpdateFlapsCommand, CommandType,
 };
 use pp_editor::{
-    tool::{SelectBoxTool, Tool},
+    state::SelectTool,
+    tool::{select_paint::DEFAULT_RADIUS, SelectBoxTool, SelectPaintTool, Tool},
     Editor,
 };
 use pp_save::save::Saveable;
@@ -13,6 +14,7 @@ use web_sys::{Blob, Url};
 use crate::{
     event::{self, EventHandleSuccess},
     keyboard,
+    tool::select_paint::capture_select_buffer,
 };
 
 /// Triggers a file download in the browser
@@ -100,6 +102,18 @@ impl EditorEventHandler for Editor {
                         })
                     };
                 }
+                // C: Enter paint select mode
+                "KeyC" => {
+                    self.state.select_tool = SelectTool::Paint;
+                    let cursor_pos = ctx.last_mouse_pos.unwrap_or(cgmath::Point2::new(0.0, 0.0))
+                        * ctx.surface_dpi;
+                    let tool = SelectPaintTool::new(cursor_pos, DEFAULT_RADIUS * ctx.surface_dpi);
+                    // Warm the select buffer now so the first stroke is instant
+                    capture_select_buffer(ctx, &self.state);
+                    return Some(Ok(
+                        EventHandleSuccess::set_tool(Some(Tool::SelectPaint(tool))).mark_dirty()
+                    ));
+                }
                 // D: Swap edge flap side
                 "KeyD" => ctx.history.borrow_mut().add(pp_core::CommandType::UpdateFlaps(
                     UpdateFlapsCommand::swap_flaps(&mut ctx.state.borrow_mut()),
@@ -126,6 +140,9 @@ impl EditorEventHandler for Editor {
             event::UserEvent::MouseInput(event::MouseInputEvent::Down(
                 event::MouseButton::Left,
             )) => {
+                if self.state.select_tool != SelectTool::Box {
+                    return None;
+                }
                 return ctx.last_mouse_pos.map(|mouse_pos| {
                     Ok(EventHandleSuccess::set_tool(Some(Tool::SelectBox(SelectBoxTool {
                         start_pos: mouse_pos * ctx.surface_dpi,

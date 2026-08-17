@@ -52,4 +52,8 @@ impl BindableViewport for CuttingViewportGPU {
         render_pass.set_viewport(x, y, width, height, 0.0, 1.0);
         render_pass.set_bind_group(BindGroup::Viewport.value(), &self.bind_group, &[]);
     }
+
+    fn area(&self) -> Rect<f32> {
+        self.viewport.area
+    }
 }

@@ -1,13 +1,15 @@
-import { SelectionMode } from "@paperarium/client";
+import { SelectionMode, SelectTool } from "@paperarium/client";
 
 import {
   RadioGroupIcon,
   RadioGroupIconItem,
 } from "@/components/ui/radio-group-icon";
+import { useEditor } from "@/contexts/EditorContext";
 import { useEngine } from "@/contexts/EngineContext";
 
 export default function MainControls() {
   const engine = useEngine();
+  const editor = useEditor();
 
   const handleSelectionModeChange = (value: string) => {
     if (!engine) return;
@@ -20,9 +22,23 @@ export default function MainControls() {
     engine.set_select_mode(modes[value]);
   };
 
+  const handleSelectToolChange = (value: string) => {
+    if (!engine) return;
+    engine.set_select_tool(
+      value === "paint" ? SelectTool.Paint : SelectTool.Box
+    );
+  };
+
+  // The editor snapshot is serde-serialized, so enums arrive as their variant
+  // name rather than the numeric value the generated .d.ts declares.
+  const selectTool =
+    (editor?.state.select_tool as unknown as string) === "Paint"
+      ? "paint"
+      : "box";
+
   return (
     <div
-      className="absolute top-4 left-4 flex gap-2"
+      className="absolute top-4 left-4 flex flex-col items-start gap-2"
       aria-label="Main Controls Panel"
     >
       <RadioGroupIcon
@@ -57,6 +73,36 @@ export default function MainControls() {
             <rect x="13" y="3" width="8" height="8" fill="currentColor" />
             <rect x="3" y="13" width="8" height="8" fill="currentColor" />
             <rect x="13" y="13" width="8" height="8" fill="currentColor" />
+          </svg>
+        </RadioGroupIconItem>
+      </RadioGroupIcon>
+      <RadioGroupIcon value={selectTool} onValueChange={handleSelectToolChange}>
+        <RadioGroupIconItem value="box" aria-label="Box select">
+          <svg viewBox="0 0 24 24">
+            <rect
+              x="3.5"
+              y="3.5"
+              width="17"
+              height="17"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeDasharray="4 3"
+            />
+          </svg>
+        </RadioGroupIconItem>
+        <RadioGroupIconItem value="paint" aria-label="Paint select">
+          <svg viewBox="0 0 24 24">
+            <circle
+              cx="12"
+              cy="12"
+              r="8.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeDasharray="3 3"
+            />
+            <circle cx="12" cy="12" r="3" fill="currentColor" />
           </svg>
         </RadioGroupIconItem>
       </RadioGroupIcon>

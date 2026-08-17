@@ -51,6 +51,9 @@ pub trait BindableViewport {
     ) -> Result<(), ViewportSyncError>;
 
     fn bind(&self, render_pass: &mut wgpu::RenderPass);
+
+    /// The region of the surface this viewport occupies, in surface pixels
+    fn area(&self) -> pp_core::measures::Rect<f32>;
 }
 
 impl BindableViewport for ViewportGPU {
@@ -69,6 +72,13 @@ impl BindableViewport for ViewportGPU {
         match self {
             ViewportGPU::Folding(vp) => vp.bind(render_pass),
             ViewportGPU::Cutting(vp) => vp.bind(render_pass),
+        }
+    }
+
+    fn area(&self) -> pp_core::measures::Rect<f32> {
+        match self {
+            ViewportGPU::Folding(vp) => vp.area(),
+            ViewportGPU::Cutting(vp) => vp.area(),
         }
     }
 }

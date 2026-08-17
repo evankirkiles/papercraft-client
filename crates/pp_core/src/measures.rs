@@ -52,14 +52,28 @@ where
         x_range.contains(&point.x) && y_range.contains(&point.y)
     }
 
-    /// Determines whether this rect entirely encloses the other rect
+    /// Determines whether this rect entirely encloses the other rect.
+    ///
+    /// The far edges are inclusive, so a rect contains itself - the caching in
+    /// the selection manager depends on a repeated identical query counting as
+    /// contained.
     pub fn contains_rect(&self, other: &Rect<T>) -> bool {
-        let (x_range, y_range) =
-            ((self.x..(self.x + self.width)), (self.y..(self.y + self.height)));
-        x_range.contains(&other.x)
-            && y_range.contains(&other.y)
-            && x_range.contains(&(other.x + other.width))
-            && y_range.contains(&(other.y + other.height))
+        other.x >= self.x
+            && other.y >= self.y
+            && (other.x + other.width) <= (self.x + self.width)
+            && (other.y + other.height) <= (self.y + self.height)
+    }
+
+    /// The overlapping region of two rects, or `None` if they are disjoint
+    pub fn intersect(&self, other: &Rect<T>) -> Option<Rect<T>> {
+        let max = |a: T, b: T| if a > b { a } else { b };
+        let min = |a: T, b: T| if a < b { a } else { b };
+        let (x, y) = (max(self.x, other.x), max(self.y, other.y));
+        let (right, bottom) = (
+            min(self.x + self.width, other.x + other.width),
+            min(self.y + self.height, other.y + other.height),
+        );
+        (right > x && bottom > y).then(|| Rect { x, y, width: right - x, height: bottom - y })
     }
 
     pub fn split(&self, ratio: T, vertical: bool) -> (Self, Self) {

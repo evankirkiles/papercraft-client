@@ -1,9 +1,11 @@
 pub mod rotate;
 pub mod select_box;
+pub mod select_paint;
 pub mod translate;
 
 pub use rotate::RotateTool;
 pub use select_box::SelectBoxTool;
+pub use select_paint::SelectPaintTool;
 pub use translate::TranslateTool;
 
 use pp_core::measures::Dimensions;
@@ -28,6 +30,7 @@ pub enum Tool {
     Translate(translate::TranslateTool),
     Rotate(rotate::RotateTool),
     SelectBox(select_box::SelectBoxTool),
+    SelectPaint(select_paint::SelectPaintTool),
 }
 
 impl serde::Serialize for Tool {
@@ -39,6 +42,7 @@ impl serde::Serialize for Tool {
             Tool::Translate(_) => "Translate",
             Tool::Rotate(_) => "Rotate",
             Tool::SelectBox(_) => "SelectBox",
+            Tool::SelectPaint(_) => "SelectPaint",
         };
         serializer.serialize_str(variant_name)
     }

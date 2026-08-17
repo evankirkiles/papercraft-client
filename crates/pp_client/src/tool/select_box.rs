@@ -2,12 +2,7 @@ use std::ops::DerefMut;
 
 use cgmath::{MetricSpace, Point2};
 use pp_core::measures::Rect;
-use pp_core::{
-    id::{self, Id},
-    select::SelectionActionType,
-    select_elements::SelectCommand,
-    MeshId,
-};
+use pp_core::{select::SelectionActionType, select_elements::SelectCommand, MeshId};
 use pp_draw::select::{self, PixelData, SelectionMask, SelectionQueryArea, SelectionQueryResult};
 use pp_editor::state::SelectionMode;
 use slotmap::KeyData;
@@ -15,6 +10,7 @@ use slotmap::KeyData;
 use crate::{
     event::{self, EventHandler, MouseButton, PointerEvent},
     keyboard,
+    tool::{apply_pixel, selection_mask},
 };
 
 impl EventHandler for pp_editor::tool::SelectBoxTool {
@@ -87,12 +83,7 @@ pub trait MultiselectTool {
                     width: select_radius as u32 * 2,
                     height: select_radius as u32 * 2,
                 },
-                mask: match editor_state.selection_mode {
-                    SelectionMode::Vert => pp_draw::select::SelectionMask::VERTS,
-                    SelectionMode::Edge => pp_draw::select::SelectionMask::EDGES,
-                    SelectionMode::Face => pp_draw::select::SelectionMask::FACES,
-                    SelectionMode::Piece => pp_draw::select::SelectionMask::PIECES,
-                },
+                mask: selection_mask(&editor_state.selection_mode),
             }
         };
         let callback = {
@@ -122,29 +113,7 @@ pub trait MultiselectTool {
                     nearest = Some((*pixel_data, distance));
                 });
                 let Some((pixel_data, _)) = nearest else { return };
-                let mesh_id: MeshId = KeyData::from_ffi(pixel_data.mesh_id).into();
-                match result.area.mask {
-                    SelectionMask::VERTS => {
-                        let vert_id = id::VertexId::new(pixel_data.el_id);
-                        state.select_vert(&(mesh_id, vert_id), action, true);
-                    }
-                    SelectionMask::EDGES => {
-                        let edge_id = id::EdgeId::new(pixel_data.el_id);
-                        state.select_edge(&(mesh_id, edge_id), action, true, true);
-                    }
-                    SelectionMask::FACES => {
-                        let face_id = id::FaceId::new(pixel_data.f_id);
-                        state.select_face(&(mesh_id, face_id), action, true, true);
-                    }
-                    SelectionMask::PIECES => {
-                        let face_id = id::FaceId::new(pixel_data.f_id);
-                        let p_id = state.meshes[mesh_id].faces[face_id.to_usize()].p;
-                        if let Some(p_id) = p_id {
-                            state.select_piece(&(mesh_id, p_id), action);
-                        }
-                    }
-                    _ => {}
-                }
+                apply_pixel(&mut state, result.area.mask, &pixel_data, action, true);
                 // Add the selection command onto the undo/redo stack
                 history.borrow_mut().add(pp_core::CommandType::Select(SelectCommand {
                     after: Box::new(state.selection.clone()),
@@ -168,12 +137,7 @@ impl MultiselectTool for pp_editor::tool::SelectBoxTool {
     ) -> Result<(), ()> {
         let query = select::SelectionQueryArea {
             rect: Rect::between(self.start_pos, self.end_pos).into(),
-            mask: match editor_state.selection_mode {
-                SelectionMode::Vert => pp_draw::select::SelectionMask::VERTS,
-                SelectionMode::Edge => pp_draw::select::SelectionMask::EDGES,
-                SelectionMode::Face => pp_draw::select::SelectionMask::FACES,
-                SelectionMode::Piece => pp_draw::select::SelectionMask::PIECES,
-            },
+            mask: selection_mask(&editor_state.selection_mode),
         };
         let callback = {
             let state = ctx.state.clone();
@@ -205,29 +169,7 @@ impl MultiselectTool for pp_editor::tool::SelectBoxTool {
                 });
                 // Now select all of them
                 elements.iter().for_each(|pixel| {
-                    let mesh_id: MeshId = KeyData::from_ffi(pixel.mesh_id).into();
-                    match result.area.mask {
-                        SelectionMask::VERTS => {
-                            let vert_id = id::VertexId::new(pixel.el_id);
-                            state.select_vert(&(mesh_id, vert_id), action, false);
-                        }
-                        SelectionMask::EDGES => {
-                            let edge_id = id::EdgeId::new(pixel.el_id);
-                            state.select_edge(&(mesh_id, edge_id), action, false, true);
-                        }
-                        SelectionMask::FACES => {
-                            let face_id = id::FaceId::new(pixel.f_id);
-                            state.select_face(&(mesh_id, face_id), action, false, true);
-                        }
-                        SelectionMask::PIECES => {
-                            let face_id = id::FaceId::new(pixel.f_id);
-                            let p_id = state.meshes[mesh_id].faces[face_id.to_usize()].p;
-                            if let Some(p_id) = p_id {
-                                state.select_piece(&(mesh_id, p_id), action);
-                            }
-                        }
-                        _ => {}
-                    }
+                    apply_pixel(&mut state, result.area.mask, pixel, action, false);
                 });
                 // Add the selection command onto the undo/redo stack
                 history.borrow_mut().add(pp_core::CommandType::Select(SelectCommand {

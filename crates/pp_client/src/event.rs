@@ -119,6 +119,10 @@ pub(crate) trait EventHandler {
 pub struct EventHandleSuccess {
     pub set_tool: Option<Option<tool::Tool>>,
     pub toggle_xray: bool,
+    /// Requests an editor snapshot be pushed to JS. Handlers mutate the
+    /// `EditorState` they're handed but can't reach `Editor::is_dirty`, which
+    /// is what gates that push.
+    pub mark_dirty: bool,
     pub stop_propagation: bool,
     pub external: ExternalEventHandleSuccess,
 }
@@ -127,28 +131,32 @@ impl EventHandleSuccess {
     pub fn set_tool(tool: Option<tool::Tool>) -> Self {
         Self {
             set_tool: Some(tool),
-            toggle_xray: false,
-            stop_propagation: true,
             external: ExternalEventHandleSuccess::StopPropagation,
+            stop_propagation: true,
+            ..Default::default()
         }
     }
 
     pub fn stop_internal_propagation() -> Self {
         Self {
-            set_tool: None,
-            toggle_xray: false,
-            stop_propagation: true,
             external: ExternalEventHandleSuccess::ContinuePropagation,
+            stop_propagation: true,
+            ..Default::default()
         }
     }
 
     pub fn stop_propagation() -> Self {
         Self {
-            set_tool: None,
-            toggle_xray: false,
-            stop_propagation: true,
             external: ExternalEventHandleSuccess::StopPropagation,
+            stop_propagation: true,
+            ..Default::default()
         }
+    }
+
+    /// Also push an editor snapshot to JS once this result is applied
+    pub fn mark_dirty(mut self) -> Self {
+        self.mark_dirty = true;
+        self
     }
 }
 

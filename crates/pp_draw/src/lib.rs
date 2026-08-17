@@ -27,6 +27,10 @@ pub struct Renderer<'window> {
     engine_ink: engines::ink::InkEngine,
     /// Renderer for overlays, basically non-mesh things
     engine_overlay: engines::overlay::OverlayEngine,
+
+    /// The x-ray setting the cached select buffer was rendered under. Unlike
+    /// geometry and cameras, x-ray has no dirty flag of its own, so we diff it.
+    select_is_xray: bool,
 }
 
 impl<'window> Renderer<'window> {
@@ -110,12 +114,42 @@ impl<'window> Renderer<'window> {
             draw_cache: DrawCache::new(&ctx),
             engine_ink: engines::ink::InkEngine::new(&ctx),
             engine_overlay: engines::overlay::OverlayEngine::new(&ctx),
+            select_is_xray: false,
             ctx,
         }
     }
 
+    /// Whether anything the select pass would rasterize has changed since the
+    /// cached select buffer was rendered.
+    ///
+    /// Note that selection changes deliberately don't count. They don't move
+    /// any geometry, and the paint tool mutates the selection on every pointer
+    /// move while relying on the captured buffer staying put underneath it.
+    fn select_is_stale(&self, state: &pp_core::State, editor: &pp_editor::Editor) -> bool {
+        // X-ray decides whether surfaces occlude, so it changes what wins each pixel
+        if editor.state.is_xray != self.select_is_xray {
+            return true;
+        }
+        let geometry_changed = state.meshes.values().any(|mesh| {
+            !mesh.elem_dirty.is_empty() || !mesh.index_dirty.is_empty() || mesh.uniform_dirty
+        });
+        let view_changed = editor
+            .layout
+            .viewports
+            .values()
+            .any(|viewport| viewport.bounds.is_dirty || viewport.camera_is_dirty());
+        geometry_changed || view_changed
+    }
+
     /// Synchronizes the DrawCache with the App's current state.
     pub fn prepare(&mut self, state: &mut pp_core::State, editor: &mut pp_editor::Editor) {
+        // Must happen before the prepare_* calls below, which consume the very
+        // dirty flags this reads
+        if self.select_is_stale(state, editor) {
+            self.select.invalidate();
+        }
+        self.select_is_xray = editor.state.is_xray;
+
         self.draw_cache.prepare_meshes(&self.ctx, state);
         self.draw_cache.prepare_materials(&self.ctx, state);
         self.draw_cache.prepare_print(&self.ctx, state);
@@ -203,6 +237,11 @@ impl<'window> Renderer<'window> {
         callback: Box<F>,
     ) -> Result<(), select::SelectionQueryError> {
         self.select.query(&self.ctx, &self.draw_cache, area, callback)
+    }
+
+    /// Discards any cached selection buffer so the next query re-renders it.
+    pub fn select_invalidate(&mut self) {
+        self.select.invalidate();
     }
 
     /// Polls the select engine to see if there are any fulfilled selection queries.

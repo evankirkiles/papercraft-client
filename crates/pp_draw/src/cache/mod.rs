@@ -129,18 +129,33 @@ impl DrawCache {
             return;
         };
         match (&mut editor.active_tool, &mut self.active_tool) {
-            (Some(tool), Some(tool_gpu)) => match (tool, &mut tool_gpu.tool) {
-                // Map corresponding CPU-side tools to GPU-side tool resources
-                (Tool::SelectBox(tool), ToolGPU::SelectBox(tool_gpu)) => tool_gpu.sync(ctx, tool),
-                (Tool::Rotate(tool), ToolGPU::Rotate(tool_gpu)) => tool_gpu.sync(ctx, tool),
-                (Tool::Translate(tool), ToolGPU::Translate(tool_gpu)) => tool_gpu.sync(ctx, tool),
-                // If we didn't have the same type of tool, then reset the tool
-                (tool, _) => {
-                    let viewport = *viewport;
-                    self.active_tool =
-                        Some(ActiveToolGPU { viewport, tool: ToolGPU::new(ctx, tool) })
+            (Some(tool), Some(tool_gpu)) => {
+                // The paint brush is anchored to the cursor rather than to the
+                // viewport the stroke began in, so it follows the cursor across
+                // the splitter instead of vanishing at it.
+                if matches!(tool, Tool::SelectPaint(_)) {
+                    tool_gpu.viewport = *viewport;
                 }
-            },
+                match (tool, &mut tool_gpu.tool) {
+                    // Map corresponding CPU-side tools to GPU-side tool resources
+                    (Tool::SelectBox(tool), ToolGPU::SelectBox(tool_gpu)) => {
+                        tool_gpu.sync(ctx, tool)
+                    }
+                    (Tool::SelectPaint(tool), ToolGPU::SelectPaint(tool_gpu)) => {
+                        tool_gpu.sync(ctx, tool)
+                    }
+                    (Tool::Rotate(tool), ToolGPU::Rotate(tool_gpu)) => tool_gpu.sync(ctx, tool),
+                    (Tool::Translate(tool), ToolGPU::Translate(tool_gpu)) => {
+                        tool_gpu.sync(ctx, tool)
+                    }
+                    // If we didn't have the same type of tool, then reset the tool
+                    (tool, _) => {
+                        let viewport = *viewport;
+                        self.active_tool =
+                            Some(ActiveToolGPU { viewport, tool: ToolGPU::new(ctx, tool) })
+                    }
+                }
+            }
             (Some(tool), None) => {
                 let viewport = *viewport;
                 self.active_tool = Some(ActiveToolGPU { viewport, tool: ToolGPU::new(ctx, tool) })

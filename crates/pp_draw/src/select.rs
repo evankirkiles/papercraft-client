@@ -73,6 +73,28 @@ pub struct SelectionQueryResult {
     pub pixels: SelectionPixelData,
 }
 
+impl SelectionQueryResult {
+    /// Every hit pixel falling inside the given circle.
+    ///
+    /// `pixels` is collected in raster order, so it is sorted by `(y, x)`. That
+    /// lets us binary-search down to just the rows the circle spans instead of
+    /// walking the whole buffer, which matters when the query area is the full
+    /// canvas (as it is for the paint tool) rather than a small drag rect.
+    pub fn pixels_in_circle(
+        &self,
+        center: Point2<f32>,
+        radius: f32,
+    ) -> impl Iterator<Item = &PixelData> {
+        let first = self.pixels.partition_point(|(pos, _)| pos.y < center.y - radius);
+        let last = self.pixels.partition_point(|(pos, _)| pos.y <= center.y + radius);
+        let radius_sq = radius * radius;
+        self.pixels[first..last].iter().filter_map(move |(pos, pixel)| {
+            let (dx, dy) = (pos.x - center.x, pos.y - center.y);
+            (dx * dx + dy * dy <= radius_sq).then_some(pixel)
+        })
+    }
+}
+
 #[derive(Debug)]
 pub enum SelectionQueryError {
     QueryInFlight,
@@ -147,6 +169,11 @@ impl SelectManager {
         area: SelectionQueryArea,
         callback: Box<F>,
     ) -> Result<(), SelectionQueryError> {
+        // An empty rect has nothing to read back, and the readback arithmetic
+        // assumes at least one row exists
+        if !area.rect.has_area() {
+            return Ok(());
+        }
         let query_state = self.query_state.borrow().clone();
         match query_state.clone() {
             // If select buffer is unmapped, we're free to use it
@@ -207,12 +234,19 @@ impl SelectManager {
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
-            // Set the scissor for the active viewport so we don't rasterize
-            // any unnecessary pixels, just the ones which we'll check for selection.
-            render_pass.set_scissor_rect(rect.x, rect.y, rect.width, rect.height);
             draw_cache.settings.bind(&mut render_pass);
             draw_cache.viewports.iter().for_each(|(_, viewport)| {
                 use cache::viewport::ViewportGPU;
+                // Scissor to the part of the query rect this viewport actually
+                // covers. `set_viewport` only remaps coordinates, so without
+                // this a viewport's geometry can rasterize over its neighbours
+                // and be picked up by a query that never touched it.
+                let Some(scissor) = viewport.area().intersect(&rect.into()) else { return };
+                let scissor: Rect<u32> = scissor.into();
+                if !scissor.has_area() {
+                    return;
+                }
+                render_pass.set_scissor_rect(scissor.x, scissor.y, scissor.width, scissor.height);
                 viewport.bind(&mut render_pass);
                 match viewport {
                     ViewportGPU::Folding(_) => {
@@ -284,7 +318,11 @@ impl SelectManager {
                     self.select_buf.borrow().slice(..).map_async(wgpu::MapMode::Read, move |_| {
                         // On successful CPU-side mapping, calculate the final pixel data
                         let start_idx = (area.rect.y * tex_width + area.rect.x) * tex_block_size;
-                        let end_idx = ((area.rect.y + area.rect.height) * tex_width
+                        // The last pixel of interest sits on the rect's *final*
+                        // row, not one row past it - going a full row further
+                        // runs off the end of the buffer whenever the rect
+                        // reaches the bottom of the texture.
+                        let end_idx = ((area.rect.y + area.rect.height - 1) * tex_width
                             + area.rect.x
                             + area.rect.width)
                             * tex_block_size;
@@ -315,6 +353,16 @@ impl SelectManager {
             // If we're not expecting anything from the GPU or are waiting
             // on our CPU-side buffer to be mapped, just return.
             _ => {}
+        }
+    }
+
+    /// Discards any cached select buffer, forcing the next query to re-render
+    /// rather than reuse the mapped results. Needed whenever something the
+    /// buffer depends on changes underneath it, e.g. the selection mask.
+    pub(super) fn invalidate(&mut self) {
+        if matches!(*self.query_state.borrow(), SelectManagerQueryState::Mapped(_)) {
+            self.select_buf.borrow().unmap();
+            self.query_state.replace(SelectManagerQueryState::Unmapped);
         }
     }
 

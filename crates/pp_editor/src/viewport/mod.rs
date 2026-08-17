@@ -51,3 +51,14 @@ pub struct Viewport {
     #[tsify(type = "\"Folding\" | \"Cutting\"")]
     pub content: ViewportContent,
 }
+
+impl Viewport {
+    /// Whether this viewport's camera has moved since it was last synced to the GPU
+    pub fn camera_is_dirty(&self) -> bool {
+        use camera::Camera;
+        match &self.content {
+            ViewportContent::Folding(viewport) => viewport.camera.is_dirty(),
+            ViewportContent::Cutting(viewport) => viewport.camera.is_dirty(),
+        }
+    }
+}

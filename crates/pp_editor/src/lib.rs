@@ -81,6 +81,7 @@ impl Editor {
     /// Resets the editor state
     pub fn reset(&mut self) {
         self.active_tool = None;
+        self.state.select_tool = Default::default();
     }
 
     /// Resizes the editor state, re-computing the dimensions of all nested viewports

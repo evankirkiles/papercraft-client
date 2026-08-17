@@ -189,6 +189,44 @@ impl App {
     /// Sets the select mode of the application
     pub fn set_select_mode(&mut self, select_mode: pp_editor::state::SelectionMode) {
         self.editor.state.selection_mode = select_mode;
+        self.editor.is_dirty = true;
+        // A cached select buffer was rendered for the old mask, so the paint
+        // tool has to re-capture before it can pick up the new element type.
+        if matches!(self.editor.active_tool, Some(pp_editor::tool::Tool::SelectPaint(_))) {
+            tool::select_paint::capture_select_buffer(&self.event_context, &self.editor.state);
+        }
+    }
+
+    /// Switches between the box-drag and brush-paint selection gestures, the
+    /// JS-side equivalent of the `C` / `Esc` keybinds.
+    pub fn set_select_tool(&mut self, select_tool: pp_editor::state::SelectTool) {
+        use pp_editor::{
+            state::SelectTool,
+            tool::{select_paint::DEFAULT_RADIUS, SelectPaintTool, Tool},
+        };
+        if self.editor.state.select_tool == select_tool {
+            return;
+        }
+        self.editor.state.select_tool = select_tool;
+        self.editor.is_dirty = true;
+        match select_tool {
+            SelectTool::Paint => {
+                let cursor_pos =
+                    self.event_context.last_mouse_pos.unwrap_or(cgmath::Point2::new(0.0, 0.0))
+                        * self.event_context.surface_dpi;
+                let tool = SelectPaintTool::new(
+                    cursor_pos,
+                    DEFAULT_RADIUS * self.event_context.surface_dpi,
+                );
+                tool::select_paint::capture_select_buffer(&self.event_context, &self.editor.state);
+                self.editor.active_tool = Some(Tool::SelectPaint(tool));
+            }
+            SelectTool::Box => {
+                if matches!(self.editor.active_tool, Some(Tool::SelectPaint(_))) {
+                    self.editor.active_tool = None;
+                }
+            }
+        }
     }
 
     /// Sets the x-ray mode of the application
@@ -273,6 +311,11 @@ impl App {
                 // Apply any active tool passed from the handler
                 if let Some(active_tool) = res.set_tool {
                     self.editor.active_tool = active_tool;
+                    self.editor.is_dirty = true;
+                }
+                // Push a snapshot for handlers which mutated the editor state
+                if res.mark_dirty {
+                    self.editor.is_dirty = true;
                 }
                 // Apply any x-ray toggle passed from the handler
                 if res.toggle_xray {

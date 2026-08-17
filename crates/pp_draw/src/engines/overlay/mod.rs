@@ -4,6 +4,7 @@ use grid_rect::GridRectProgram;
 use page::PageProgram;
 use tool_rotate::ToolRotateProgram;
 use tool_select_box::ToolSelectBoxProgram;
+use tool_select_paint::ToolSelectPaintProgram;
 use tool_translate::ToolTranslateProgram;
 
 use crate::{cache::tool::ToolGPU, gpu};
@@ -14,11 +15,13 @@ pub mod grid_rect;
 pub mod page;
 pub mod tool_rotate;
 pub mod tool_select_box;
+pub mod tool_select_paint;
 pub mod tool_translate;
 
 #[derive(Debug)]
 pub struct OverlayEngine {
     tool_select_box: ToolSelectBoxProgram,
+    tool_select_paint: ToolSelectPaintProgram,
     tool_rotate: ToolRotateProgram,
     tool_translate: ToolTranslateProgram,
 
@@ -33,6 +36,7 @@ impl OverlayEngine {
         Self {
             page: PageProgram::new(ctx),
             tool_select_box: ToolSelectBoxProgram::new(ctx),
+            tool_select_paint: ToolSelectPaintProgram::new(ctx),
             tool_rotate: ToolRotateProgram::new(ctx),
             tool_translate: ToolTranslateProgram::new(ctx),
             grid_circle: GridCircleProgram::new(ctx),
@@ -49,6 +53,7 @@ impl OverlayEngine {
     ) {
         match tool {
             ToolGPU::SelectBox(tool) => self.tool_select_box.draw(ctx, render_pass, tool),
+            ToolGPU::SelectPaint(tool) => self.tool_select_paint.draw(ctx, render_pass, tool),
             ToolGPU::Rotate(tool) => self.tool_rotate.draw(ctx, render_pass, tool),
             ToolGPU::Translate(tool) => self.tool_translate.draw(ctx, render_pass, tool),
         }
