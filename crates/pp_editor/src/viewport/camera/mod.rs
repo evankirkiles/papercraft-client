@@ -1,5 +1,6 @@
 use pp_core::measures::Dimensions;
 
+pub mod animation;
 pub mod orthographic;
 pub mod perspective;
 

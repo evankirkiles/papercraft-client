@@ -61,4 +61,17 @@ impl Viewport {
             ViewportContent::Cutting(viewport) => viewport.camera.is_dirty(),
         }
     }
+
+    /// Advances this viewport camera's in-flight framing move, if any.
+    pub fn tick_camera(&mut self, dt_ms: f32) {
+        match &mut self.content {
+            ViewportContent::Folding(viewport) => viewport.camera.tick(dt_ms),
+            ViewportContent::Cutting(viewport) => viewport.camera.tick(dt_ms),
+        }
+    }
+
+    /// The viewport's width over its height, as used by `Camera::view_proj`.
+    pub fn aspect(&self) -> f32 {
+        self.bounds.area.width.max(1.0) / self.bounds.area.height.max(1.0)
+    }
 }

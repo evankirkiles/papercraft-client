@@ -39,6 +39,11 @@ pub struct MeshBoundsCm {
     pub height: f32,
 }
 
+/// The largest frame delta time-based state will act on, so a tab that stops
+/// rendering (backgrounded, or blocked on a long load) resumes smoothly instead
+/// of jumping by however long it was away.
+const MAX_FRAME_DELTA_MS: f32 = 100.0;
+
 #[wasm_bindgen]
 #[derive(Debug, Default)]
 pub struct App {
@@ -56,6 +61,10 @@ pub struct App {
 
     /// A common event context used across all event handlers
     event_context: EventContext,
+
+    /// The `requestAnimationFrame` timestamp of the last `update`, used to
+    /// derive the frame delta that drives time-based state like camera moves.
+    last_timestamp: Option<u32>,
 }
 
 /// "App" holds the entirey of the Rust application state. You can think of it
@@ -79,6 +88,7 @@ impl App {
             renderer,
             callbacks: Rc::new(RefCell::new(AppCallbacks::default())),
             editor: pp_editor::Editor::default(),
+            last_timestamp: None,
         }
     }
 
@@ -137,7 +147,18 @@ impl App {
 
     /// Updates the internal state of any time-based states in the canvas, e.g.
     /// scene changes which aren't caused directly by an interaction (like animations)
-    pub fn update(&mut self, _timestamp: u32) -> Result<(), JsError> {
+    pub fn update(&mut self, timestamp: u32) -> Result<(), JsError> {
+        // Advance any camera animations before the renderer is needed, so they
+        // keep running even in the frames before a canvas is attached. The
+        // delta is capped so a backgrounded tab, which stops firing frames,
+        // doesn't resume by teleporting the camera most of the way there.
+        let dt_ms = self
+            .last_timestamp
+            .map(|last| (timestamp.wrapping_sub(last) as f32).clamp(0.0, MAX_FRAME_DELTA_MS))
+            .unwrap_or(0.0);
+        self.last_timestamp = Some(timestamp);
+        self.editor.tick_cameras(dt_ms);
+
         let mut renderer = self.renderer.borrow_mut();
         let renderer = renderer.as_mut().ok_or(AppError::NoCanvasAttached)?;
         renderer.select_poll();

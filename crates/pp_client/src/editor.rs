@@ -118,6 +118,18 @@ impl EditorEventHandler for Editor {
                 "KeyD" => ctx.history.borrow_mut().add(pp_core::CommandType::UpdateFlaps(
                     UpdateFlapsCommand::swap_flaps(&mut ctx.state.borrow_mut()),
                 )),
+                // .: Frame the selection in every viewport's camera
+                "Period" | "NumpadDecimal" => {
+                    // Tools capture camera-derived state when they're created
+                    // (translate's pixel-to-world scale, paint's warmed select
+                    // buffer), so don't slide the camera out from under a
+                    // gesture that's already in progress.
+                    if self.active_tool.is_some() {
+                        return None;
+                    }
+                    self.frame_selection(&ctx.state.borrow());
+                    return Some(Ok(event::EventHandleSuccess::stop_propagation()));
+                }
                 // CMD+Z: Undo / redo
                 "KeyZ" => {
                     if ctx.modifiers.super_pressed() {
