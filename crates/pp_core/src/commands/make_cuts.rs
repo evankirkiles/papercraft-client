@@ -6,7 +6,10 @@ use crate::{
     MeshId,
 };
 
-use super::{apply_flaps, diff_flaps, group_by_mesh, snapshot_flaps, Command, CommandError};
+use super::{
+    apply_flaps, apply_roots, diff_flaps, group_by_mesh, snapshot_flaps, snapshot_roots, Command,
+    CommandError,
+};
 
 /// Cuts & joins edges, creating any resulting pieces from the operation. On each
 /// cut, we save a before / after of any pieces on either side of each edge, as
@@ -22,6 +25,14 @@ pub struct MakeCutsCommand {
     pub flaps_before: Vec<((MeshId, id::EdgeId), FlapPosition)>,
     #[serde(default)]
     pub flaps_after: Vec<((MeshId, id::EdgeId), FlapPosition)>,
+    /// The roots of the pieces around these edges, recorded so undo / redo puts
+    /// a piece back on the face it was rooted at. A piece's transform and its
+    /// unfold origin both hang off its root face, so re-deriving the root
+    /// instead would drop wherever the user had moved the piece to.
+    #[serde(default)]
+    pub roots_before: Vec<(MeshId, id::FaceId)>,
+    #[serde(default)]
+    pub roots_after: Vec<(MeshId, id::FaceId)>,
 }
 
 impl MakeCutsCommand {
@@ -30,6 +41,8 @@ impl MakeCutsCommand {
         let mut cmd = Self {
             flaps_before: Vec::new(),
             flaps_after: Vec::new(),
+            roots_before: Vec::new(),
+            roots_after: Vec::new(),
             edges: state
                 .selection
                 .edges
@@ -44,7 +57,9 @@ impl MakeCutsCommand {
                 .copied()
                 .collect(),
         };
+        cmd.roots_before = snapshot_roots(state, &cmd.edges);
         cmd.cut_forward(state, CutUpdate::PiecesAndFlaps);
+        cmd.roots_after = snapshot_roots(state, &cmd.edges);
         (cmd.flaps_before, cmd.flaps_after) = diff_flaps(&flaps, state);
         cmd
     }
@@ -73,12 +88,14 @@ impl MakeCutsCommand {
 impl Command for MakeCutsCommand {
     fn execute(&self, state: &mut crate::State) -> Result<(), CommandError> {
         self.cut_forward(state, CutUpdate::PiecesOnly);
+        apply_roots(state, &self.roots_after);
         apply_flaps(state, &self.flaps_after);
         Ok(())
     }
 
     fn rollback(&self, state: &mut crate::State) -> Result<(), CommandError> {
         self.cut_backward(state, CutUpdate::PiecesOnly);
+        apply_roots(state, &self.roots_before);
         apply_flaps(state, &self.flaps_before);
         Ok(())
     }

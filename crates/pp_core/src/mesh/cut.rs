@@ -88,7 +88,10 @@ impl super::Mesh {
     // Similarly, if the edge had <2 faces, it's either a boundary or
     // dangling, in which case "cutting" doesn't make much sense either.
     // Faces are in radial order, so A then B in the radial link
-    fn get_adjacent_two_faces(&self, e_id: id::EdgeId) -> Option<(id::FaceId, id::FaceId)> {
+    pub(crate) fn get_adjacent_two_faces(
+        &self,
+        e_id: id::EdgeId,
+    ) -> Option<(id::FaceId, id::FaceId)> {
         let mut adj_faces = self.iter_edge_loops(e_id).map(|it| it.map(|l_id| self[l_id].f));
         let f_1 = adj_faces.as_mut().and_then(|faces| faces.next());
         let f_2 = adj_faces.as_mut().and_then(|faces| faces.next());
@@ -260,5 +263,133 @@ impl super::Mesh {
         } else {
             FlapPosition::SecondFace
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use cgmath::{Matrix4, SquareMatrix};
+
+    use crate::commands::{make_cuts::MakeCutsCommand, Command};
+    use crate::id::{EdgeId, FaceId, Id, VertexId};
+    use crate::select::SelectionActionType;
+
+    /// The cube's vertices, in the order `new_cube` adds them: the z=0 quad
+    /// `v0..v3` then the z=1 quad `v4..v7` directly above it.
+    fn v(i: usize) -> VertexId {
+        VertexId::from_usize(i)
+    }
+
+    /// Frees the bottom quad and the front quad as one four-triangle strip,
+    /// hinged on the edge `v0-v1` they share.
+    const STRIP: [(usize, usize); 6] = [(1, 2), (2, 3), (3, 0), (0, 4), (4, 5), (5, 1)];
+    /// The hinge itself. Cutting it splits the strip into two pieces, and the
+    /// piece which keeps the strip's root is the one on `v0-v1`'s second face,
+    /// so undoing the cut merges back into the piece the cut created.
+    const HINGE: [(usize, usize); 1] = [(0, 1)];
+
+    fn cube() -> (crate::State, crate::MeshId) {
+        let state = crate::State::with_cube();
+        let m_id = state.meshes.keys().next().unwrap();
+        (state, m_id)
+    }
+
+    fn edges(state: &crate::State, m_id: crate::MeshId, ring: &[(usize, usize)]) -> Vec<EdgeId> {
+        ring.iter().map(|(a, b)| state.meshes[m_id].query_edge(v(*a), v(*b)).unwrap()).collect()
+    }
+
+    /// The live piece roots, sorted so they can be compared as a set.
+    fn roots(state: &crate::State, m_id: crate::MeshId) -> Vec<FaceId> {
+        let mut roots: Vec<FaceId> = state.meshes[m_id].iter_pieces().copied().collect();
+        roots.sort();
+        roots
+    }
+
+    fn transform_of(state: &crate::State, m_id: crate::MeshId, root: FaceId) -> Matrix4<f32> {
+        state.meshes[m_id].pieces[&root].transform
+    }
+
+    fn cut(
+        state: &mut crate::State,
+        m_id: crate::MeshId,
+        ring: &[(usize, usize)],
+    ) -> MakeCutsCommand {
+        for e_id in edges(state, m_id, ring) {
+            state.select_edge(&(m_id, e_id), SelectionActionType::Select, false, true);
+        }
+        let cmd = MakeCutsCommand::from_select(state);
+        state.select_all(SelectionActionType::Deselect);
+        cmd
+    }
+
+    /// Cuts the strip into a piece and then splits it in two, returning the
+    /// piece which was already there, the one the split created, and the
+    /// command which split them.
+    fn split() -> (crate::State, crate::MeshId, FaceId, FaceId, MakeCutsCommand) {
+        let (mut state, m_id) = cube();
+        cut(&mut state, m_id, &STRIP);
+        let existing = *state.meshes[m_id].iter_pieces().next().expect("the strip is a piece");
+
+        let cmd = cut(&mut state, m_id, &HINGE);
+        let created = *roots(&state, m_id)
+            .iter()
+            .find(|f_id| **f_id != existing)
+            .expect("test premise: the split made a second piece");
+        (state, m_id, existing, created, cmd)
+    }
+
+    /// A piece is identified by its root face, and both its transform and its
+    /// unfold origin hang off that face. Undoing this split merges into the
+    /// piece the cut created, so without the recorded roots the redo would root
+    /// the other half at whichever face the cut reaches first, handing it a
+    /// fresh identity transform and stranding the one the user had moved.
+    #[test]
+    fn redoing_a_cut_restores_the_moved_pieces() {
+        let (mut state, m_id, existing, created, cmd) = split();
+        let (moved_existing, moved_created) = (
+            Matrix4::from_translation(cgmath::vec3(1.0, 2.0, 0.0)),
+            Matrix4::from_translation(cgmath::vec3(-3.0, 4.0, 0.0)),
+        );
+        state.meshes[m_id].transform_piece(&existing, moved_existing);
+        state.meshes[m_id].transform_piece(&created, moved_created);
+
+        cmd.rollback(&mut state).unwrap();
+        assert_eq!(
+            roots(&state, m_id),
+            vec![existing],
+            "undo should merge back into the piece which was there before the cut"
+        );
+        assert_eq!(
+            transform_of(&state, m_id, existing),
+            moved_existing,
+            "and leave that piece where it was"
+        );
+
+        cmd.execute(&mut state).unwrap();
+        let mut expected = vec![existing, created];
+        expected.sort();
+        assert_eq!(roots(&state, m_id), expected, "redo should root both pieces where they were");
+        assert_eq!(transform_of(&state, m_id, existing), moved_existing);
+        assert_eq!(
+            transform_of(&state, m_id, created),
+            moved_created,
+            "the piece the cut created should come back where the user moved it"
+        );
+    }
+
+    /// The same round trip on untouched pieces: the roots have to survive it
+    /// even when nothing was moved, since a `TransformPiecesCommand` later in
+    /// the stack addresses its pieces by root face.
+    #[test]
+    fn undo_redo_leaves_the_roots_alone() {
+        let (mut state, m_id, existing, created, cmd) = split();
+        assert_eq!(transform_of(&state, m_id, created), Matrix4::identity());
+
+        cmd.rollback(&mut state).unwrap();
+        cmd.execute(&mut state).unwrap();
+
+        let mut expected = vec![existing, created];
+        expected.sort();
+        assert_eq!(roots(&state, m_id), expected);
     }
 }

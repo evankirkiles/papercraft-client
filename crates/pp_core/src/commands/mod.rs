@@ -7,7 +7,7 @@ use transform_mesh::TransformMeshCommand;
 use transform_pieces::TransformPiecesCommand;
 use update_flaps::UpdateFlapsCommand;
 
-use crate::{clear_cuts::ClearCutsCommand, id::EdgeId, mesh::cut::FlapPosition, MeshId, State};
+use crate::{clear_cuts::ClearCutsCommand, id, id::EdgeId, mesh::cut::FlapPosition, MeshId, State};
 
 pub mod clear_cuts;
 pub mod make_cuts;
@@ -70,6 +70,45 @@ pub(crate) fn apply_flaps(state: &mut State, flaps: &[((MeshId, EdgeId), FlapPos
     flaps.iter().for_each(|((m_id, e_id), flap_position)| {
         if let Some(mesh) = state.meshes.get_mut(*m_id) {
             mesh.set_cut_flap(*e_id, *flap_position);
+        }
+    });
+}
+
+/// The roots of the pieces sitting on either side of each of `edges`. A piece
+/// *is* its root face — the transform and the unfold origin both hang off it —
+/// so commands which cut record this before and after and replay it, letting a
+/// piece which gets merged away and split back out land where it was instead of
+/// at whichever face the radial iteration happens to reach first.
+pub(crate) fn snapshot_roots(
+    state: &State,
+    edges: &[(MeshId, EdgeId)],
+) -> Vec<(MeshId, id::FaceId)> {
+    let mut roots: Vec<_> = edges
+        .iter()
+        .filter_map(|(m_id, e_id)| {
+            let mesh = state.meshes.get(*m_id)?;
+            let (f_1, f_2) = mesh.get_adjacent_two_faces(*e_id)?;
+            Some([(*m_id, mesh[f_1].p), (*m_id, mesh[f_2].p)])
+        })
+        .flatten()
+        .filter_map(|(m_id, p)| p.map(|p| (m_id, p)))
+        .collect();
+    // Sorted and deduped so peers and the server replay the same roots
+    roots.sort();
+    roots.dedup();
+    roots
+}
+
+/// Replays a recorded set of piece roots onto the state. Run after a command's
+/// cuts have been applied, so the pieces around them are rooted where they were
+/// rather than wherever `make_cut` / `clear_cut` re-derived. Re-rooting an
+/// already correctly rooted piece is a no-op, and a region which was a piece
+/// when this was recorded is acyclic again now that the cuts match, so a failed
+/// expansion means nothing was there to restore.
+pub(crate) fn apply_roots(state: &mut State, roots: &[(MeshId, id::FaceId)]) {
+    roots.iter().for_each(|(m_id, f_id)| {
+        if let Some(mesh) = state.meshes.get_mut(*m_id) {
+            let _ = mesh.expand_piece(*f_id);
         }
     });
 }
