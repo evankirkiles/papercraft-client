@@ -1,4 +1,4 @@
-//! Exporting the print layout's pages as images the user can print.
+//! Exporting the print layout as a PDF the user can print.
 //!
 //! A print run renders one page per frame, driven from [`crate::App::update`]
 //! rather than an `async fn`: `map_async` never completes synchronously, and
@@ -6,28 +6,42 @@
 //! an async method - which the `requestAnimationFrame` loop would immediately
 //! trip over. Spreading the run across frames also keeps the UI responsive
 //! while a large grid rasterizes.
+//!
+//! Each page is the cutting viewport's own render of that sheet - cut lines and
+//! folds included - placed into the PDF as an image. See [`pp_save::pdf`] for why
+//! the lines are rasterized rather than stroked as vector.
 
-use std::{collections::VecDeque, io::Write};
+use std::collections::VecDeque;
 
-use pp_core::measures::Rect;
+use pp_core::measures::{Dimensions, Rect};
 use pp_draw::print::{PrintPoll, PrintTarget};
+use pp_save::pdf::{self, PdfPage, RasterPage};
 use wasm_bindgen::JsValue;
 
 use crate::editor::trigger_download;
 
-/// The name of the archive a print run downloads.
-const ARCHIVE_NAME: &str = "pages.zip";
+/// The name of the document a print run downloads.
+const DOCUMENT_NAME: &str = "pages.pdf";
 
-/// A print run in flight: the pages still to render, the images produced so
-/// far, and the promise handed to JS when it started.
+/// A sheet waiting to be rasterized: where it is in the world, and what it is
+/// called.
+pub(crate) struct PendingPage {
+    label: Option<String>,
+    rect: Rect<f32>,
+}
+
+/// A print run in flight: the pages still to render, the ones finished so far,
+/// and the promise handed to JS when it started.
 pub(crate) struct PrintJob {
     target: PrintTarget,
-    /// Pages still to render, in reading order, as `(filename, world rect)`.
-    pending: VecDeque<(String, Rect<f32>)>,
-    /// The filename of the page currently on the GPU, if any.
-    in_flight: Option<String>,
-    /// The PNGs produced so far, in reading order.
-    done: Vec<(String, Vec<u8>)>,
+    /// The sheet size in centimeters, which every page shares.
+    page_size: Dimensions<f32>,
+    /// Pages still to render, in reading order.
+    pending: VecDeque<PendingPage>,
+    /// The page currently on the GPU, if any.
+    in_flight: Option<PendingPage>,
+    /// The pages finished so far, in reading order.
+    done: Vec<PdfPage>,
     resolve: js_sys::Function,
     reject: js_sys::Function,
 }
@@ -36,7 +50,7 @@ impl std::fmt::Debug for PrintJob {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PrintJob")
             .field("pending", &self.pending.len())
-            .field("in_flight", &self.in_flight)
+            .field("in_flight", &self.in_flight.as_ref().map(|page| &page.label))
             .field("done", &self.done.len())
             .finish()
     }
@@ -45,11 +59,12 @@ impl std::fmt::Debug for PrintJob {
 impl PrintJob {
     pub(crate) fn new(
         target: PrintTarget,
-        pending: VecDeque<(String, Rect<f32>)>,
+        page_size: Dimensions<f32>,
+        pending: VecDeque<PendingPage>,
         resolve: js_sys::Function,
         reject: js_sys::Function,
     ) -> Self {
-        Self { target, pending, in_flight: None, done: Vec::new(), resolve, reject }
+        Self { target, page_size, pending, in_flight: None, done: Vec::new(), resolve, reject }
     }
 
     /// Advances the run by one step, returning `false` once it is over (either
@@ -64,48 +79,39 @@ impl PrintJob {
                 self.settle(&self.reject, &JsValue::from_str(&err.to_string()));
                 return false;
             }
-            PrintPoll::Ready(Ok(png)) => {
+            PrintPoll::Ready(Ok(rgb)) => {
                 // `in_flight` is set whenever a page was submitted, so this
                 // only misses if we polled a target nobody rendered into.
-                if let Some(name) = self.in_flight.take() {
-                    self.done.push((name, png));
+                if let Some(page) = self.in_flight.take() {
+                    let Dimensions { width, height } = self.target.pixel_size();
+                    self.done.push(PdfPage {
+                        size: self.page_size,
+                        label: page.label,
+                        raster: RasterPage { width, height, rgb },
+                    });
                 }
             }
             PrintPoll::Idle => {}
         }
 
-        let Some((name, page)) = self.pending.pop_front() else {
+        let Some(page) = self.pending.pop_front() else {
             return self.finish();
         };
-        self.in_flight = Some(name);
-        renderer.print_page(&mut self.target, page);
+        let rect = page.rect;
+        self.in_flight = Some(page);
+        renderer.print_page(&mut self.target, rect);
         true
     }
 
-    /// Zips the rendered pages up, hands the archive to the browser, and
-    /// settles the promise. Always ends the job.
+    /// Writes the pages out as one PDF, hands it to the browser, and settles the
+    /// promise. Always ends the job.
     fn finish(&self) -> bool {
-        match self.archive().and_then(|zip| trigger_download(&zip, ARCHIVE_NAME)) {
+        let write = pdf::write_pdf(&self.done).map_err(|err| JsValue::from_str(&err.to_string()));
+        match write.and_then(|bytes| trigger_download(&bytes, DOCUMENT_NAME, "application/pdf")) {
             Ok(()) => self.settle(&self.resolve, &JsValue::from_f64(self.done.len() as f64)),
             Err(err) => self.settle(&self.reject, &err),
         }
         false
-    }
-
-    /// Bundles the pages into a single archive.
-    ///
-    /// Stored rather than deflated: PNG is already compressed, so a second pass
-    /// would spend time to save nothing.
-    fn archive(&self) -> Result<Vec<u8>, JsValue> {
-        let options = zip::write::SimpleFileOptions::default()
-            .compression_method(zip::CompressionMethod::Stored);
-        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
-        let to_js = |err: &dyn std::fmt::Display| JsValue::from_str(&format!("{err}"));
-        for (name, png) in &self.done {
-            writer.start_file(name, options).map_err(|e| to_js(&e))?;
-            writer.write_all(png).map_err(|e| to_js(&e))?;
-        }
-        Ok(writer.finish().map_err(|e| to_js(&e))?.into_inner())
     }
 
     /// Rejects a job that can never make progress, e.g. because the canvas went
@@ -121,18 +127,20 @@ impl PrintJob {
     }
 }
 
-/// The pages of `state`'s print layout, in reading order, paired with the
-/// filename each should take in the archive.
-pub(crate) fn pages_to_render(state: &pp_core::State) -> VecDeque<(String, Rect<f32>)> {
+/// The pages of `state`'s print layout, in reading order.
+pub(crate) fn pages_to_render(state: &pp_core::State) -> VecDeque<PendingPage> {
     let layout = &state.printing;
     layout
         .pages_in_grid_order()
         .into_iter()
         .map(|(col, row, id)| {
             let page = &layout.pages[id];
-            let name =
-                page.label.clone().unwrap_or_else(|| format!("page-{}-{}", row + 1, col + 1));
-            (format!("{name}.png"), page.world_rect(&layout.page_size))
+            PendingPage {
+                label: Some(
+                    page.label.clone().unwrap_or_else(|| format!("Page {}-{}", row + 1, col + 1)),
+                ),
+                rect: page.world_rect(&layout.page_size),
+            }
         })
         .collect()
 }

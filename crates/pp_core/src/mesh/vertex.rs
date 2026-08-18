@@ -76,4 +76,10 @@ impl super::Mesh {
     pub fn iter_vert_edges(&'_ self, e: id::EdgeId, v: id::VertexId) -> DiskCycleWalker<'_> {
         DiskCycleWalker::new(self, e, v)
     }
+
+    /// Walks the edges around a vertex, starting from whichever edge the vertex
+    /// itself points at. Yields nothing for a disconnected vertex.
+    pub fn iter_all_vert_edges(&'_ self, v: id::VertexId) -> impl Iterator<Item = id::EdgeId> + '_ {
+        self[v].e.into_iter().flat_map(move |e| self.iter_vert_edges(e, v))
+    }
 }

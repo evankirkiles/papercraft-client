@@ -19,7 +19,6 @@ hex_color.workspace = true
 log.workspace = true
 paste.workspace = true
 wgpu.workspace = true
-image.workspace = true
 slotmap.workspace = true
 
 [build-dependencies]

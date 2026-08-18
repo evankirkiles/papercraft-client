@@ -26,6 +26,7 @@ web-sys = { version = "0.3", features = [
   "HtmlAnchorElement",
   "console",
   "Blob",
+  "BlobPropertyBag",
   "Url",
   "WebSocket",
   "MessageEvent",
@@ -50,7 +51,6 @@ paste.workspace = true
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 wgpu.workspace = true
-zip.workspace = true
 
 [build-dependencies]
 anyhow.workspace = true

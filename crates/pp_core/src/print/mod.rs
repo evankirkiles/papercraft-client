@@ -1,5 +1,6 @@
 pub mod image_box;
 pub mod text_box;
+pub mod vector;
 
 use std::collections::BTreeSet;
 

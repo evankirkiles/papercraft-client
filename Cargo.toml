@@ -43,8 +43,10 @@ image = { version = "0.25", default-features = false, features = [
 itertools = "0.14.0"
 js-sys = "0.3.81"
 log = "0.4.22"
+miniz_oxide = "0.8"
 ordered-float = { version = "5.0", default-features = false }
 paste = "1.0.15"
+pdf-writer = "0.13"
 pollster = "0.4.0"
 raw-window-handle = "0.6.2"
 tobj = { version = "4.0", default-features = false, features = ["async"] }
@@ -65,5 +67,4 @@ web-sys = { version = "0.3", features = [
   "console",
 ] }
 wgpu = { version = "25.0", features = ["wgsl", "webgl"] }
-zip = { version = "2", default-features = false }
 winit = { version = "0.30", features = ["rwh_05"] }

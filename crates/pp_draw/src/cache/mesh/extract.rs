@@ -37,16 +37,25 @@ bitflags! {
     }
 }
 
+/// A flap's short edge, in the same unfolded piece-local space as the edge
+/// positions VBO.
+///
+/// Only the two *top* corners travel: the bottom two are the flap's base edge,
+/// which the edge positions VBO already carries. The trapezoid itself is shaped
+/// by [`pp_core::mesh::flap::flap_corners`] on the CPU rather than in the vertex
+/// shader, so the tab the printer strokes and the tab on screen are the same
+/// four points.
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct EdgeFlapInfo {
-    pub v3_pos: [f32; 3],
+    pub top0: [f32; 3],
+    pub top1: [f32; 3],
     pub flags: u32,
 }
 
 /// Helper functions for extracting VBOs from a Mesh
 pub mod vbo {
-    use cgmath::{EuclideanSpace, InnerSpace, Matrix4, Rad, Transform, Vector3};
+    use cgmath::{EuclideanSpace, Transform};
     use pp_core::{
         id::{self, EdgeId, Id, LoopId},
         mesh::edge::FLAT_EDGE_ANGLE_EPSILON,
@@ -338,9 +347,12 @@ pub mod vbo {
         vbo.update(ctx, data.as_slice())
     }
 
-    /// Extracts flap-specific information from the edges in the piece. This information is:
-    ///  - flags (whether or not the flap exists, any other info we need to pack in here)
-    ///  - v3_pos (the position of the anchor vertex the piece should reach to)
+    /// Extracts the flap hanging over each of the piece's edge loops: the two
+    /// top corners of its trapezoid, and whether it exists at all.
+    ///
+    /// The shape itself comes from `pp_core`, which owns the flap geometry so the
+    /// printed tab and the on-screen tab agree; this only walks the loops and
+    /// flattens the result into the buffer.
     pub fn piece_edge_flap(ctx: &gpu::Context, mesh: &pp_core::mesh::Mesh, vbo: &mut gpu::VertBuf) {
         let data: Vec<_> = mesh
             .iter_pieces()
@@ -349,58 +361,15 @@ pub mod vbo {
                 let t = walker.t;
                 walker.flat_map(move |item| {
                     mesh.iter_face_loops(item.f).map(move |l_id| {
-                        let l = mesh[l_id];
-                        let e = mesh[l.e];
-                        let l_2 = mesh[l.radial_next];
-
-                        // If edge is not cut or there's no flap here, just return the default,
-                        // which will not render / render an invisible flap
-                        if !mesh.loop_has_flap(l_id) {
-                            return EdgeFlapInfo::default();
-                        }
-
-                        // Here, we need the unfolded position of the vertex across
-                        // the cut boundary of the current edge (if cut). We use
-                        // this as the anchor to determine the positions of the
-                        // vertices on the short edge of the flap.
-                        let (v0_id, v1_id) = (e.v[0], e.v[1]);
-
-                        // 1. Get current positions of v0, v1 in untransformed space
-                        // to determine the shared edge axis we need to rotate face 2 around
-                        let v0 = mesh.vert_pos(v0_id);
-                        let v1 = mesh.vert_pos(v1_id);
-                        let axis = (v1 - v0).normalize();
-
-                        // 2. Compare face normals to determine the angle we need to rotate face 2
-                        // by (around the shared edge) to make it coplanar with face 1
-                        let n1 = Vector3::from(mesh[l.f].no);
-                        let n2 = Vector3::from(mesh[l_2.f].no);
-                        // Compute angle to rotate n2 onto n1 around `axis`
-                        let cross = n2.cross(n1); // direction from n2 to n1
-                        let dot = n2.dot(n1);
-                        let angle = axis.dot(cross).atan2(dot) * t; // signed angle from n2 to n1
-
-                        // 3. Create affine transform to rotate all vertices in face 2
-                        // by `angle` around the shared edge, bringing face 2 onto the same
-                        // plane to the "root" face.
-                        let translation_origin = Matrix4::from_translation(-v0);
-                        let rotation = Matrix4::from_axis_angle(axis, Rad(angle));
-                        let translation_back = Matrix4::from_translation(v0);
-                        let local_rotation = translation_back * rotation * translation_origin;
-                        let affine = item.affine * local_rotation;
-
-                        // The point we want is the single vertex in f_2 which is neither v0 nor v1.
-                        // We need to apply the final calcualted transformation to it.
-                        let v3 = mesh
-                            .iter_face_loops(l_2.f)
-                            .map(|l| mesh[l].v)
-                            .find(|v| *v != v0_id && *v != v1_id)
-                            .unwrap();
-                        let v3_pos =
-                            affine.transform_point(cgmath::Point3::from_vec(mesh.vert_pos(v3)));
-
-                        // Here, we have the face and correct vertex positions.
-                        EdgeFlapInfo { v3_pos: v3_pos.into(), flags: EdgeFlapFlags::EXISTS.bits() }
+                        // A loop with no flap keeps the default, whose cleared
+                        // EXISTS flag the shader clips away.
+                        mesh.piece_flap_corners(l_id, item.affine, t)
+                            .map(|corners| EdgeFlapInfo {
+                                top0: corners[3].into(),
+                                top1: corners[2].into(),
+                                flags: EdgeFlapFlags::EXISTS.bits(),
+                            })
+                            .unwrap_or_default()
                     })
                 })
             })

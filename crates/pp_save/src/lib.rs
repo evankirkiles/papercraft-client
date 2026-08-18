@@ -6,6 +6,7 @@ mod extra;
 mod standard;
 
 pub mod load;
+pub mod pdf;
 pub mod save;
 
 /// A GLTF file with a `papercraft` extension containing the app state

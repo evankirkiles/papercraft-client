@@ -65,11 +65,12 @@ struct VertexInput {
     @location(0) offset: vec2<f32>,
     @location(1) v0_pos: vec3<f32>,
     @location(2) v1_pos: vec3<f32>,
-    @location(3) v2_pos: vec3<f32>,
-    @location(4) flap_flags: u32,
-    @location(5) flags: u32,
-    @location(6) select_idx: vec4<u32>,
-    @builtin(vertex_index) vertex_index: u32 
+    @location(3) top0_pos: vec3<f32>,
+    @location(4) top1_pos: vec3<f32>,
+    @location(5) flap_flags: u32,
+    @location(6) flags: u32,
+    @location(7) select_idx: vec4<u32>,
+    @builtin(vertex_index) vertex_index: u32
 };
 
 struct VertexOutput {
@@ -77,9 +78,6 @@ struct VertexOutput {
     @location(1) color: vec4<f32>,
     @location(2) @interpolate(flat) select_idx: vec4<u32>
 };
-
-// Rendering constants (to move to uniform)
-const MAX_FLAP_HEIGHT: f32 = 0.3; // (in CM)
 
 // Edge flags
 const E_FLAG_SELECTED: u32 = (u32(1) << 0);
@@ -91,35 +89,16 @@ const E_FLAG_CUT: u32 = (u32(1) << 4);
 // Flap flags
 const F_FLAG_EXISTS: u32 = (u32(1) << 0);
 
-// Returns the 4 corners of the trapezoid flap
-fn _compute_flap_corners(in: VertexInput) -> array<vec3<f32>, 4> {
-    let v0 = in.v0_pos;
-    let v1 = in.v1_pos;
-    let v2 = in.v2_pos;
-
-    // Get the direction in which the isosceles triangle extends
-    let base_vec = v1 - v0;
-    let base_len = length(base_vec);
-    let base_dir = normalize(base_vec);
-    let base_mid = 0.5 * (v0 + v1);
-    let tri_normal = normalize(cross(base_vec, v2 - v0));
-    let perp_dir = normalize(cross(tri_normal, base_dir));
-
-    // Find the apex of the isosceles triangle in which we inscribe the flap 
-    let angle0 = acos(clamp(dot(normalize(v1 - v0), normalize(v2 - v0)), -1.0, 1.0));
-    let angle1 = acos(clamp(dot(normalize(v0 - v1), normalize(v2 - v1)), -1.0, 1.0));
-    let min_angle = min(0.785398, min(angle0, angle1)); // Max angle is 45 degrees
-    let height = 0.5 * base_len * tan(min_angle);
-    let apex = base_mid + perp_dir * height;
-
-    // Keep a consistent max height for all tabs
-    let clamped_height = min(height, MAX_FLAP_HEIGHT);
-    let depth_scale = clamped_height / height;
-
-    // Compute the short-edge vertices of the flap
-    let top0 = v0 + (apex - v0) * depth_scale;
-    let top1 = v1 + (apex - v1) * depth_scale;
-    return array<vec3<f32>, 4>(v0, v1, top1, top0);  // bottom-left, bottom-right, top-right, top-left
+// The 4 corners of the trapezoid flap: bottom-left, bottom-right, top-right,
+// top-left.
+//
+// The shape is decided on the CPU by `pp_core::mesh::flap::flap_corners` — the
+// bottom pair is the base edge this flap folds along, the top pair arrives in
+// its own buffer. Keep it that way: the vector print path strokes these same
+// four points, so a copy of the trapezoid math living here too would let the
+// printed tab drift from the one on screen.
+fn _flap_corners(in: VertexInput) -> array<vec3<f32>, 4> {
+    return array<vec3<f32>, 4>(in.v0_pos, in.v1_pos, in.top1_pos, in.top0_pos);
 }
 
 // Calculates the colors of flaps as would be seen on-screen.
@@ -158,7 +137,7 @@ fn _vs_clip_pos(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     var out = _out;
     
     // Compute corners of the flap trapezoid
-    let corners = _compute_flap_corners(in);
+    let corners = _flap_corners(in);
   
     // Interpolate between corners of the flap based on input verts
     let base_pos = mix(corners[0], corners[1], in.offset.x);
@@ -189,7 +168,7 @@ fn _vs_clip_pos_edge(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     }
 
     // Get the corners of the flap trapezoid
-    let corners = _compute_flap_corners(in);
+    let corners = _flap_corners(in);
 
     // Get the current vertex and the next vertex
     let p0 = corners[side];

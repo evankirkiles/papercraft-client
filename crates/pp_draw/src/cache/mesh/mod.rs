@@ -507,8 +507,10 @@ impl MeshGPU {
                 },
             ],
         },
+        // `EdgeFlapInfo`: the flap's two top corners, then its flags. The bottom
+        // two corners are the base edge, which the buffer above already carries.
         wgpu::VertexBufferLayout {
-            array_stride: MeshGPUVBOs::VERTEX_FORMAT_EDGE_POS.size()
+            array_stride: MeshGPUVBOs::VERTEX_FORMAT_EDGE_POS.size() * 2
                 + MeshGPUVBOs::VERTEX_FORMAT_FLAP_FLAGS.size(),
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &[
@@ -518,9 +520,14 @@ impl MeshGPU {
                     shader_location: 3,
                 },
                 wgpu::VertexAttribute {
-                    format: MeshGPUVBOs::VERTEX_FORMAT_FLAP_FLAGS,
+                    format: MeshGPUVBOs::VERTEX_FORMAT_EDGE_POS,
                     offset: MeshGPUVBOs::VERTEX_FORMAT_EDGE_POS.size(),
                     shader_location: 4,
+                },
+                wgpu::VertexAttribute {
+                    format: MeshGPUVBOs::VERTEX_FORMAT_FLAP_FLAGS,
+                    offset: MeshGPUVBOs::VERTEX_FORMAT_EDGE_POS.size() * 2,
+                    shader_location: 5,
                 },
             ],
         },
@@ -530,7 +537,7 @@ impl MeshGPU {
             attributes: &[wgpu::VertexAttribute {
                 format: MeshGPUVBOs::VERTEX_FORMAT_EDGE_FLAGS,
                 offset: 0,
-                shader_location: 5,
+                shader_location: 6,
             }],
         },
         wgpu::VertexBufferLayout {
@@ -539,7 +546,7 @@ impl MeshGPU {
             attributes: &[wgpu::VertexAttribute {
                 format: MeshGPUVBOs::VERTEX_FORMAT_EDGE_IDX,
                 offset: 0,
-                shader_location: 6,
+                shader_location: 7,
             }],
         },
     ];

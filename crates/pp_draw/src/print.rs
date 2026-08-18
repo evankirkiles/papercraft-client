@@ -12,9 +12,8 @@
 //! than blocking, since the browser's event loop is the only thing that can
 //! drive it forward.
 
-use std::{cell::RefCell, io::Cursor, iter, rc::Rc};
+use std::{cell::RefCell, iter, rc::Rc};
 
-use image::ImageEncoder;
 use pp_core::{
     measures::{Dimensions, Rect},
     print::PageSize,
@@ -96,7 +95,7 @@ pub enum PrintPoll {
     Idle,
     /// Still waiting on the GPU.
     Pending,
-    /// The page's PNG bytes.
+    /// The page's opaque RGB pixels, row by row from the top.
     Ready(Result<Vec<u8>, PrintError>),
 }
 
@@ -139,6 +138,14 @@ pub struct PrintTarget {
 }
 
 impl PrintTarget {
+    /// The page's true size in pixels, excluding the row-alignment padding.
+    ///
+    /// This is the size of the image [`PrintPoll::Ready`] hands back, which the
+    /// PDF needs to declare for it.
+    pub fn pixel_size(&self) -> Dimensions<u32> {
+        self.size
+    }
+
     pub fn new(
         ctx: &gpu::Context,
         page_size: &PageSize,
@@ -370,37 +377,45 @@ impl<'window> Renderer<'window> {
             }
             PageState::Mapping => PrintPoll::Pending,
             PageState::Mapped => {
-                let png = {
+                let rgb = {
                     let readback = target.readback.borrow();
                     let mapped = readback.slice(..).get_mapped_range();
-                    encode_png(&mapped, target.size, target.padded_width, target.is_bgra)
+                    to_opaque_rgb(&mapped, target.size, target.padded_width, target.is_bgra)
                 };
                 target.readback.borrow().unmap();
                 target.state.replace(PageState::Idle);
-                PrintPoll::Ready(png)
+                PrintPoll::Ready(rgb)
             }
         }
     }
 }
 
-/// Turns a mapped page readback into PNG bytes.
+/// Turns a mapped page readback into opaque 8-bit RGB, row by row from the top.
 ///
-/// Two corrections stand between the raw texels and a usable image:
+/// Three corrections stand between the raw texels and a usable image:
 ///
 /// - The texture is padded on the right for the copy's row alignment, so each
 ///   row has to be cut back to the page's true width.
-/// - Every annotation pipeline blends with [`wgpu::BlendState::ALPHA_BLENDING`]
-///   over a transparent black clear, which leaves the result *premultiplied*
-///   (`rgb = a * color`). PNG stores straight alpha, so without dividing it
-///   back out every antialiased stroke prints with a dark halo.
-fn encode_png(
+/// - Every pipeline blends with [`wgpu::BlendState::ALPHA_BLENDING`] over a
+///   transparent black clear, which leaves the result *premultiplied*
+///   (`rgb = a * color`).
+/// - The sheet is opaque paper. Compositing the premultiplied result straight
+///   over white both drops the alpha channel — keeping soft masks out of the
+///   PDF, which print drivers and RIPs handle unevenly — and does it without
+///   ever dividing the alpha back out, so the dark halo that an un-premultiply
+///   leaves on a partly covered pixel never arises.
+fn to_opaque_rgb(
     bytes: &[u8],
     size: Dimensions<u32>,
     padded_width: u32,
     is_bgra: bool,
 ) -> Result<Vec<u8>, PrintError> {
     let row_stride = (padded_width * 4) as usize;
-    let mut pixels = Vec::with_capacity((size.width * size.height * 4) as usize);
+    let needed = row_stride * size.height as usize;
+    if bytes.len() < needed {
+        return Err(PrintError::ReadbackFailed);
+    }
+    let mut pixels = Vec::with_capacity((size.width * size.height * 3) as usize);
     for row in 0..size.height as usize {
         let start = row * row_stride;
         let row = &bytes[start..start + (size.width * 4) as usize];
@@ -410,21 +425,11 @@ fn encode_png(
             } else {
                 (texel[0], texel[1], texel[2])
             };
-            let a = texel[3];
-            let straight = |c: u8| -> u8 {
-                if a == 0 {
-                    0
-                } else {
-                    ((c as u32 * 255 + a as u32 / 2) / a as u32).min(255) as u8
-                }
-            };
-            pixels.extend_from_slice(&[straight(r), straight(g), straight(b), a]);
+            // `over` white with a premultiplied source: c + (1 - a) * 255.
+            let paper = 255 - texel[3] as u32;
+            let composite = |c: u8| (c as u32 + paper).min(255) as u8;
+            pixels.extend_from_slice(&[composite(r), composite(g), composite(b)]);
         }
     }
-
-    let mut png = Vec::new();
-    image::codecs::png::PngEncoder::new(Cursor::new(&mut png))
-        .write_image(&pixels, size.width, size.height, image::ExtendedColorType::Rgba8)
-        .map_err(|err| PrintError::EncodeFailed(err.to_string()))?;
-    Ok(png)
+    Ok(pixels)
 }

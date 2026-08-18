@@ -20,6 +20,13 @@ impl SelectCommand {
         state.select_all(action);
         Self { before, after: Box::new(state.selection.clone()) }
     }
+
+    /// Expands the selection outwards by one ring of edges. Returns `None` when
+    /// there's nothing to expand to, so no undo entry gets recorded.
+    pub fn expand_selection(state: &mut crate::State) -> Option<Self> {
+        let before = Box::new(state.selection.clone());
+        state.expand_selection().then(|| Self { before, after: Box::new(state.selection.clone()) })
+    }
 }
 
 impl Command for SelectCommand {

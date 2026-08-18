@@ -149,13 +149,15 @@ impl App {
         self.renderer.replace(None);
     }
 
-    /// Renders every page of the print layout and downloads them as a zip.
+    /// Renders every page of the print layout and downloads them as one PDF.
     ///
-    /// Each page is a PNG of just the pieces - their surfaces, fold and cut
-    /// lines, and flaps - on a transparent background, at `dpi` (300 by
-    /// default). Pages render one per frame, so the returned promise settles
-    /// some frames later: with the number of pages written, or with the reason
-    /// the run failed.
+    /// Each page is the cutting viewport's own render of that sheet - textured
+    /// surfaces, fold and cut lines, and tabs - rasterized at `dpi` (300 by
+    /// default) and placed into the PDF as an image.
+    ///
+    /// Pages render one per frame, so the returned promise settles some frames
+    /// later: with the number of pages written, or with the reason the run
+    /// failed.
     pub fn print(&mut self, dpi: Option<f32>) -> js_sys::Promise {
         let mut callbacks = None;
         // `Promise::new` runs its executor synchronously, so the functions are
@@ -199,7 +201,13 @@ impl App {
         .map_err(|err| JsValue::from_str(&err.to_string()))?;
 
         let pages = print::pages_to_render(&state);
-        self.print_job = Some(print::PrintJob::new(target, pages, resolve, reject));
+        self.print_job = Some(print::PrintJob::new(
+            target,
+            state.printing.page_size.dimensions(),
+            pages,
+            resolve,
+            reject,
+        ));
         Ok(())
     }
 

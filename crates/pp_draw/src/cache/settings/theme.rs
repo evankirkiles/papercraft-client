@@ -30,14 +30,6 @@ impl ThemeUniform {
     }
 }
 
-/// Whether fold (mountain / valley) lines are drawn in the cutting view. When
-/// off, the only strokes left are the piece silhouette — the mesh boundary and
-/// cut edges with no flap on that side. Edges a flap folds along stay blank,
-/// same as any other fold.
-///
-/// TODO: promote to a user preference once the settings UI has a home for it.
-const RENDER_FOLD_LINES: bool = true;
-
 /// Per-pass adjustments to the user's theme.
 ///
 /// The viewport renders with the defaults; the print pass overrides both, since
@@ -91,7 +83,7 @@ impl ThemeSizesUniform {
             line_width: value.line_width * k,
             line_width_thick: value.line_width_thick * k,
             point_size: value.point_size * k,
-            fold_lines: if RENDER_FOLD_LINES { 1.0 } else { 0.0 },
+            fold_lines: if value.fold_lines { 1.0 } else { 0.0 },
             stroke_scale: k,
             selection: if overrides.selection { 1.0 } else { 0.0 },
             _pad: [0.0; 2],

@@ -14,11 +14,19 @@ pub struct ThemeSizes {
     pub line_width: f32,
     pub line_width_thick: f32,
     pub point_size: f32,
+    /// Whether fold (mountain / valley) lines are drawn at all. When off, the
+    /// only strokes left are the piece silhouette — the mesh boundary and cut
+    /// edges with no flap on that side. Edges a flap folds along stay blank,
+    /// same as any other fold.
+    ///
+    /// Read by both the cutting viewport and the vector print path, so that what
+    /// you see is what gets printed.
+    pub fold_lines: bool,
 }
 
 impl Default for ThemeSizes {
     fn default() -> Self {
-        Self { line_width: 1.5, line_width_thick: 4.0, point_size: 14.0 }
+        Self { line_width: 1.5, line_width_thick: 4.0, point_size: 14.0, fold_lines: true }
     }
 }
 

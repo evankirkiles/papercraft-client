@@ -1,11 +1,132 @@
 use std::collections::BTreeMap;
 
+use cgmath::{EuclideanSpace, InnerSpace, Matrix4, Point3, Rad, Transform, Vector3};
+
 use crate::{
     id::{FaceId, LoopId, VertexId},
     mesh::cut::FlapPosition,
 };
 
+/// How far a flap may reach off the edge it hangs from, in centimeters.
+///
+/// A cap rather than a proportion: tabs are glued by hand, so past a few
+/// millimeters extra reach stops helping and just eats page area.
+pub const MAX_FLAP_HEIGHT: f32 = 0.3;
+
+/// The widest half-angle a flap's corner may take, in radians (45°).
+///
+/// The flap is inscribed in the isosceles triangle standing on its base edge,
+/// which for a very obtuse neighbouring face would run away to a long spike.
+pub const MAX_FLAP_APEX_ANGLE: f32 = std::f32::consts::FRAC_PI_4;
+
+/// The four corners of the trapezoid flap hanging off the edge `v0 -> v1`,
+/// as `[v0, v1, top1, top0]` — bottom-left, bottom-right, top-right, top-left.
+///
+/// `v2` is the anchor: the unfolded position of the vertex across the cut, whose
+/// face tells the flap which way to lean and how much room it has. All three
+/// points are in the same unfolded piece-local space, so the caller still has to
+/// apply the piece transform to place the result on a page.
+///
+/// The flap is inscribed in the isosceles triangle standing on `v0 -> v1`, with
+/// its apex angle capped at [`MAX_FLAP_APEX_ANGLE`] and its height at
+/// [`MAX_FLAP_HEIGHT`], then cut off parallel to the base. Capping the angle
+/// before the height is what keeps the tab inside the facing face: a flap that
+/// leaned out further than the face it folds onto would stick out past the
+/// silhouette once the model is assembled.
+///
+/// This is the single definition of flap geometry. The GPU reads the corners it
+/// returns rather than deriving its own, and the vector print path strokes their
+/// outline, so the printed tab and the tab on screen cannot drift apart.
+///
+/// Degenerate input — a zero-length base, or an anchor collinear with it — has
+/// no well-defined lean, so the flap collapses onto its base and renders as
+/// nothing.
+pub fn flap_corners(v0: Vector3<f32>, v1: Vector3<f32>, v2: Vector3<f32>) -> [Point3<f32>; 4] {
+    let collapsed =
+        || [Point3::from_vec(v0), Point3::from_vec(v1), Point3::from_vec(v1), Point3::from_vec(v0)];
+
+    // The direction the isosceles triangle extends: perpendicular to the base,
+    // in the plane the base and the anchor span.
+    let base_vec = v1 - v0;
+    let base_len = base_vec.magnitude();
+    let tri_normal = base_vec.cross(v2 - v0);
+    if base_len <= f32::EPSILON || tri_normal.magnitude() <= f32::EPSILON {
+        return collapsed();
+    }
+    let base_dir = base_vec / base_len;
+    let base_mid = 0.5 * (v0 + v1);
+    let perp_dir = tri_normal.normalize().cross(base_dir);
+
+    // The apex of the triangle the flap is inscribed in, leaning no further than
+    // the shallower of the facing face's two base corners.
+    let angle_at = |a: Vector3<f32>, b: Vector3<f32>| {
+        ((b - a).normalize().dot((v2 - a).normalize())).clamp(-1.0, 1.0).acos()
+    };
+    let min_angle = MAX_FLAP_APEX_ANGLE.min(angle_at(v0, v1)).min(angle_at(v1, v0));
+    let height = 0.5 * base_len * min_angle.tan();
+    if !height.is_finite() || height <= f32::EPSILON {
+        return collapsed();
+    }
+    let apex = base_mid + perp_dir * height;
+
+    // Truncate the triangle to the height cap, keeping the sides' slope so every
+    // tab in the document leans the same way its own geometry asks for.
+    let depth_scale = height.min(MAX_FLAP_HEIGHT) / height;
+    let top0 = v0 + (apex - v0) * depth_scale;
+    let top1 = v1 + (apex - v1) * depth_scale;
+    [Point3::from_vec(v0), Point3::from_vec(v1), Point3::from_vec(top1), Point3::from_vec(top0)]
+}
+
 impl super::Mesh {
+    /// The four corners of the flap hanging over loop `l_id`, or `None` if that
+    /// side of the edge carries no flap.
+    ///
+    /// `affine` is the unfolding transform of `l_id`'s own face, as handed out by
+    /// [`Self::iter_piece_faces_unfolded`], and `t` that walker's unfoldedness.
+    /// The corners come back in the same piece-local unfolded space the walker
+    /// works in, so placing them on a page still needs the piece transform.
+    ///
+    /// The anchor a flap leans on is the third vertex of the face *across* the
+    /// cut, which is only in the right place once that face has been rotated onto
+    /// this one — the neighbour belongs to a different piece (or to none), so its
+    /// own unfolding says nothing about where it sits relative to this seam.
+    pub fn piece_flap_corners(
+        &self,
+        l_id: LoopId,
+        affine: Matrix4<f32>,
+        t: f32,
+    ) -> Option<[Point3<f32>; 4]> {
+        if !self.loop_has_flap(l_id) {
+            return None;
+        }
+        let l = self[l_id];
+        let across = self[l.radial_next];
+        let (v0_id, v1_id) = (self[l.e].v[0], self[l.e].v[1]);
+        let (v0, v1) = (self.vert_pos(v0_id), self.vert_pos(v1_id));
+
+        // Rotate the facing face onto this one about the shared edge, by the
+        // signed angle between the two face normals.
+        let axis = (v1 - v0).normalize();
+        let (n_here, n_across) = (Vector3::from(self[l.f].no), Vector3::from(self[across.f].no));
+        let angle = axis.dot(n_across.cross(n_here)).atan2(n_across.dot(n_here)) * t;
+        let local = Matrix4::from_translation(v0)
+            * Matrix4::from_axis_angle(axis, Rad(angle))
+            * Matrix4::from_translation(-v0);
+
+        // The anchor is the facing face's one vertex that isn't on the seam.
+        let anchor = self
+            .iter_face_loops(across.f)
+            .map(|l| self[l].v)
+            .find(|v| *v != v0_id && *v != v1_id)?;
+        let anchor = (affine * local).transform_point(Point3::from_vec(self.vert_pos(anchor)));
+
+        Some(flap_corners(
+            affine.transform_point(Point3::from_vec(v0)).to_vec(),
+            affine.transform_point(Point3::from_vec(v1)).to_vec(),
+            anchor.to_vec(),
+        ))
+    }
+
     /// Chooses which side of each cut on a piece's boundary carries the flap.
     ///
     /// Flaps are decided per contiguous *run* of boundary edges rather than per
@@ -125,6 +246,150 @@ fn find(parent: &mut [usize], mut i: usize) -> usize {
         i = parent[i];
     }
     i
+}
+
+#[cfg(test)]
+mod corner_tests {
+    use cgmath::{InnerSpace, Vector3};
+
+    use super::{flap_corners, MAX_FLAP_APEX_ANGLE, MAX_FLAP_HEIGHT};
+
+    /// A base edge along x, with the anchor `reach` away from it in +y — the
+    /// unfolded layout every flap sees, up to a rigid transform.
+    fn flap(base_len: f32, reach: f32) -> [Vector3<f32>; 3] {
+        [
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(base_len, 0.0, 0.0),
+            Vector3::new(0.5 * base_len, reach, 0.0),
+        ]
+    }
+
+    /// The trapezoid stands on the base edge itself, so the two share their
+    /// endpoints exactly. Gluing depends on it: the base is the fold line.
+    #[test]
+    fn the_flap_stands_on_its_base_edge() {
+        let [v0, v1, v2] = flap(1.0, 0.4);
+        let corners = flap_corners(v0, v1, v2);
+        assert_eq!(corners[0], cgmath::Point3::new(0.0, 0.0, 0.0));
+        assert_eq!(corners[1], cgmath::Point3::new(1.0, 0.0, 0.0));
+    }
+
+    /// The flap leans toward the anchor, never away from it — a tab folded the
+    /// wrong way lands outside the face it is supposed to be glued under.
+    #[test]
+    fn the_flap_leans_toward_the_anchor() {
+        let [v0, v1, v2] = flap(1.0, 0.4);
+        let corners = flap_corners(v0, v1, v2);
+        assert!(corners[2].y > 0.0, "top-right should lean toward the anchor");
+        assert!(corners[3].y > 0.0, "top-left should lean toward the anchor");
+
+        // Mirror the anchor and the flap must follow it.
+        let mirrored = flap_corners(v0, v1, Vector3::new(0.5, -0.4, 0.0));
+        assert!(mirrored[2].y < 0.0 && mirrored[3].y < 0.0);
+    }
+
+    /// A symmetric neighbour gives a symmetric tab. Asymmetry here would show up
+    /// as a tab that visibly slews to one side of the seam.
+    #[test]
+    fn a_symmetric_anchor_gives_a_symmetric_flap() {
+        let [v0, v1, v2] = flap(2.0, 0.5);
+        let corners = flap_corners(v0, v1, v2);
+        let mid = 0.5 * (corners[0].x + corners[1].x);
+        assert!(
+            ((corners[3].x - mid) + (corners[2].x - mid)).abs() < 1e-5,
+            "top corners should straddle the base midpoint: {corners:?}"
+        );
+        assert!((corners[2].y - corners[3].y).abs() < 1e-6, "and sit at one height");
+    }
+
+    /// Height is capped, so a long seam with a lot of room still gets a tab you
+    /// can glue rather than one that eats the page.
+    #[test]
+    fn the_flap_height_is_capped() {
+        // A base this long would inscribe a 45-degree triangle 5cm tall.
+        let [v0, v1, v2] = flap(10.0, 20.0);
+        let corners = flap_corners(v0, v1, v2);
+        assert!(
+            corners[2].y <= MAX_FLAP_HEIGHT + 1e-6,
+            "expected the cap at {MAX_FLAP_HEIGHT}, got {}",
+            corners[2].y
+        );
+    }
+
+    /// A shallow neighbour caps the tab below the height limit instead: the tab
+    /// has to stay inside the face it folds onto.
+    #[test]
+    fn a_shallow_anchor_shortens_the_flap_below_the_cap() {
+        let [v0, v1, v2] = flap(1.0, 0.05);
+        let corners = flap_corners(v0, v1, v2);
+        assert!(
+            corners[2].y < MAX_FLAP_HEIGHT,
+            "a shallow face should bound the flap before the height cap does"
+        );
+        assert!(corners[2].y > 0.0, "but it should still exist");
+    }
+
+    /// The inscribed triangle's apex angle never exceeds 45 degrees, whatever the
+    /// facing face's shape, so a very obtuse neighbour can't grow a spike.
+    #[test]
+    fn the_apex_angle_never_exceeds_the_cap() {
+        for reach in [0.05, 0.2, 1.0, 5.0, 100.0] {
+            let [v0, v1, v2] = flap(1.0, reach);
+            let corners = flap_corners(v0, v1, v2);
+            // Re-derive the untruncated apex from the trapezoid's own sides.
+            let side = corners[3] - corners[0];
+            let base = (corners[1] - corners[0]).normalize();
+            let angle = side.normalize().dot(base).clamp(-1.0, 1.0).acos();
+            assert!(
+                angle <= MAX_FLAP_APEX_ANGLE + 1e-5,
+                "reach {reach} gave a base angle of {angle} rad, over the cap"
+            );
+        }
+    }
+
+    /// An anchor collinear with the base gives the flap no direction to lean, so
+    /// it collapses instead of producing NaN corners the GPU would scatter.
+    #[test]
+    fn a_degenerate_anchor_collapses_the_flap() {
+        let v0 = Vector3::new(0.0, 0.0, 0.0);
+        let v1 = Vector3::new(1.0, 0.0, 0.0);
+        for anchor in [Vector3::new(0.5, 0.0, 0.0), Vector3::new(2.0, 0.0, 0.0), v0] {
+            let corners = flap_corners(v0, v1, anchor);
+            assert!(
+                corners.iter().all(|c| c.x.is_finite() && c.y.is_finite() && c.z.is_finite()),
+                "collinear anchor {anchor:?} produced non-finite corners: {corners:?}"
+            );
+            assert_eq!(corners[3], corners[0], "and the tab should have no height");
+            assert_eq!(corners[2], corners[1]);
+        }
+    }
+
+    /// A zero-length base has no flap to build, and must not divide by it.
+    #[test]
+    fn a_zero_length_base_collapses_the_flap() {
+        let v = Vector3::new(1.0, 2.0, 3.0);
+        let corners = flap_corners(v, v, Vector3::new(1.0, 3.0, 3.0));
+        assert!(corners.iter().all(|c| c.x.is_finite() && c.y.is_finite() && c.z.is_finite()));
+    }
+
+    /// The flap is built in the unfolded plane the three points span, so it works
+    /// just as well on a piece lying off the page's own plane.
+    #[test]
+    fn the_flap_follows_the_plane_its_points_span() {
+        // Same triangle as `flap(1.0, 0.4)`, rotated into the xz plane.
+        let corners = flap_corners(
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(1.0, 0.0, 0.0),
+            Vector3::new(0.5, 0.0, 0.4),
+        );
+        let flat = flap_corners(
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(1.0, 0.0, 0.0),
+            Vector3::new(0.5, 0.4, 0.0),
+        );
+        assert!((corners[3].z.abs() - flat[3].y.abs()).abs() < 1e-6);
+        assert!(corners[3].y.abs() < 1e-6, "the flap should stay in its own plane");
+    }
 }
 
 #[cfg(test)]

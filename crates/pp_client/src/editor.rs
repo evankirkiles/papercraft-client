@@ -17,8 +17,11 @@ use crate::{
     tool::select_paint::capture_select_buffer,
 };
 
-/// Triggers a file download in the browser
-pub(crate) fn trigger_download(data: &[u8], filename: &str) -> Result<(), JsValue> {
+/// Triggers a file download in the browser.
+///
+/// `mime` is set on the blob so the browser knows what it was handed: without it
+/// a PDF downloads blind rather than opening in the built-in viewer.
+pub(crate) fn trigger_download(data: &[u8], filename: &str, mime: &str) -> Result<(), JsValue> {
     let window = web_sys::window().ok_or("No window")?;
     let document = window.document().ok_or("No document")?;
 
@@ -26,7 +29,9 @@ pub(crate) fn trigger_download(data: &[u8], filename: &str) -> Result<(), JsValu
     let array = js_sys::Uint8Array::from(data);
     let blob_parts = js_sys::Array::new();
     blob_parts.push(&array);
-    let blob = Blob::new_with_u8_array_sequence(&blob_parts)?;
+    let options = web_sys::BlobPropertyBag::new();
+    options.set_type(mime);
+    let blob = Blob::new_with_u8_array_sequence_and_options(&blob_parts, &options)?;
 
     // Create an object URL for the blob
     let url = Url::create_object_url_with_blob(&blob)?;
@@ -90,7 +95,11 @@ impl EditorEventHandler for Editor {
                             .and_then(|save_file| save_file.to_binary())
                             .inspect_err(|e| log::error!("Failed to save state: {:?}", e))
                             .inspect(|glb_data| {
-                                let _ = trigger_download(glb_data, "workspace.glb");
+                                let _ = trigger_download(
+                                    glb_data,
+                                    "workspace.glb",
+                                    "model/gltf-binary",
+                                );
                             });
                         return Some(Ok(event::EventHandleSuccess::stop_propagation()));
                     } else {
@@ -113,6 +122,13 @@ impl EditorEventHandler for Editor {
                     return Some(Ok(
                         EventHandleSuccess::set_tool(Some(Tool::SelectPaint(tool))).mark_dirty()
                     ));
+                }
+                // K: Expand the selection outwards by one ring of edges
+                "KeyK" => {
+                    let command = SelectCommand::expand_selection(&mut ctx.state.borrow_mut());
+                    if let Some(command) = command {
+                        ctx.history.borrow_mut().add(pp_core::CommandType::Select(command));
+                    }
                 }
                 // D: Swap edge flap side
                 "KeyD" => ctx.history.borrow_mut().add(pp_core::CommandType::UpdateFlaps(

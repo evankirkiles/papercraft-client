@@ -28,6 +28,16 @@ impl Edge {
         self.v[0] == v || self.v[1] == v
     }
 
+    /// Returns the end of this edge which isn't `v`.
+    pub fn other_vert(&self, v: id::VertexId) -> id::VertexId {
+        assert!(self.has_vert(v));
+        if self.v[0] == v {
+            self.v[1]
+        } else {
+            self.v[0]
+        }
+    }
+
     /// Gets an immutable reference to the DiskLink for a specific vertex
     pub fn disklink(&self, v: id::VertexId) -> &DiskLink {
         assert!(self.has_vert(v));
