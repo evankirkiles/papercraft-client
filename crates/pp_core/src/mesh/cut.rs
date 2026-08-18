@@ -21,6 +21,19 @@ pub enum FlapPosition {
     None,
 }
 
+impl FlapPosition {
+    /// The same flap, moved onto the other face of the cut. Positions which
+    /// aren't one-sided have no other side to move to, so they stay put.
+    pub fn opposite(self) -> Self {
+        match self {
+            Self::FirstFace => Self::SecondFace,
+            Self::SecondFace => Self::FirstFace,
+            Self::BothFaces => Self::BothFaces,
+            Self::None => Self::None,
+        }
+    }
+}
+
 impl From<u8> for FlapPosition {
     fn from(value: u8) -> Self {
         match value {
@@ -44,6 +57,30 @@ impl From<FlapPosition> for u8 {
     }
 }
 
+/// How far a cut should propagate into the rest of the document.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CutUpdate {
+    /// Flip the cut flag and nothing else, for loading a saved document whose
+    /// pieces and flaps are already recorded.
+    Nothing,
+    /// Recompute the pieces around the edge, and derive flaps for whatever
+    /// changed. This is the interactive path.
+    PiecesAndFlaps,
+    /// Recompute the pieces, but leave flaps alone: the caller is replaying a
+    /// recorded flap layout on top and would only have to undo the guesswork.
+    PiecesOnly,
+}
+
+impl CutUpdate {
+    fn touches_pieces(self) -> bool {
+        self != Self::Nothing
+    }
+
+    fn touches_flaps(self) -> bool {
+        self == Self::PiecesAndFlaps
+    }
+}
+
 impl super::Mesh {
     // Extract the adjacent faces to the edge. Technically it's possible for
     // the mesh to have more than 2 faces per edge, but we can preprocess
@@ -63,10 +100,10 @@ impl super::Mesh {
     }
 
     /// Adds / restores a cut on an edge.
-    pub fn make_cut(&mut self, e_id: id::EdgeId, update_pieces: bool) {
+    pub fn make_cut(&mut self, e_id: id::EdgeId, update: CutUpdate) {
         self.cuts.entry(e_id).or_default().is_dead = false;
         self.elem_dirty |= MeshElementType::EDGES;
-        if !update_pieces {
+        if !update.touches_pieces() {
             return;
         }
         // What we're interested in are the pieces of each adjacent face
@@ -88,6 +125,10 @@ impl super::Mesh {
                             .map(|_| f_2) // If p_1 is found, then piece starts at f_2
                             .unwrap_or(f_1); // Otherwise, the piece starts at f_1
                         self.expand_piece(face_with_new_piece).unwrap();
+                        if update.touches_flaps() {
+                            self.assign_piece_flaps(face_with_new_piece);
+                            self.assign_piece_flaps(p_1);
+                        }
                     }
                 }
                 // If neither face was in a piece, check if we can *make* new pieces
@@ -95,8 +136,18 @@ impl super::Mesh {
                 // if it doesn't get brought into a piece from f_1.
                 (None, None) => {
                     let _ = self.expand_piece(f_1);
+                    // Flaps are assigned right after each `expand_piece` rather
+                    // than once at the end: f_2 is still piece-less at this
+                    // point, so the seam between them lands on f_1's piece, and
+                    // f_2's own pass then sees that choice and leaves it alone.
+                    if update.touches_flaps() && self[f_1].p == Some(f_1) {
+                        self.assign_piece_flaps(f_1);
+                    }
                     if self[f_2].p.is_none() {
                         let _ = self.expand_piece(f_2);
+                        if update.touches_flaps() && self[f_2].p == Some(f_2) {
+                            self.assign_piece_flaps(f_2);
+                        }
                     }
                 }
                 // "Cut" between different pieces isn't possible, the edge must already be cut
@@ -112,13 +163,13 @@ impl super::Mesh {
 
     /// Removes the cut on an edge. Note that the internal cut state persists
     /// in the state, but is marked with a tombstone so it is treated as "uncut".
-    pub fn clear_cut(&mut self, e_id: &id::EdgeId, update_pieces: bool) {
+    pub fn clear_cut(&mut self, e_id: &id::EdgeId, update: CutUpdate) {
         let Some(cut) = self.cuts.get_mut(e_id) else {
             return;
         };
         cut.is_dead = true;
         self.elem_dirty |= MeshElementType::EDGES;
-        if !update_pieces {
+        if !update.touches_pieces() {
             return;
         }
         // What we're interested in are the pieces of each adjacent face
@@ -131,6 +182,11 @@ impl super::Mesh {
                     // to not fall infinitely into that cycle (check this).
                     if p_1 == p_2 {
                         self.clear_piece(p_1);
+                        // The region is no longer a piece, so its neighbors have
+                        // to take over the flaps on the seams they share with it.
+                        if update.touches_flaps() {
+                            self.assign_flaps_of_neighbors(f_1);
+                        }
                     } else {
                         // If faces were from different pieces, we can just clear
                         // one of the pieces and rope all of its faces into the
@@ -138,11 +194,19 @@ impl super::Mesh {
                         // over the p_b pieces too (because we remove the cut
                         // earlier), but their piece ids will remain the same.
                         let _ = self.expand_piece(p_1);
+                        if update.touches_flaps() && self[p_1].p == Some(p_1) {
+                            self.assign_piece_flaps(p_1);
+                        }
                     }
                 }
                 // If either face was not in a piece, then all faces involved
                 // are now free-floating. We need to delete the old piece.
-                (Some(p_id), None) | (None, Some(p_id)) => self.clear_piece(p_id),
+                (Some(p_id), None) | (None, Some(p_id)) => {
+                    self.clear_piece(p_id);
+                    if update.touches_flaps() {
+                        self.assign_flaps_of_neighbors(f_1);
+                    }
+                }
                 // Nothing needed if neither face was in a piece
                 (None, None) => {}
             }
@@ -184,5 +248,17 @@ impl super::Mesh {
                     FlapPosition::None => false,
                 }
         })
+    }
+
+    /// The `FlapPosition` which puts the flap on this loop's face. This is the
+    /// only place which knows that `FirstFace` means `l.v != e.v[0]`, i.e. that
+    /// it names the loop starting at `e.v[1]`.
+    pub fn flap_position_over_loop(&self, l_id: id::LoopId) -> FlapPosition {
+        let l = self[l_id];
+        if l.v == self[l.e].v[1] {
+            FlapPosition::FirstFace
+        } else {
+            FlapPosition::SecondFace
+        }
     }
 }

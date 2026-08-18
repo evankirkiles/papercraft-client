@@ -2,7 +2,7 @@ use gltf::{buffer::Data, Accessor, Semantic};
 use ordered_float::OrderedFloat;
 use pp_core::{
     id::{self, FaceId, VertexId},
-    mesh::{face::FaceDescriptor, Mesh},
+    mesh::{cut::CutUpdate, face::FaceDescriptor, Mesh},
     MaterialId,
 };
 use serde_json::value::RawValue;
@@ -334,7 +334,7 @@ pub fn load_mesh(
             gltf_index_to_vertex_id.get(&cut.vertices[1]),
         ) {
             if let Some(e_id) = pp_mesh.query_edge(v0_id, v1_id) {
-                pp_mesh.make_cut(e_id, false);
+                pp_mesh.make_cut(e_id, CutUpdate::Nothing);
                 if let Some(new_cut) = pp_mesh.cuts.get_mut(&e_id) {
                     new_cut.flap_position = cut.flap_position;
                 }

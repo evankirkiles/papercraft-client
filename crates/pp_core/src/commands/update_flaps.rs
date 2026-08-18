@@ -37,12 +37,7 @@ impl UpdateFlapsCommand {
                 return;
             };
             before.push((id, flap_position));
-            let new_flap = match flap_position {
-                FlapPosition::FirstFace => FlapPosition::SecondFace,
-                FlapPosition::SecondFace => FlapPosition::FirstFace,
-                FlapPosition::BothFaces => FlapPosition::BothFaces,
-                FlapPosition::None => FlapPosition::None,
-            };
+            let new_flap = flap_position.opposite();
             mesh.set_cut_flap(id.1, new_flap);
             after.push((id, new_flap));
         });

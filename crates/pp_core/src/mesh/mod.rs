@@ -9,6 +9,7 @@ mod bounds;
 pub mod cut;
 pub mod edge;
 pub mod face;
+pub mod flap;
 pub mod loop_;
 pub mod piece;
 mod primitives;

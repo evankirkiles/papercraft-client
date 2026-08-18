@@ -2,11 +2,12 @@ use make_cuts::MakeCutsCommand;
 use scale_mesh::ScaleMeshCommand;
 use select_elements::SelectCommand;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use transform_mesh::TransformMeshCommand;
 use transform_pieces::TransformPiecesCommand;
 use update_flaps::UpdateFlapsCommand;
 
-use crate::{clear_cuts::ClearCutsCommand, State};
+use crate::{clear_cuts::ClearCutsCommand, id::EdgeId, mesh::cut::FlapPosition, MeshId, State};
 
 pub mod clear_cuts;
 pub mod make_cuts;
@@ -15,6 +16,63 @@ pub mod select_elements;
 pub mod transform_mesh;
 pub mod transform_pieces;
 pub mod update_flaps;
+
+/// Buckets `(mesh, element)` pairs by mesh, preserving the order they came in.
+pub(crate) fn group_by_mesh<T: Copy>(ids: &[(MeshId, T)]) -> Vec<(MeshId, Vec<T>)> {
+    let mut grouped: Vec<(MeshId, Vec<T>)> = Vec::new();
+    for (m_id, id) in ids {
+        match grouped.iter_mut().find(|(existing, _)| existing == m_id) {
+            Some((_, bucket)) => bucket.push(*id),
+            None => grouped.push((*m_id, vec![*id])),
+        }
+    }
+    grouped
+}
+
+/// Every live cut's flap position across the whole document. Cutting rewrites
+/// flaps as a side effect (see `Mesh::assign_piece_flaps`), so commands which
+/// cut snapshot this before and after and store the difference, letting undo put
+/// back exactly what was there instead of re-deriving it and losing manual swaps.
+pub(crate) fn snapshot_flaps(state: &State) -> HashMap<(MeshId, EdgeId), FlapPosition> {
+    state
+        .meshes
+        .iter()
+        .flat_map(|(m_id, mesh)| {
+            mesh.cuts.iter().map(move |(e_id, cut)| ((m_id, *e_id), cut.flap_position))
+        })
+        .collect()
+}
+
+/// The flaps which changed between `before` and the current state, as
+/// `(before, after)` lists ready to be replayed by a command's execute /
+/// rollback. Cuts which didn't exist in `before` are recorded at their default,
+/// which is where a rollback's `clear_cut` leaves them anyway.
+pub(crate) fn diff_flaps(
+    before: &HashMap<(MeshId, EdgeId), FlapPosition>,
+    state: &State,
+) -> (Vec<((MeshId, EdgeId), FlapPosition)>, Vec<((MeshId, EdgeId), FlapPosition)>) {
+    let mut after: Vec<_> = snapshot_flaps(state)
+        .into_iter()
+        .filter(|(id, flap_position)| {
+            u8::from(before.get(id).copied().unwrap_or_default()) != u8::from(*flap_position)
+        })
+        .collect();
+    after.sort_by_key(|(id, _)| *id);
+    let before =
+        after.iter().map(|(id, _)| (*id, before.get(id).copied().unwrap_or_default())).collect();
+    (before, after)
+}
+
+/// Replays a recorded flap layout onto the state. Run after a command's cuts
+/// have been applied, so the recorded positions win over whatever the automatic
+/// assignment inside `make_cut` / `clear_cut` came up with.
+pub(crate) fn apply_flaps(state: &mut State, flaps: &[((MeshId, EdgeId), FlapPosition)]) {
+    flaps.iter().for_each(|((m_id, e_id), flap_position)| {
+        if let Some(mesh) = state.meshes.get_mut(*m_id) {
+            mesh.set_cut_flap(*e_id, *flap_position);
+        }
+    });
+}
 
 pub enum UndoError {
     NoMoreUndos,

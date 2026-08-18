@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 use crate::{
     id::{self},
+    mesh::cut::{CutUpdate, FlapPosition},
     MeshId,
 };
 
-use super::{Command, CommandError};
+use super::{apply_flaps, diff_flaps, group_by_mesh, snapshot_flaps, Command, CommandError};
 
 /// Cuts & joins edges, creating any resulting pieces from the operation. On each
 /// cut, we save a before / after of any pieces on either side of each edge, as
@@ -15,11 +15,21 @@ use super::{Command, CommandError};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MakeCutsCommand {
     pub edges: Vec<(MeshId, id::EdgeId)>,
+    /// The flaps which changing these cuts moved, recorded so undo restores the
+    /// exact previous layout rather than re-deriving one and dropping any manual
+    /// swaps the user made. See `Mesh::assign_piece_flaps`.
+    #[serde(default)]
+    pub flaps_before: Vec<((MeshId, id::EdgeId), FlapPosition)>,
+    #[serde(default)]
+    pub flaps_after: Vec<((MeshId, id::EdgeId), FlapPosition)>,
 }
 
 impl MakeCutsCommand {
     pub fn from_select(state: &mut crate::State) -> Self {
-        let cmd = Self {
+        let flaps = snapshot_flaps(state);
+        let mut cmd = Self {
+            flaps_before: Vec::new(),
+            flaps_after: Vec::new(),
             edges: state
                 .selection
                 .edges
@@ -34,41 +44,42 @@ impl MakeCutsCommand {
                 .copied()
                 .collect(),
         };
-        cmd.execute(state).unwrap();
+        cmd.cut_forward(state, CutUpdate::PiecesAndFlaps);
+        (cmd.flaps_before, cmd.flaps_after) = diff_flaps(&flaps, state);
         cmd
+    }
+
+    /// Applies this command's cuts in forward order. `update` lets `execute`
+    /// skip the automatic flap assignment: it replays `flaps_after` instead, so
+    /// guessing first would only be work to throw away.
+    fn cut_forward(&self, state: &mut crate::State, update: CutUpdate) {
+        for (mesh_id, edge_ids) in group_by_mesh(&self.edges) {
+            if let Some(mesh) = state.meshes.get_mut(mesh_id) {
+                edge_ids.iter().for_each(|e_id| mesh.make_cut(*e_id, update));
+            }
+        }
+    }
+
+    /// Undoes this command's cuts, in reverse order.
+    fn cut_backward(&self, state: &mut crate::State, update: CutUpdate) {
+        for (mesh_id, edge_ids) in group_by_mesh(&self.edges) {
+            if let Some(mesh) = state.meshes.get_mut(mesh_id) {
+                edge_ids.iter().rev().for_each(|e_id| mesh.clear_cut(e_id, update));
+            }
+        }
     }
 }
 
 impl Command for MakeCutsCommand {
     fn execute(&self, state: &mut crate::State) -> Result<(), CommandError> {
-        // Group edges by mesh
-        let mut edges_by_mesh: HashMap<MeshId, Vec<id::EdgeId>> = HashMap::new();
-        self.edges.iter().for_each(|(mesh_id, edge_id)| {
-            edges_by_mesh.entry(*mesh_id).or_default().push(*edge_id);
-        });
-
-        // Make the cuts for each mesh in forward order
-        edges_by_mesh.iter().for_each(|(mesh_id, edge_ids)| {
-            if let Some(mesh) = state.meshes.get_mut(*mesh_id) {
-                edge_ids.iter().for_each(|e_id| mesh.make_cut(*e_id, true));
-            }
-        });
+        self.cut_forward(state, CutUpdate::PiecesOnly);
+        apply_flaps(state, &self.flaps_after);
         Ok(())
     }
 
     fn rollback(&self, state: &mut crate::State) -> Result<(), CommandError> {
-        // Group edges by mesh
-        let mut edges_by_mesh: HashMap<MeshId, Vec<id::EdgeId>> = HashMap::new();
-        self.edges.iter().for_each(|(mesh_id, edge_id)| {
-            edges_by_mesh.entry(*mesh_id).or_default().push(*edge_id);
-        });
-
-        // Clear the cuts for each mesh in reverse order
-        edges_by_mesh.iter().for_each(|(mesh_id, edge_ids)| {
-            if let Some(mesh) = state.meshes.get_mut(*mesh_id) {
-                edge_ids.iter().rev().for_each(|e_id| mesh.clear_cut(e_id, true));
-            }
-        });
+        self.cut_backward(state, CutUpdate::PiecesOnly);
+        apply_flaps(state, &self.flaps_before);
         Ok(())
     }
 }
