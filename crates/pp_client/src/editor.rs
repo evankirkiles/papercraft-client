@@ -18,7 +18,7 @@ use crate::{
 };
 
 /// Triggers a file download in the browser
-fn trigger_download(data: &[u8], filename: &str) -> Result<(), JsValue> {
+pub(crate) fn trigger_download(data: &[u8], filename: &str) -> Result<(), JsValue> {
     let window = web_sys::window().ok_or("No window")?;
     let document = window.document().ok_or("No document")?;
 

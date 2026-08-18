@@ -10,7 +10,7 @@ pub struct PointsProgram {
 }
 
 impl PointsProgram {
-    pub(super) fn new(ctx: &gpu::Context) -> Self {
+    pub(super) fn new(ctx: &gpu::Context, sample_count: u32) -> Self {
         let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("./shaders/points.wgsl"));
         let layout = Some(&ctx.shared.pipeline_layouts.mesh_overlays);
         let vertex = wgpu::VertexState {
@@ -34,7 +34,7 @@ impl PointsProgram {
             conservative: false,
         };
         let multisample = wgpu::MultisampleState {
-            count: (&ctx.settings.msaa_level).into(),
+            count: sample_count,
             mask: !0,
             alpha_to_coverage_enabled: false,
         };

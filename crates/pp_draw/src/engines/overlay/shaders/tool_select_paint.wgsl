@@ -1,4 +1,15 @@
-struct ThemeSizes { line_width: f32, line_width_thick: f32, point_size: f32 };
+struct ThemeSizes {
+  line_width: f32,
+  line_width_thick: f32,
+  point_size: f32,
+  fold_lines: f32,
+  // Scales lengths this shader hardcodes in pixels, so they keep a
+  // constant physical size as the pixel density changes.
+  stroke_scale: f32,
+  // Whether selected / active elements are highlighted at all. Off for
+  // print, which must not bake transient editor state into the page.
+  selection: f32,
+};
 struct ThemeColors {
   background: vec4<f32>,
   grid: vec4<f32>,

@@ -1,4 +1,5 @@
-import { CircleHelpIcon, LucidePrinter } from "lucide-react";
+import { CircleHelpIcon, LucideLoader2, LucidePrinter } from "lucide-react";
+import { useState } from "react";
 
 import SettingsMenu from "@/components/SettingsMenu";
 import { Button } from "@/components/ui/button";
@@ -8,20 +9,36 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useEngine } from "@/contexts/EngineContext";
 
 export default function HelpButton() {
+  const engine = useEngine();
+  // A print run renders one page per frame, so it takes a moment on a large
+  // layout. Block a second run rather than letting it reject.
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  const handlePrint = async () => {
+    if (!engine || isPrinting) return;
+    setIsPrinting(true);
+    try {
+      await engine.print();
+    } catch (error) {
+      console.error("Failed to print the page layout:", error);
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
   return (
     <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2">
       <SettingsMenu />
-      <Button
-        size="sm"
-        onClick={() => {
-          // TODO: Implement print functionality
-          console.log("Print clicked");
-        }}
-      >
-        <LucidePrinter />
-        <span>Print</span>
+      <Button size="sm" onClick={handlePrint} disabled={!engine || isPrinting}>
+        {isPrinting ? (
+          <LucideLoader2 className="animate-spin" />
+        ) : (
+          <LucidePrinter />
+        )}
+        <span>{isPrinting ? "Printing…" : "Print"}</span>
       </Button>
       <Popover>
         <PopoverTrigger asChild>

@@ -83,15 +83,21 @@ pub struct InkEngine {
 }
 
 impl InkEngine {
-    pub fn new(ctx: &gpu::Context) -> Self {
+    /// Builds the mesh draw programs against a given MSAA sample count.
+    ///
+    /// The count is baked into every pipeline, so a pass targeting a texture
+    /// with a different sample count needs its own engine. The viewport passes
+    /// the user's `msaa_level`; the print pass renders at 1x, where a 300 DPI
+    /// pixel is already far finer than anything antialiasing would rescue.
+    pub fn new(ctx: &gpu::Context, sample_count: u32) -> Self {
         Self {
-            lines: lines::LinesProgram::new(ctx),
-            lines_cut: lines_cut::LinesCutProgram::new(ctx),
-            points: points::PointsProgram::new(ctx),
-            tris: tris::TrisProgram::new(ctx),
-            surface: surface::SurfaceProgram::new(ctx),
-            flaps: flaps::FlapsProgram::new(ctx),
-            flaps_lines: flaps_lines::FlapsLinesProgram::new(ctx),
+            lines: lines::LinesProgram::new(ctx, sample_count),
+            lines_cut: lines_cut::LinesCutProgram::new(ctx, sample_count),
+            points: points::PointsProgram::new(ctx, sample_count),
+            tris: tris::TrisProgram::new(ctx, sample_count),
+            surface: surface::SurfaceProgram::new(ctx, sample_count),
+            flaps: flaps::FlapsProgram::new(ctx, sample_count),
+            flaps_lines: flaps_lines::FlapsLinesProgram::new(ctx, sample_count),
         }
     }
 

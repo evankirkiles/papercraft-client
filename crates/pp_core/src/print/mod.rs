@@ -8,7 +8,11 @@ use slotmap::SlotMap;
 pub use image_box::*;
 pub use text_box::*;
 
-use crate::{bounds::Aabb3, measures::Dimensions, PageId};
+use crate::{
+    bounds::Aabb3,
+    measures::{Dimensions, Rect},
+    PageId,
+};
 
 /// Centimeters per inch, used to express physical page sizes (traditionally
 /// specified in inches) in the document's world units (1 unit = 1 cm).
@@ -34,6 +38,17 @@ impl PageSize {
             PageSize::Custom(dims) => *dims,
         }
     }
+
+    /// The size of this page rasterized at `dpi`, in whole pixels.
+    ///
+    /// Dimensions are physical centimeters, so this is the one place the
+    /// document's world units meet an image resolution. Rounds rather than
+    /// truncates, so A4 at 300 DPI comes out at the expected 2480 x 3508.
+    pub fn pixels(&self, dpi: f32) -> Dimensions<u32> {
+        let Dimensions { width, height } = self.dimensions();
+        let px = |cm: f32| (cm / CM_PER_INCH * dpi).round().max(1.0) as u32;
+        Dimensions { width: px(width), height: px(height) }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -42,6 +57,24 @@ pub struct Page {
     pub pos: cgmath::Point2<f32>,
     /// An internal name for the page
     pub label: Option<String>,
+}
+
+impl Page {
+    /// The area this page covers in world (centimeter) space.
+    ///
+    /// `pos` is in page units, so this is the same multiply-and-flip the page
+    /// shader does: the printable quadrant runs right and *down* from the
+    /// origin, and the returned rect's `y` is its top edge (the larger, less
+    /// negative one).
+    pub fn world_rect(&self, size: &PageSize) -> Rect<f32> {
+        let Dimensions { width, height } = size.dimensions();
+        Rect { x: self.pos.x * width, y: -self.pos.y * height, width, height }
+    }
+
+    /// The grid cell this page occupies, as `(col, row)`.
+    pub fn cell(&self) -> (u32, u32) {
+        (self.pos.x.round().max(0.0) as u32, self.pos.y.round().max(0.0) as u32)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -116,7 +149,7 @@ impl PrintLayout {
         // and labels survive a resize.
         let mut existing: BTreeSet<(u32, u32)> = BTreeSet::new();
         self.pages.retain(|_, page| {
-            let cell = (page.pos.x.round().max(0.0) as u32, page.pos.y.round().max(0.0) as u32);
+            let cell = page.cell();
             // Drop pages outside the new grid, and any duplicate landing on a
             // cell we've already kept
             cell.0 < cols && cell.1 < rows && existing.insert(cell)
@@ -136,10 +169,30 @@ impl PrintLayout {
         self.elem_dirty = true;
         self.is_dirty = true;
     }
+
+    /// Every page in reading order: left to right, top to bottom.
+    ///
+    /// `pages` is a slotmap, so iterating it directly hands back an arbitrary
+    /// order that shifts as the grid grows and shrinks. Anything user-facing
+    /// that numbers the pages - printing, in particular - needs this instead.
+    pub fn pages_in_grid_order(&self) -> Vec<(u32, u32, PageId)> {
+        let mut pages: Vec<_> = self
+            .pages
+            .iter()
+            .map(|(id, page)| {
+                let (col, row) = page.cell();
+                (col, row, id)
+            })
+            .collect();
+        pages.sort_by_key(|&(col, row, _)| (row, col));
+        pages
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use cgmath::Vector3;
 
     use super::*;
@@ -172,6 +225,58 @@ mod tests {
         layout.fit_to_bounds(&bounds(width, -height));
         assert_eq!((layout.cols, layout.rows), (1, 1));
         assert_eq!(cells(&layout), BTreeSet::from([(0, 0)]));
+    }
+
+    /// The resolution the print export defaults to. If these numbers move,
+    /// every page image changes size.
+    #[test]
+    fn a4_rasterizes_to_the_expected_pixel_size() {
+        let Dimensions { width, height } = PageSize::A4.pixels(300.0);
+        assert_eq!((width, height), (2480, 3508));
+        // Letter is 8.5 x 11in, so it is exactly 2550 x 3300 at 300 DPI
+        let Dimensions { width, height } = PageSize::Letter.pixels(300.0);
+        assert_eq!((width, height), (2550, 3300));
+    }
+
+    /// Printing frames one page at a time from these rects, so they have to
+    /// tile the quadrant exactly - a gap would drop a strip of a piece.
+    #[test]
+    fn page_rects_tile_the_printable_quadrant() {
+        let mut layout = PrintLayout::default();
+        let Dimensions { width, height } = layout.page_size.dimensions();
+        layout.fit_to_bounds(&bounds(width * 1.5, -height * 1.5));
+
+        let rects: BTreeMap<_, _> = layout
+            .pages_in_grid_order()
+            .into_iter()
+            .map(|(col, row, id)| ((row, col), layout.pages[id].world_rect(&layout.page_size)))
+            .collect();
+        assert_eq!(rects.len(), 4);
+
+        // The first sheet's top-left corner is the origin, and `y` is the top
+        // edge of a page whose body hangs below it.
+        let first = rects[&(0, 0)];
+        assert_eq!((first.x, first.y), (0.0, 0.0));
+        // Neighbours share an edge, with no gutter between them
+        assert_eq!(rects[&(0, 1)].x, first.x + width);
+        assert_eq!(rects[&(1, 0)].y, first.y - height);
+    }
+
+    /// Page numbering is user-facing, and the slotmap's own order shifts as the
+    /// grid grows, so printing reads the pages out in reading order.
+    #[test]
+    fn pages_come_back_in_reading_order() {
+        let mut layout = PrintLayout::default();
+        let Dimensions { width, height } = layout.page_size.dimensions();
+        layout.fit_to_bounds(&bounds(width * 2.5, -height * 1.5));
+
+        let order: Vec<_> =
+            layout.pages_in_grid_order().into_iter().map(|(col, row, _)| (col, row)).collect();
+        assert_eq!(
+            order,
+            vec![(0, 0), (1, 0), (2, 0), (0, 1), (1, 1), (2, 1)],
+            "pages should run left to right, then top to bottom"
+        );
     }
 
     #[test]

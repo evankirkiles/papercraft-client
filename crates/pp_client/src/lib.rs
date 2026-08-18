@@ -20,6 +20,7 @@ mod command;
 mod editor;
 mod event;
 mod keyboard;
+mod print;
 mod store;
 mod tool;
 mod viewport;
@@ -65,6 +66,11 @@ pub struct App {
     /// The `requestAnimationFrame` timestamp of the last `update`, used to
     /// derive the frame delta that drives time-based state like camera moves.
     last_timestamp: Option<u32>,
+
+    /// The print run in flight, advanced one page per `update`. At most one
+    /// runs at a time - they share a readback buffer, and the archive they
+    /// produce is per-run.
+    print_job: Option<print::PrintJob>,
 }
 
 /// "App" holds the entirey of the Rust application state. You can think of it
@@ -89,6 +95,7 @@ impl App {
             callbacks: Rc::new(RefCell::new(AppCallbacks::default())),
             editor: pp_editor::Editor::default(),
             last_timestamp: None,
+            print_job: None,
         }
     }
 
@@ -134,7 +141,66 @@ impl App {
 
     /// De-allocates all the GPU resources for the app
     pub fn unattach(&mut self) {
+        // A print run lives on the GPU we're about to drop, so it can never
+        // finish. Settle its promise rather than leaving the caller hanging.
+        if let Some(job) = self.print_job.take() {
+            job.abort("The canvas was detached before printing finished");
+        }
         self.renderer.replace(None);
+    }
+
+    /// Renders every page of the print layout and downloads them as a zip.
+    ///
+    /// Each page is a PNG of just the pieces - their surfaces, fold and cut
+    /// lines, and flaps - on a transparent background, at `dpi` (300 by
+    /// default). Pages render one per frame, so the returned promise settles
+    /// some frames later: with the number of pages written, or with the reason
+    /// the run failed.
+    pub fn print(&mut self, dpi: Option<f32>) -> js_sys::Promise {
+        let mut callbacks = None;
+        // `Promise::new` runs its executor synchronously, so the functions are
+        // always there by the time we look.
+        let promise = js_sys::Promise::new(&mut |resolve, reject| {
+            callbacks = Some((resolve, reject));
+        });
+        let (resolve, reject) = callbacks.expect("Promise executor did not run");
+        if let Err(err) = self.start_print(
+            dpi.unwrap_or(pp_draw::print::DEFAULT_PRINT_DPI),
+            resolve,
+            reject.clone(),
+        ) {
+            let _ = reject.call1(&JsValue::NULL, &err);
+        }
+        promise
+    }
+
+    fn start_print(
+        &mut self,
+        dpi: f32,
+        resolve: js_sys::Function,
+        reject: js_sys::Function,
+    ) -> Result<(), JsValue> {
+        if self.print_job.is_some() {
+            return Err(JsValue::from_str("A print run is already in progress"));
+        }
+        let renderer = self.renderer.borrow();
+        let renderer = renderer.as_ref().ok_or(JsValue::from_str("No canvas is attached"))?;
+
+        // The grid is normally fitted in `draw`, but printing before the first
+        // frame after an edit would otherwise miss a page.
+        let mut state = self.state.borrow_mut();
+        state.fit_pages_to_pieces();
+        let target = pp_draw::print::PrintTarget::new(
+            &renderer.ctx,
+            &state.printing.page_size,
+            &self.editor.preferences.theme,
+            dpi,
+        )
+        .map_err(|err| JsValue::from_str(&err.to_string()))?;
+
+        let pages = print::pages_to_render(&state);
+        self.print_job = Some(print::PrintJob::new(target, pages, resolve, reject));
+        Ok(())
     }
 
     /// Returns a snapshot of the editor's state
@@ -162,6 +228,9 @@ impl App {
         let mut renderer = self.renderer.borrow_mut();
         let renderer = renderer.as_mut().ok_or(AppError::NoCanvasAttached)?;
         renderer.select_poll();
+        if self.print_job.as_mut().is_some_and(|job| !job.tick(renderer)) {
+            self.print_job = None;
+        }
         if self.editor.is_dirty {
             self.editor.is_dirty = false;
             let snapshot = serde_wasm_bindgen::to_value(&self.editor)?;

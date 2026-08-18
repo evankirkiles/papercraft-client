@@ -9,7 +9,7 @@ pub(super) struct FlapsProgram {
 }
 
 impl FlapsProgram {
-    pub(super) fn new(ctx: &gpu::Context) -> Self {
+    pub(super) fn new(ctx: &gpu::Context, sample_count: u32) -> Self {
         let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("./shaders/flaps.wgsl"));
         Self {
             pipeline: ctx.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -48,7 +48,7 @@ impl FlapsProgram {
                     bias: wgpu::DepthBiasState::default(),
                 }),
                 multisample: wgpu::MultisampleState {
-                    count: (&ctx.settings.msaa_level).into(),
+                    count: sample_count,
                     mask: !0,
                     alpha_to_coverage_enabled: false,
                 },

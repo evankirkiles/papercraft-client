@@ -1,4 +1,15 @@
-struct ThemeSizes { line_width: f32, line_width_thick: f32, point_size: f32 };
+struct ThemeSizes {
+  line_width: f32,
+  line_width_thick: f32,
+  point_size: f32,
+  fold_lines: f32,
+  // Scales lengths this shader hardcodes in pixels, so they keep a
+  // constant physical size as the pixel density changes.
+  stroke_scale: f32,
+  // Whether selected / active elements are highlighted at all. Off for
+  // print, which must not bake transient editor state into the page.
+  selection: f32,
+};
 struct ThemeColors { 
   background: vec4<f32>,
   grid: vec4<f32>,
@@ -77,10 +88,12 @@ fn _vs_color(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     out.color = vec4<f32>(0.0, 0.0, 0.0, 0.0);
 
     // Color the line (each vertex) based on its select status
-    if (bool(in.flags & FLAG_ACTIVE)) { 
-      out.color = vec4<f32>(theme.colors.element_active.xyz, 0.2); 
-    } else if (bool(in.flags & FLAG_SELECTED)) { 
-      out.color = vec4<f32>(theme.colors.element_selected.xyz, 0.2); 
+    if (theme.sizes.selection > 0.0) {
+      if (bool(in.flags & FLAG_ACTIVE)) {
+        out.color = vec4<f32>(theme.colors.element_active.xyz, 0.2);
+      } else if (bool(in.flags & FLAG_SELECTED)) {
+        out.color = vec4<f32>(theme.colors.element_selected.xyz, 0.2);
+      }
     }
 
     // Add the edge index for the selection engine

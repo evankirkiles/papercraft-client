@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use pp_core::{bounds::Aabb3, measures::Dimensions};
+use pp_core::{
+    bounds::Aabb3,
+    measures::{Dimensions, Rect},
+};
 
 use super::{animation::PanZoomAnimation, Camera};
 
@@ -68,6 +71,26 @@ impl Camera for OrthographicCamera {
 }
 
 impl OrthographicCamera {
+    /// A camera that fills the frame with `rect` exactly, edge to edge.
+    ///
+    /// [`Camera::view_proj`] shows a half-height of `1/zoom` world units and a
+    /// half-width of `aspect/zoom`, so pinning the half-height to half the
+    /// rect's height frames the width to match - provided the viewport's aspect
+    /// equals the rect's, which is how printing sizes its target.
+    ///
+    /// `rect.y` is the top edge, and the printable quadrant runs downward, so
+    /// the center sits *below* it. Unlike [`Self::frame_destination`] this is
+    /// exact rather than fitted: a printed page must not lose a millimeter to
+    /// margin, nor pick up a neighbouring sheet's pieces.
+    pub fn framing(rect: &Rect<f32>) -> Self {
+        Self {
+            eye: cgmath::Point2::new(rect.x + rect.width / 2.0, rect.y - rect.height / 2.0),
+            zoom: 2.0 / rect.height,
+            animation: None,
+            is_dirty: true,
+        }
+    }
+
     pub fn pan(&mut self, delta: &cgmath::Point2<f32>) {
         self.cancel_animation();
         self.eye.x -= delta.x * ORTHO_SPEED_PAN / self.zoom;
@@ -179,6 +202,34 @@ mod tests {
             half_height >= fit_radius,
             "half_height {half_height} should be able to fit fit_radius {fit_radius}"
         );
+    }
+
+    /// The print pass leans on this being exact: an A4 sheet's corners have to
+    /// land on the corners of the image, or pieces get clipped or shrunk.
+    #[test]
+    fn framing_maps_a_rect_onto_the_whole_frame() {
+        // The second sheet of the second row of an A4 grid, in the printable
+        // quadrant that runs right and down from the origin.
+        let page = Rect { x: 21.0, y: -29.7, width: 21.0, height: 29.7 };
+        let camera = OrthographicCamera::framing(&page);
+        // A target whose aspect matches the page's, as `PageSize::pixels` gives
+        let view_proj = camera.view_proj(Dimensions { width: 2480.0, height: 3508.0 });
+
+        let corners = [
+            (page.x, page.y, -1.0, 1.0),                            // top-left
+            (page.x + page.width, page.y, 1.0, 1.0),                // top-right
+            (page.x, page.y - page.height, -1.0, -1.0),             // bottom-left
+            (page.x + page.width, page.y - page.height, 1.0, -1.0), // bottom-right
+        ];
+        for (x, y, ndc_x, ndc_y) in corners {
+            let clip = view_proj * cgmath::Vector4::new(x, y, 0.0, 1.0);
+            assert!(
+                (clip.x - ndc_x).abs() < 1e-3 && (clip.y - ndc_y).abs() < 1e-3,
+                "({x}, {y}) should map to ({ndc_x}, {ndc_y}), got ({}, {})",
+                clip.x,
+                clip.y
+            );
+        }
     }
 
     fn aabb(half_width: f32, half_height: f32) -> Aabb3 {

@@ -11,7 +11,7 @@ pub(super) struct LinesProgram {
 }
 
 impl LinesProgram {
-    pub(super) fn new(ctx: &gpu::Context) -> Self {
+    pub(super) fn new(ctx: &gpu::Context, sample_count: u32) -> Self {
         let shader = ctx.device.create_shader_module(wgpu::include_wgsl!("./shaders/lines.wgsl"));
         let layout = Some(&ctx.shared.pipeline_layouts.mesh_overlays);
         let vertex = wgpu::VertexState {
@@ -35,7 +35,7 @@ impl LinesProgram {
             conservative: false,
         };
         let multisample = wgpu::MultisampleState {
-            count: (&ctx.settings.msaa_level).into(),
+            count: sample_count,
             mask: !0,
             alpha_to_coverage_enabled: false,
         };

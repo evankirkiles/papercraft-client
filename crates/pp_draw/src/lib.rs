@@ -9,6 +9,7 @@ mod draw;
 mod gpu;
 
 pub mod engines;
+pub mod print;
 pub mod select;
 
 #[derive(Debug)]
@@ -112,7 +113,7 @@ impl<'window> Renderer<'window> {
             select: select::SelectManager::new(&ctx),
             textures: RendererAttachmentTextures::create(&ctx),
             draw_cache: DrawCache::new(&ctx),
-            engine_ink: engines::ink::InkEngine::new(&ctx),
+            engine_ink: engines::ink::InkEngine::new(&ctx, (&ctx.settings.msaa_level).into()),
             engine_overlay: engines::overlay::OverlayEngine::new(&ctx),
             select_is_xray: false,
             ctx,

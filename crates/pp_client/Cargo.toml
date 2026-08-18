@@ -50,6 +50,7 @@ paste.workspace = true
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 wgpu.workspace = true
+zip.workspace = true
 
 [build-dependencies]
 anyhow.workspace = true

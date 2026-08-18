@@ -1,7 +1,9 @@
 use pp_editor::state::SelectionMode;
 
 use crate::{
-    cache, gpu,
+    cache,
+    engines::ink::InkEngine,
+    gpu,
     select::{SelectManager, SelectionMask},
     Renderer,
 };
@@ -38,8 +40,27 @@ impl<'window> Renderer<'window> {
         render_pass: &mut wgpu::RenderPass,
     ) {
         let Renderer { draw_cache, engine_ink, engine_overlay, ctx, .. } = &self;
-        engine_overlay.grid_rect.draw(&self.ctx, &draw_cache.printing, render_pass);
+        engine_overlay.grid_rect.draw(ctx, &draw_cache.printing, render_pass);
         engine_overlay.page.draw(ctx, render_pass, &draw_cache.printing);
+        Self::draw_pieces(ctx, draw_cache, engine_ink, selection_mode, render_pass);
+    }
+
+    /// Draws the unfolded pieces themselves - textured surfaces, then the ink
+    /// annotations over them - and nothing else.
+    ///
+    /// Split out from [`Self::draw_cutting`] because this is exactly what ends
+    /// up on paper: the print pass draws the same call with no grid, no page
+    /// backdrop and no tool overlay, and the two must not drift apart. It takes
+    /// its pieces of the renderer explicitly rather than `&self` so the print
+    /// pass can substitute its own [`InkEngine`] - the sample count is baked
+    /// into every pipeline, and print renders without MSAA.
+    pub(crate) fn draw_pieces(
+        ctx: &gpu::Context,
+        draw_cache: &cache::DrawCache,
+        engine_ink: &InkEngine,
+        selection_mode: &SelectionMode,
+        render_pass: &mut wgpu::RenderPass,
+    ) {
         draw_cache.materials.iter().for_each(|(id, mat)| {
             mat.bind(render_pass);
             draw_cache.meshes.values().for_each(|mesh| {

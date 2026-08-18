@@ -14,10 +14,13 @@ pub struct ViewportBoundsUniform {
 
 impl ViewportBoundsUniform {
     pub fn new(bounds: &ViewportBounds) -> Self {
-        Self {
-            position: [bounds.area.x, bounds.area.y],
-            dimensions: [bounds.area.width, bounds.area.height],
-        }
+        Self::for_area(bounds.area)
+    }
+
+    /// The uniform for a bare area, for passes with no editor viewport behind
+    /// them - the print pass renders into a texture that is all "viewport".
+    pub fn for_area(area: Rect<f32>) -> Self {
+        Self { position: [area.x, area.y], dimensions: [area.width, area.height] }
     }
 
     pub fn bind_group_layout_entry(binding: u32) -> wgpu::BindGroupLayoutEntry {

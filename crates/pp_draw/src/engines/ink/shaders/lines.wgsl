@@ -1,4 +1,15 @@
-struct ThemeSizes { line_width: f32, line_width_thick: f32, point_size: f32, fold_lines: f32 };
+struct ThemeSizes {
+  line_width: f32,
+  line_width_thick: f32,
+  point_size: f32,
+  fold_lines: f32,
+  // Scales lengths this shader hardcodes in pixels, so they keep a
+  // constant physical size as the pixel density changes.
+  stroke_scale: f32,
+  // Whether selected / active elements are highlighted at all. Off for
+  // print, which must not bake transient editor state into the page.
+  selection: f32,
+};
 struct ThemeColors {
   background: vec4<f32>,
   grid: vec4<f32>,
@@ -91,13 +102,15 @@ fn _vs_color(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     out.color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
 
     // Color the line (each vertex) based on its select status
-    if (bool(in.flags & FLAG_ACTIVE)) { 
-      out.color = theme.colors.element_active; 
-    } else if (bool(in.flags & FLAG_SELECTED)) { 
-      out.color = theme.colors.element_selected; 
-    } else if ((in.offset.x == 0 && bool(in.flags & FLAG_V0_SELECTED)) || 
-       (in.offset.x == 1 && bool(in.flags & FLAG_V1_SELECTED))) {
-      out.color = theme.colors.element_selected; 
+    if (theme.sizes.selection > 0.0) {
+      if (bool(in.flags & FLAG_ACTIVE)) {
+        out.color = theme.colors.element_active;
+      } else if (bool(in.flags & FLAG_SELECTED)) {
+        out.color = theme.colors.element_selected;
+      } else if ((in.offset.x == 0 && bool(in.flags & FLAG_V0_SELECTED)) ||
+         (in.offset.x == 1 && bool(in.flags & FLAG_V1_SELECTED))) {
+        out.color = theme.colors.element_selected;
+      }
     }
 
     // Add the edge index for the selection engine
@@ -235,9 +248,12 @@ fn _fitted_scale(seg_len: f32, period: f32) -> f32 {
 // Tells whether a fragment falls on an inked part of the edge's fold pattern.
 fn _fold_visible(flags: u32, t: f32, seg_len: f32) -> bool {
     let lineless = theme.sizes.fold_lines < 0.5;
+    // The dash pattern is written in pixels at ~96 DPI, so it has to grow with
+    // the pixel density or a 300 DPI page prints stipple too fine to see.
+    let k = theme.sizes.stroke_scale;
 
     // Selection highlights stay legible as continuous lines, in both modes
-    if (bool(flags & (FLAG_SELECTED | FLAG_ACTIVE))) { return true; }
+    if (theme.sizes.selection > 0.0 && bool(flags & (FLAG_SELECTED | FLAG_ACTIVE))) { return true; }
 
     // Piece silhouette: the mesh boundary, or a cut edge with no flap on this
     // side. A cut that does carry a flap is the line the flap folds along, so
@@ -250,19 +266,19 @@ fn _fold_visible(flags: u32, t: f32, seg_len: f32) -> bool {
 
     // Mountain folds are a short even dash
     if (bool(flags & FLAG_MOUNTAIN)) {
-        let base = MOUNTAIN_DASH_LEN + DASH_GAP;
+        let base = (MOUNTAIN_DASH_LEN + DASH_GAP) * k;
         let s = _fitted_scale(seg_len, base);
-        return (t % (base * s)) < MOUNTAIN_DASH_LEN * s;
+        return (t % (base * s)) < MOUNTAIN_DASH_LEN * k * s;
     }
 
     // Valley folds are a longer dash followed by a dot
     if (bool(flags & FLAG_VALLEY)) {
-        let base = VALLEY_DASH_LEN + DASH_GAP + DOT_LEN + DASH_GAP;
+        let base = (VALLEY_DASH_LEN + DASH_GAP + DOT_LEN + DASH_GAP) * k;
         let s = _fitted_scale(seg_len, base);
         let p = t % (base * s);
-        return p < VALLEY_DASH_LEN * s
-            || (p >= (VALLEY_DASH_LEN + DASH_GAP) * s
-                && p < (VALLEY_DASH_LEN + DASH_GAP + DOT_LEN) * s);
+        return p < VALLEY_DASH_LEN * k * s
+            || (p >= (VALLEY_DASH_LEN + DASH_GAP) * k * s
+                && p < (VALLEY_DASH_LEN + DASH_GAP + DOT_LEN) * k * s);
     }
 
     // Flat enough to not be a fold at all, so no line
