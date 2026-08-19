@@ -117,6 +117,24 @@ impl super::Mesh {
         UnfoldedPieceFaceWalker::new(self, f_id)
     }
 
+    /// The rotation which brings the face across `l_id`'s edge onto `l_id`'s own
+    /// face, about the seam the two share, by `t` of the signed angle between
+    /// their normals. `t` is a piece's unfoldedness, so `t = 0` leaves the
+    /// neighbour folded where it sits in 3D and `t = 1` makes it coplanar.
+    pub(crate) fn unfold_hinge_affine(&self, l_id: LoopId, t: f32) -> Matrix4<f32> {
+        let l = self[l_id];
+        let across = self[l.radial_next];
+        // The seam itself is the rotation axis, in untransformed space.
+        let (v0, v1) = (self.vert_pos(self[l.e].v[0]), self.vert_pos(self[l.e].v[1]));
+        let axis = (v1 - v0).normalize();
+        // Signed angle taking the neighbour's normal onto ours, about that axis.
+        let (n_here, n_across) = (Vector3::from(self[l.f].no), Vector3::from(self[across.f].no));
+        let angle = axis.dot(n_across.cross(n_here)).atan2(n_across.dot(n_here)) * t;
+        Matrix4::from_translation(v0)
+            * Matrix4::from_axis_angle(axis, Rad(angle))
+            * Matrix4::from_translation(-v0)
+    }
+
     /// Moves the piece, updating its transformation
     pub fn transform_piece(&mut self, f_id: &FaceId, affine: cgmath::Matrix4<f32>) {
         if let Some(piece) = self.pieces.get_mut(f_id) {
@@ -219,29 +237,10 @@ impl Iterator for UnfoldedPieceFaceWalker<'_> {
                         return None;
                     }
 
-                    // 1. Get current positions of v0, v1 in untransformed space
-                    // to determine the shared edge axis we need to rotate face 2 around
-                    let v0 = self.mesh.vert_pos(self.mesh[l.e].v[0]);
-                    let v1 = self.mesh.vert_pos(self.mesh[l.e].v[1]);
-                    let axis = (v1 - v0).normalize();
-
-                    // 2. Compare face normals to determine the angle we need to rotate face 2
-                    // by (around the shared edge) to make it coplanar with face 1
-                    // TODO: Use `t` to interpolate angle
-                    let n1 = Vector3::from(self.mesh[curr.f].no);
-                    let n2 = Vector3::from(self.mesh[l.f].no);
-                    // Compute angle to rotate n2 onto n1 around `axis`
-                    let cross = n2.cross(n1); // direction from n2 to n1
-                    let dot = n2.dot(n1);
-                    let angle = axis.dot(cross).atan2(dot) * self.t; // signed angle from n2 to n1
-
-                    // 3. Create affine transform to rotate all vertices in face 2
-                    // by `angle` around the shared edge, bringing face 2 onto the same
-                    // plane to the "root" face.
-                    let translation_origin = Matrix4::from_translation(-v0);
-                    let rotation = Matrix4::from_axis_angle(axis, Rad(angle));
-                    let translation_back = Matrix4::from_translation(v0);
-                    let local_rotation = translation_back * rotation * translation_origin;
+                    // Rotate the neighbour about the shared edge until it lies on
+                    // the plane of the face we arrived from. `l_id` is the loop on
+                    // the neighbour, so the hinge is anchored on its radial partner.
+                    let local_rotation = self.mesh.unfold_hinge_affine(l.radial_next, self.t);
 
                     Some(UnfoldedFace { f: l.f, affine: curr.affine * local_rotation })
                 }),

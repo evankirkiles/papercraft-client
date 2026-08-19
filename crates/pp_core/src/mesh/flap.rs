@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use cgmath::{EuclideanSpace, InnerSpace, Matrix4, Point3, Rad, Transform, Vector3};
+use cgmath::{EuclideanSpace, InnerSpace, Matrix4, Point3, Transform, Vector3};
 
 use crate::{
     id::{FaceId, LoopId, VertexId},
@@ -104,14 +104,8 @@ impl super::Mesh {
         let (v0_id, v1_id) = (self[l.e].v[0], self[l.e].v[1]);
         let (v0, v1) = (self.vert_pos(v0_id), self.vert_pos(v1_id));
 
-        // Rotate the facing face onto this one about the shared edge, by the
-        // signed angle between the two face normals.
-        let axis = (v1 - v0).normalize();
-        let (n_here, n_across) = (Vector3::from(self[l.f].no), Vector3::from(self[across.f].no));
-        let angle = axis.dot(n_across.cross(n_here)).atan2(n_across.dot(n_here)) * t;
-        let local = Matrix4::from_translation(v0)
-            * Matrix4::from_axis_angle(axis, Rad(angle))
-            * Matrix4::from_translation(-v0);
+        // Rotate the facing face onto this one about the shared edge.
+        let local = self.unfold_hinge_affine(l_id, t);
 
         // The anchor is the facing face's one vertex that isn't on the seam.
         let anchor = self
