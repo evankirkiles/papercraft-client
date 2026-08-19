@@ -2,6 +2,7 @@ use make_cuts::MakeCutsCommand;
 use scale_mesh::ScaleMeshCommand;
 use select_elements::SelectCommand;
 use serde::{Deserialize, Serialize};
+use set_print_layout::SetPrintLayoutCommand;
 use std::collections::HashMap;
 use transform_mesh::TransformMeshCommand;
 use transform_pieces::TransformPiecesCommand;
@@ -13,6 +14,7 @@ pub mod clear_cuts;
 pub mod make_cuts;
 pub mod scale_mesh;
 pub mod select_elements;
+pub mod set_print_layout;
 pub mod transform_mesh;
 pub mod transform_pieces;
 pub mod update_flaps;
@@ -204,6 +206,7 @@ pub enum CommandType {
     ClearCuts(ClearCutsCommand),
     MakeCuts(MakeCutsCommand),
     UpdateFlaps(UpdateFlapsCommand),
+    SetPrintLayout(SetPrintLayoutCommand),
 }
 
 impl Command for CommandType {
@@ -216,6 +219,7 @@ impl Command for CommandType {
             CommandType::ClearCuts(cmd) => cmd.execute(state),
             CommandType::MakeCuts(cmd) => cmd.execute(state),
             CommandType::UpdateFlaps(cmd) => cmd.execute(state),
+            CommandType::SetPrintLayout(cmd) => cmd.execute(state),
         }
     }
 
@@ -228,6 +232,7 @@ impl Command for CommandType {
             CommandType::ClearCuts(cmd) => cmd.rollback(state),
             CommandType::MakeCuts(cmd) => cmd.rollback(state),
             CommandType::UpdateFlaps(cmd) => cmd.rollback(state),
+            CommandType::SetPrintLayout(cmd) => cmd.rollback(state),
         }
     }
 }

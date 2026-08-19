@@ -4,7 +4,9 @@ pub mod vector;
 
 use std::collections::BTreeSet;
 
+use serde::{Deserialize, Serialize};
 use slotmap::SlotMap;
+use tsify::Tsify;
 
 pub use image_box::*;
 pub use text_box::*;
@@ -23,7 +25,7 @@ pub const CM_PER_INCH: f32 = 2.54;
 /// piece transform can't make us allocate an enormous page buffer.
 const MAX_PAGES_PER_AXIS: u32 = 64;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Tsify, Serialize, Deserialize)]
 pub enum PageSize {
     #[default]
     A4,
@@ -49,6 +51,31 @@ impl PageSize {
         let Dimensions { width, height } = self.dimensions();
         let px = |cm: f32| (cm / CM_PER_INCH * dpi).round().max(1.0) as u32;
         Dimensions { width: px(width), height: px(height) }
+    }
+}
+
+/// The user-configurable slice of [`PrintLayout`]: everything the 2D settings
+/// panel can change, and nothing that is derived from the pieces.
+///
+/// The page grid (`pages` / `cols` / `rows`) is deliberately excluded — it is
+/// refit from the piece bounds every frame by [`crate::State::fit_pages_to_pieces`],
+/// so it is an output of these settings rather than an input.
+///
+/// Margins are symmetric here: one horizontal and one vertical value, applied
+/// to both the start (top-left) and end (bottom-right) corners of every page.
+#[derive(Debug, Clone, Copy, PartialEq, Tsify, Serialize, Deserialize)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+pub struct PrintLayoutSettings {
+    pub page_size: PageSize,
+    /// Left and right margin, in centimeters
+    pub margin_x: f32,
+    /// Top and bottom margin, in centimeters
+    pub margin_y: f32,
+}
+
+impl Default for PrintLayoutSettings {
+    fn default() -> Self {
+        PrintLayout::default().settings()
     }
 }
 
@@ -121,6 +148,30 @@ impl Default for PrintLayout {
 }
 
 impl PrintLayout {
+    /// The user-configurable subset of this layout.
+    pub fn settings(&self) -> PrintLayoutSettings {
+        PrintLayoutSettings {
+            page_size: self.page_size,
+            margin_x: self.page_margin_start.x,
+            margin_y: self.page_margin_start.y,
+        }
+    }
+
+    /// Overwrites the user-configurable subset of this layout.
+    ///
+    /// Marks the layout dirty so the renderer re-uploads its uniform, which
+    /// carries both the page dimensions and the margins. The page vertex buffer
+    /// holds positions in *page units* rather than centimeters, so it does not
+    /// need rebuilding here; if a new page size changes how many sheets the
+    /// pieces span, the per-frame [`crate::State::fit_pages_to_pieces`] resizes
+    /// the grid and flags `elem_dirty` itself.
+    pub fn apply_settings(&mut self, settings: &PrintLayoutSettings) {
+        self.page_size = settings.page_size;
+        self.page_margin_start = cgmath::Point2 { x: settings.margin_x, y: settings.margin_y };
+        self.page_margin_end = cgmath::Point2 { x: settings.margin_x, y: settings.margin_y };
+        self.is_dirty = true;
+    }
+
     /// Resizes the page grid to the smallest one covering `bounds`, the
     /// unfolded extent of the pieces sitting in the printable quadrant.
     ///

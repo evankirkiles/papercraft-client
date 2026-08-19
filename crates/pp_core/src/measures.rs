@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use tsify::Tsify;
 
 /// Dimensions for screen rects, like the viewport and select box areas
-#[derive(Debug, Default, Clone, Copy, Tsify, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Tsify, Serialize, Deserialize)]
 pub struct Dimensions<T> {
     pub width: T,
     pub height: T,

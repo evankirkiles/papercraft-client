@@ -98,9 +98,9 @@ export default function SettingsMenu() {
       <PopoverContent side="top" align="end" className="w-64">
         <div className="space-y-3">
           <div>
-            <h3 className="font-semibold mb-1">Settings</h3>
+            <h3 className="font-semibold mb-1">Model Settings</h3>
             <p className="text-xs text-muted-foreground">
-              Configure the editor's viewport and display options
+              Configure the model's display and real-world size
             </p>
           </div>
           <div className="space-y-2 text-sm">

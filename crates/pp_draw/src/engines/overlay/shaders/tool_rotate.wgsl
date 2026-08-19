@@ -19,6 +19,9 @@ struct ThemeColors {
   element_selected: vec4<f32>,
   edge_cut: vec4<f32>,
   edge_boundary: vec4<f32>,
+  // The default stroke color for edges carrying no annotation of their own.
+  ink: vec4<f32>,
+  padding: vec4<f32>,
 };
 struct Theme { sizes: ThemeSizes, colors: ThemeColors };
 @group(0) @binding(0) var<uniform> theme: Theme;

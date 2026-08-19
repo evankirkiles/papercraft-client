@@ -1,6 +1,7 @@
 import { CircleHelpIcon, LucideLoader2, LucidePrinter } from "lucide-react";
 import { useState } from "react";
 
+import PageSettingsMenu from "@/components/PageSettingsMenu";
 import SettingsMenu from "@/components/SettingsMenu";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
@@ -32,6 +33,7 @@ export default function HelpButton() {
   return (
     <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2">
       <SettingsMenu />
+      <PageSettingsMenu />
       <Button size="sm" onClick={handlePrint} disabled={!engine || isPrinting}>
         {isPrinting ? (
           <LucideLoader2 className="animate-spin" />

@@ -58,5 +58,6 @@ define_theme_colors! {
     element_selected: "#ffa500",
     edge_cut: "#ff0000",
     edge_boundary: "#000000",
+    ink: "#000000",
     padding: "#000000"
 }

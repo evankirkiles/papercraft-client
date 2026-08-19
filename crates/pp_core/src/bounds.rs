@@ -119,7 +119,7 @@ impl State {
     /// `faces_only` narrows this to faces, so leftovers from an earlier
     /// vertex- or edge-mode selection don't count as a selection while the
     /// user is working with faces or pieces.
-    fn selection_is_empty(&self, faces_only: bool) -> bool {
+    pub fn selection_is_empty(&self, faces_only: bool) -> bool {
         self.selection.faces.is_empty()
             && (faces_only || (self.selection.verts.is_empty() && self.selection.edges.is_empty()))
     }

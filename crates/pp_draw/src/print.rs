@@ -14,6 +14,8 @@
 
 use std::{cell::RefCell, iter, rc::Rc};
 
+use hex_color::HexColor;
+
 use pp_core::{
     measures::{Dimensions, Rect},
     print::PageSize,
@@ -45,6 +47,16 @@ pub const DEFAULT_PRINT_DPI: f32 = 300.0;
 /// theme pixel a tenth of a millimeter on paper, so the thick strokes land
 /// near 0.4mm: crisp, and thin enough to cut along accurately.
 const PRINT_STROKE_REFERENCE_DPI: f32 = 254.0;
+
+/// The shade the printout's unannotated edges are inked in.
+///
+/// On screen these are black against a dark viewport, where they read as
+/// hairlines. On white paper the same black is the heaviest mark on the page -
+/// louder than the piece it describes, and still plainly there after the model
+/// is folded up. A mid grey stays easy to fold and cut along while sitting back
+/// behind the artwork, and survives the printer's own dot gain better than a
+/// lighter tint would.
+const PRINT_INK: HexColor = HexColor::rgb(0x55, 0x55, 0x55);
 
 /// Print renders without MSAA. A pixel at print resolution is already far finer
 /// than antialiasing could usefully resolve - at 300 DPI it is 0.085mm, below
@@ -235,8 +247,11 @@ impl PrintTarget {
             ],
         });
 
-        let overrides =
-            ThemeOverrides { stroke_scale: dpi / PRINT_STROKE_REFERENCE_DPI, selection: false };
+        let overrides = ThemeOverrides {
+            stroke_scale: dpi / PRINT_STROKE_REFERENCE_DPI,
+            selection: false,
+            ink: Some(PRINT_INK),
+        };
         Ok(Self {
             size,
             padded_width,

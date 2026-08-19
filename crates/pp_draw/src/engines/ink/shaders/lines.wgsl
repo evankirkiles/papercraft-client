@@ -19,6 +19,9 @@ struct ThemeColors {
   element_selected: vec4<f32>,
   edge_cut: vec4<f32>,
   edge_boundary: vec4<f32>,
+  // The default stroke color for edges carrying no annotation of their own.
+  ink: vec4<f32>,
+  padding: vec4<f32>,
 };
 struct Theme { sizes: ThemeSizes, colors: ThemeColors };
 @group(0) @binding(0) var<uniform> theme: Theme;
@@ -99,7 +102,7 @@ const FLAG_HAS_FLAP: u32 = (u32(1) << 8);
 // Calculates the colors of edges as would be seen on-screen.
 fn _vs_color(in: VertexInput, _out: VertexOutput) -> VertexOutput {
     var out = _out;
-    out.color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
+    out.color = theme.colors.ink;
 
     // Color the line (each vertex) based on its select status
     if (theme.sizes.selection > 0.0) {

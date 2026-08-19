@@ -132,13 +132,21 @@ impl Editor {
         });
     }
 
-    /// Starts a framing move in every viewport's camera *except* the hovered
-    /// one, bringing the current selection into view. With nothing selected,
-    /// this frames the whole document instead.
+    /// Starts a framing move that brings the current selection into view.
     ///
-    /// The hovered viewport is left alone deliberately: the user is already
-    /// looking where they want there, and it's the other views that need to
-    /// catch up to what was just selected.
+    /// Which cameras move depends on whether there *is* a selection, because
+    /// the gesture means two different things:
+    ///
+    /// - With something selected, it's "show me this over there": every
+    ///   viewport moves *except* the hovered one. That one is left alone
+    ///   deliberately - the user is already looking where they want there, and
+    ///   it's the other views that need to catch up to what was just selected.
+    /// - With nothing selected, there is no "this" to show elsewhere, so it
+    ///   reads as "fit what I'm looking at" and only the hovered viewport
+    ///   moves, framing the whole document in its own space.
+    ///
+    /// With no viewport hovered there is nothing to single out either way, so
+    /// every camera frames the document.
     ///
     /// The two viewport kinds draw the document in different spaces - folded
     /// meshes vs. unfolded pieces - so each derives its own bounds.
@@ -158,10 +166,13 @@ impl Editor {
         let piece_bounds = state.selection_piece_bounds(faces_only);
         let fit_radius = state.world_bounds().bounding_radius();
         let active = self.active_viewport;
+        // An empty selection flips which side of the hovered/not-hovered split
+        // gets framed; see the doc comment above.
+        let frame_active = state.selection_is_empty(faces_only);
         self.layout
             .viewports
             .iter_mut()
-            .filter(|(v_id, _)| active.is_none_or(|active| *v_id != active))
+            .filter(|(v_id, _)| active.is_none_or(|active| (*v_id == active) == frame_active))
             .for_each(|(_, viewport)| {
                 let aspect = viewport.aspect();
                 match &mut viewport.content {
@@ -314,7 +325,12 @@ mod tests {
 
     #[test]
     fn framing_leaves_the_hovered_viewport_alone() {
-        let state = pp_core::State::with_cube();
+        // Something has to be selected: with an empty selection the gesture
+        // means the opposite, and frames the hovered viewport instead.
+        let mut state = pp_core::State::with_cube();
+        let m_id = state.meshes.keys().next().unwrap();
+        state.select_face(&(m_id, FaceId::from_usize(4)), SelectionActionType::Select, false, true);
+
         let mut editor = editor(); // hovering the cutting viewport
         let before = cutting_camera(&editor);
 
@@ -346,12 +362,26 @@ mod tests {
         assert!(cutting_camera(&editor).animation.is_some());
     }
 
+    /// With nothing selected, `.` is a "fit what I'm looking at" gesture, so it
+    /// frames the hovered viewport - the exact opposite of the selected case.
     #[test]
-    fn framing_an_empty_selection_falls_back_to_the_document() {
-        let state = pp_core::State::with_cube();
+    fn framing_an_empty_selection_frames_the_hovered_viewport() {
+        // A lone triangle, so both viewports have something to frame
+        let mut state = pp_core::State::default();
+        let m_id = state.meshes.insert(pp_core::mesh::Mesh::new_tri());
+        state.meshes[m_id].expand_piece(FaceId::from_usize(0)).unwrap();
         assert!(state.selection.faces.is_empty());
 
+        // Hovering the *folding* viewport, so the camera under test is the one
+        // the other tests treat as the bystander.
         let mut editor = editor();
+        editor.active_viewport = editor
+            .layout
+            .viewports
+            .iter()
+            .find(|(_, v)| matches!(v.content, viewport::ViewportContent::Folding(_)))
+            .map(|(id, _)| id);
+
         editor.frame_selection(&state);
         editor.tick_cameras(1000.0);
 
@@ -360,5 +390,25 @@ mod tests {
         assert!(camera.target.distance(cgmath::Point3::from_vec(bounds.center())) < 1e-4);
         // Far enough back to see the whole thing
         assert!(camera.eye.distance(camera.target) > bounds.bounding_radius());
+        // ...and the viewport the user is *not* looking at stayed put
+        assert!(cutting_camera(&editor).animation.is_none());
+    }
+
+    /// The empty-selection case still frames every camera when the pointer is
+    /// outside the viewports, since there is no hovered one to single out.
+    #[test]
+    fn framing_an_empty_selection_without_a_hovered_viewport_frames_every_one() {
+        let mut state = pp_core::State::default();
+        let m_id = state.meshes.insert(pp_core::mesh::Mesh::new_tri());
+        state.meshes[m_id].expand_piece(FaceId::from_usize(0)).unwrap();
+        assert!(state.selection.faces.is_empty());
+
+        let mut editor = editor();
+        editor.active_viewport = None;
+
+        editor.frame_selection(&state);
+
+        assert!(folding_camera(&editor).animation.is_some());
+        assert!(cutting_camera(&editor).animation.is_some());
     }
 }

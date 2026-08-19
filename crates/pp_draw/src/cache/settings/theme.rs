@@ -12,7 +12,7 @@ impl ThemeUniform {
     pub fn new(value: &Theme, overrides: &ThemeOverrides) -> Self {
         Self {
             sizes: ThemeSizesUniform::new(&value.sizes, overrides),
-            colors: (&value.colors).into(),
+            colors: ThemeColorsUniform::new(&value.colors, overrides),
         }
     }
 
@@ -43,11 +43,19 @@ pub struct ThemeOverrides {
     pub stroke_scale: f32,
     /// Whether selected and active elements are highlighted at all.
     pub selection: bool,
+    /// Replaces the colors that are otherwise pitch black - the default edge
+    /// ink and the piece silhouette - with a softer shade. `None` leaves the
+    /// user's theme colors alone.
+    ///
+    /// Annotated edges keep their own color: a cut line is red because that is
+    /// what tells it apart from a fold, and washing it out would cost more than
+    /// the softer look gains.
+    pub ink: Option<HexColor>,
 }
 
 impl Default for ThemeOverrides {
     fn default() -> Self {
-        Self { stroke_scale: 1.0, selection: true }
+        Self { stroke_scale: 1.0, selection: true, ink: None }
     }
 }
 
@@ -111,17 +119,27 @@ macro_rules! define_theme_colors_gpu {
             $($name: [f32; 4],)*
         }
 
-        impl From<&ThemeColors> for ThemeColorsUniform {
-            fn from(value: &ThemeColors) -> Self {
-                Self {
+        impl ThemeColorsUniform {
+            fn new(value: &ThemeColors, overrides: &ThemeOverrides) -> Self {
+                let mut colors = Self {
                     $($name: hex_color_to_f32(&value.$name),)*
+                };
+                if let Some(ink) = overrides.ink {
+                    let ink = hex_color_to_f32(&ink);
+                    colors.ink = ink;
+                    colors.edge_boundary = ink;
                 }
+                colors
             }
         }
     };
 }
 
-// This needs to have an even number of items for alignment reasons
+// This needs to have an even number of items for alignment reasons.
+//
+// The order has to match the `struct ThemeColors` every shader declares, since
+// that is what decides which color lands in which slot - the names only line
+// the fields up with [`ThemeColors`] on the Rust side.
 define_theme_colors_gpu! {
     background,
     grid,
@@ -130,5 +148,8 @@ define_theme_colors_gpu! {
     element_active,
     element_selected,
     edge_cut,
+    edge_boundary,
+    ink,
     padding
 }
+

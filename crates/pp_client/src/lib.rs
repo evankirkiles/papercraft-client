@@ -4,7 +4,7 @@ use event::{
     ExternalEventHandleSuccess, PressedState, UserEvent,
 };
 use keyboard::ModifierKeys;
-use pp_core::measures::Dimensions;
+use pp_core::{measures::Dimensions, print::PrintLayoutSettings};
 use pp_editor::SplitId;
 use pp_save::{load::Loadable, SaveFile};
 use serde::{Deserialize, Serialize};
@@ -334,6 +334,19 @@ impl App {
         self.editor.is_dirty = true;
     }
 
+    /// Toggles between lined and lineless mode: whether mountain / valley folds
+    /// are stroked at all, or only the piece silhouette is.
+    ///
+    /// This is a display preference rather than document state, so - like x-ray
+    /// mode - it is client-local and not undoable.
+    pub fn set_fold_lines(&mut self, fold_lines: bool) {
+        self.editor.preferences.theme.sizes.fold_lines = fold_lines;
+        // The theme lives in a GPU uniform, so it needs a re-upload...
+        self.editor.preferences.is_dirty = true;
+        // ...and the snapshot needs to be re-pushed for the UI to follow it.
+        self.editor.is_dirty = true;
+    }
+
     /// Applies an incremental uniform scale factor to every mesh in the
     /// document, e.g. `new_scale / old_scale` computed by the caller.
     pub fn scale_mesh(&mut self, factor: f32) {
@@ -347,6 +360,30 @@ impl App {
             .borrow_mut()
             .execute(&mut self.state.borrow_mut(), cmd)
             .expect("scale_mesh command should never fail");
+    }
+
+    /// The user-configurable part of the print layout: page size and margins.
+    ///
+    /// This lives on `pp_core::State` rather than the editor, so it isn't part
+    /// of the pushed editor snapshot - callers poll it, the same way they poll
+    /// `get_mesh_bounds`. That also means it tracks undo / redo for free.
+    pub fn get_print_layout(&self) -> PrintLayoutSettings {
+        self.state.borrow().printing.settings()
+    }
+
+    /// Overwrites the page size and margins, as an undoable command.
+    pub fn set_print_layout(&mut self, settings: PrintLayoutSettings) {
+        let before = self.state.borrow().printing.settings();
+        if before == settings {
+            return;
+        }
+        let cmd = pp_core::CommandType::SetPrintLayout(
+            pp_core::commands::set_print_layout::SetPrintLayoutCommand { before, after: settings },
+        );
+        self.history
+            .borrow_mut()
+            .execute(&mut self.state.borrow_mut(), cmd)
+            .expect("set_print_layout command should never fail");
     }
 
     /// Returns the real-world dimensions of the document's world-space
